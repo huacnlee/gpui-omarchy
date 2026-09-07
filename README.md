@@ -106,7 +106,7 @@ Wrap a window or form in `focus_scope("root")` to enable Tab and Shift+Tab trave
 
 `color_picker(id, &state, window, cx)` uses base ColorPickerState with Hex input and HSLA sliders. Enter commits Hex input; Escape discards an uncommitted preview. Sliders apply immediately. Observe the state or subscribe to ColorPickerEvent to update application previews.
 
-`date_picker(id, &state, cx)` uses DatePickerState. Its public calendar state supports ranges and disabled dates. Selecting a date closes the popup; Escape cancels and restores focus. `otp_input` uses base OtpState.
+`date_picker(id, &state, cx)` uses DatePickerState. Its public calendar state supports ranges and disabled dates. Selecting a date closes the popup; Escape cancels and restores focus. `otp_input` uses base OtpState with an Omarchy wrapper for system clipboard paste and disabled interaction. Pasting replaces the code, filters non-digits, normalizes full-width digits, and truncates to the configured length.
 
 `hover_card` provides a delayed supplementary preview; essential content should also be accessible on the main page. `dock_area` installs the Omarchy DockAreaRenderer. Its example demonstrates dragging, merging and splitting tabbed panels. Docking supports tabs and split layouts; floating layouts are not offered.
 

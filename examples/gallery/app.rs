@@ -1722,28 +1722,27 @@ impl Gallery {
         cx: &mut Context<Self>,
     ) -> gpui::Div {
         let t = cx.omarchy().clone();
-        content =
-            content
-                .child("Verification code")
-                .child(otp_input(&self.otp_state, window, cx))
-                .child(div().text_color(t.secondary).child(
-                    "Demo only — no code is sent. Type six digits; Backspace removes a digit.",
-                ))
-                .child(if self.otp_state.read(cx).value().len() == 6 {
-                    "Code complete"
-                } else {
-                    "Waiting for six digits"
-                })
-                .child(
-                    button("reset-otp", "Reset code", ButtonVariant::Outline, cx).on_click(
-                        cx.listener(|this, _, window, cx| {
-                            this.otp_state.update(cx, |state, cx| {
-                                state.set_value("", window, cx);
-                                state.focus(window, cx);
-                            })
-                        }),
-                    ),
-                );
+        content = content
+            .child("Verification code")
+            .child(otp_input(&self.otp_state, window, cx))
+            .child(div().text_color(t.secondary).child(
+                "Demo only — no code is sent. Type or paste six digits; Backspace removes a digit.",
+            ))
+            .child(if self.otp_state.read(cx).value().len() == 6 {
+                "Code complete"
+            } else {
+                "Waiting for six digits"
+            })
+            .child(
+                button("reset-otp", "Reset code", ButtonVariant::Outline, cx).on_click(
+                    cx.listener(|this, _, window, cx| {
+                        this.otp_state.update(cx, |state, cx| {
+                            state.set_value("", window, cx);
+                            state.focus(window, cx);
+                        })
+                    }),
+                ),
+            );
         content
     }
     fn render_button_group_page(

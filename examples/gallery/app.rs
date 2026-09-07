@@ -163,6 +163,8 @@ struct Gallery {
     slider_range: Entity<gpui_base::slider::SliderState>,
     slider_disabled: Entity<gpui_base::slider::SliderState>,
     navigation_focus: FocusHandle,
+    navigation_list: gpui::ListState,
+    navigation_rows: Vec<(bool, &'static str)>,
     expanded: [bool; 3],
     collapse_open: bool,
     toast_message: Option<&'static str>,
@@ -348,6 +350,17 @@ impl Gallery {
             slider_range,
             slider_disabled,
             navigation_focus: cx.focus_handle(),
+            navigation_list: gpui::ListState::new(
+                GROUPS.len() + components().count(),
+                gpui::ListAlignment::Top,
+                px(100.),
+            ),
+            navigation_rows: GROUPS
+                .iter()
+                .flat_map(|(group, items)| {
+                    std::iter::once((true, *group)).chain(items.iter().map(|&name| (false, name)))
+                })
+                .collect(),
             expanded: [true, false, false],
             collapse_open: false,
             toast_message: None,
@@ -2959,7 +2972,7 @@ impl Render for Gallery {
             .w(px(sidebar_width))
             .h_full()
             .flex_shrink_0()
-            .overflow_y_scroll()
+            .overflow_hidden()
             .border_r_1()
             .border_color(t.divider())
             .bg(t.background)
@@ -2981,49 +2994,66 @@ impl Render for Gallery {
                     _ => return,
                 };
                 this.page = items[next];
+                if let Some(index) = this
+                    .navigation_rows
+                    .iter()
+                    .position(|&(header, name)| !header && name == this.page)
+                {
+                    this.navigation_list.scroll_to_reveal_item(index);
+                }
                 cx.stop_propagation();
                 cx.notify();
             }))
-            .children(GROUPS.iter().map(|(group, items)| {
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap(px(2.))
-                    .mb(px(12.))
-                    .child(
-                        div()
-                            .px(px(8.))
-                            .py(px(6.))
-                            .text_size(px(10.))
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(t.secondary)
-                            .child(*group),
-                    )
-                    .children(items.iter().map(|&name| {
-                        let selected = self.page == name;
-                        button(name, display_name(name), ButtonVariant::Secondary, cx)
-                            .w_full()
-                            .justify_start()
-                            .px(px(8.))
-                            .py(px(5.))
-                            .border_color(t.foreground.opacity(0.))
-                            .selected(selected)
-                            .focusable(false)
-                            .styles(|styles| {
-                                styles.selected(|style| {
-                                    style
-                                        .bg(t.hover_fill())
-                                        .text_color(t.accent)
-                                        .font_weight(FontWeight::NORMAL)
-                                })
-                            })
-                            .on_click(cx.listener(move |this, _, window, cx| {
-                                this.page = name;
-                                window.focus(&this.navigation_focus, cx);
-                                cx.notify();
-                            }))
-                    }))
-            }));
+            .child(
+                gpui::list(self.navigation_list.clone(), {
+                    let view = cx.entity();
+                    move |index, _, cx| {
+                        view.update(cx, |this, cx| {
+                            let (header, name) = this.navigation_rows[index];
+                            let t = cx.omarchy().clone();
+                            if header {
+                                return div()
+                                    .mt(px(if index == 0 { 0. } else { 12. }))
+                                    .mb(px(2.))
+                                    .px(px(8.))
+                                    .py(px(6.))
+                                    .text_size(px(10.))
+                                    .font_weight(FontWeight::BOLD)
+                                    .text_color(t.secondary)
+                                    .child(name)
+                                    .into_any_element();
+                            }
+                            div()
+                                .pb(px(2.))
+                                .child(
+                                    button(name, display_name(name), ButtonVariant::Secondary, cx)
+                                        .w_full()
+                                        .justify_start()
+                                        .px(px(8.))
+                                        .py(px(5.))
+                                        .border_color(t.foreground.opacity(0.))
+                                        .selected(this.page == name)
+                                        .focusable(false)
+                                        .styles(|styles| {
+                                            styles.selected(|style| {
+                                                style
+                                                    .bg(t.hover_fill())
+                                                    .text_color(t.accent)
+                                                    .font_weight(FontWeight::NORMAL)
+                                            })
+                                        })
+                                        .on_click(cx.listener(move |this, _, window, cx| {
+                                            this.page = name;
+                                            window.focus(&this.navigation_focus, cx);
+                                            cx.notify();
+                                        })),
+                                )
+                                .into_any_element()
+                        })
+                    }
+                })
+                .size_full(),
+            );
         focus_scope("gallery")
             .relative()
             .debug_selector(|| "gallery-root".into())
@@ -3500,9 +3530,17 @@ mod tests {
         cx.simulate_keystrokes("j");
         cx.update(|_, cx| assert_eq!(view.read(cx).page, "button"));
         cx.simulate_keystrokes("end");
-        cx.update(|_, cx| assert_eq!(view.read(cx).page, "progress"));
+        cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+            assert_eq!(view.read(cx).page, "progress");
+            assert!(view.read(cx).navigation_list.logical_scroll_top().item_ix > 0);
+        });
         cx.simulate_keystrokes("home");
-        cx.update(|_, cx| assert_eq!(view.read(cx).page, "overview"));
+        cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+            assert_eq!(view.read(cx).page, "overview");
+            assert!(view.read(cx).navigation_list.logical_scroll_top().item_ix <= 1);
+        });
         cx.update(|window, cx| {
             view.update(cx, |this, cx| {
                 this.page = "input";

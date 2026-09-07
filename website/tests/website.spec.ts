@@ -54,7 +54,7 @@ test('the homepage runs the real WebAssembly gallery', async ({page}) => {
     }, [...png]);
   }, {timeout:30_000}).toBeGreaterThan(30);
   const overview = await canvas.screenshot();
-  await canvas.click({position:{x:40,y:164}, delay:100});
+  await canvas.click({position:{x:40,y:150}, delay:100});
   await page.mouse.move(0,0);
   await expect.poll(async()=>!(await canvas.screenshot()).equals(overview)).toBe(true);
   await expect(gallery.locator('#loading')).toHaveCount(0);

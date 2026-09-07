@@ -1,10 +1,10 @@
 # gpui-omarchy
 
-**gpui-omarchy is a gpui-kit component library designed specifically for the Omarchy system.** It follows Omarchy’s UI and UX conventions, helping developers build desktop applications that feel at home in Omarchy.
+**gpui-omarchy is a [gpui-kit](https://gpui-kit.com/) component library designed specifically for the Omarchy system.** It follows Omarchy’s UI and UX conventions, helping developers build desktop applications that feel at home in Omarchy.
 
-The library brings Omarchy’s system themes, restrained visual style and keyboard-first interactions to reusable GPUI components. Built on **gpui-base**, it combines Omarchy presentation with shared focus, input, accessibility and composition primitives.
+The library brings Omarchy’s system themes, restrained visual style and keyboard-first interactions to reusable GPUI components. Built on **[gpui-base](https://gpui-kit.com/base/)**, it combines Omarchy presentation with shared focus, input, accessibility and composition primitives.
 
-It also serves as a practical proving ground for **gpui-base’s customization capabilities**: building a complete Omarchy design system tests how freely applications can define their own visual identity and interaction patterns on top of base primitives. The project demonstrates that a shared behavioral foundation can support a fully custom design language, while exposing gaps to improve in gpui-base.
+It also serves as a practical proving ground for **[gpui-base’s customization capabilities](https://gpui-kit.com/base/)**: building a complete Omarchy design system tests how freely applications can define their own visual identity and interaction patterns on top of base primitives. The project demonstrates that a shared behavioral foundation can support a fully custom design language, while exposing gaps to improve in gpui-base.
 
 The project is under development, with 48 component previews in one gallery. Form, navigation, overlay and data components are still being expanded; the framework is not yet complete.
 

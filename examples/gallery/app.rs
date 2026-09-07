@@ -192,6 +192,7 @@ struct Gallery {
     calendar_state: Entity<gpui_base::CalendarState>,
     tree_state: Entity<gpui_base::TreeState>,
     otp_state: Entity<gpui_base::OtpState>,
+    otp_disabled: bool,
     color_state: Entity<gpui_base::ColorPickerState>,
     nav_state: Entity<gpui_base::NavStackState>,
     date_picker_state: Entity<DatePickerState>,
@@ -322,6 +323,7 @@ impl Gallery {
             color_state,
             nav_state,
             otp_state,
+            otp_disabled: false,
             tree_state,
             calendar_state,
             select_choice,
@@ -1724,7 +1726,7 @@ impl Gallery {
         let t = cx.omarchy().clone();
         content = content
             .child("Verification code")
-            .child(otp_input(&self.otp_state, window, cx))
+            .child(otp_input(&self.otp_state, window, cx).disabled(self.otp_disabled))
             .child(div().text_color(t.secondary).child(
                 "Demo only — no code is sent. Type or paste six digits; Backspace removes a digit.",
             ))
@@ -1734,14 +1736,36 @@ impl Gallery {
                 "Waiting for six digits"
             })
             .child(
-                button("reset-otp", "Reset code", ButtonVariant::Outline, cx).on_click(
-                    cx.listener(|this, _, window, cx| {
-                        this.otp_state.update(cx, |state, cx| {
-                            state.set_value("", window, cx);
-                            state.focus(window, cx);
-                        })
-                    }),
-                ),
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.))
+                    .child(
+                        button("reset-otp", "Reset code", ButtonVariant::Outline, cx)
+                            .disabled(self.otp_disabled)
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.otp_state.update(cx, |state, cx| {
+                                    state.set_value("", window, cx);
+                                    state.focus(window, cx);
+                                })
+                            })),
+                    )
+                    .child(
+                        button(
+                            "toggle-otp-disabled",
+                            if self.otp_disabled {
+                                "Enable input"
+                            } else {
+                                "Disable input"
+                            },
+                            ButtonVariant::Outline,
+                            cx,
+                        )
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.otp_disabled = !this.otp_disabled;
+                            cx.notify();
+                        })),
+                    ),
             );
         content
     }

@@ -57,9 +57,9 @@ Popover now includes internal keyboard isolation and focus recovery. Collapsible
 provides a controlled single region. Toast provides the base notification surface
 and a bottom-right example with Undo/Retry actions. Saved notifications expire
 after six seconds; hover/focus pauses expiry, errors persist, and replacement
-restarts the timeout. Multi-notification stacking remains to be integrated.
-This is partial progress: notification lifecycle integration and specialized
-components remain, along with system structural
+restarts the timeout. Save and sync notifications now use independent keys and stack as fully visible
+right-bottom cards; dismissing or expiring one preserves the other.
+This is partial progress: specialized component audits remain, along with system structural
 scaling and a complete visual/interaction audit.
 
 

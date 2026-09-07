@@ -1,9 +1,15 @@
 use gpui::{
-    App, Bounds, ClickEvent, Context, Entity, FocusHandle, FontWeight, KeyDownEvent, Window,
-    WindowBounds, WindowOptions, div, prelude::*, px, size,
+    App, ClickEvent, Context, Entity, FocusHandle, FontWeight, KeyDownEvent, Window, WindowOptions,
+    div, prelude::*, px, size,
 };
+#[cfg(not(target_family = "wasm"))]
+use gpui::{Bounds, WindowBounds};
 use gpui_base::CheckboxState;
 use gpui_omarchy::*;
+#[cfg(not(target_family = "wasm"))]
+use std::time::Instant as GalleryInstant;
+#[cfg(target_family = "wasm")]
+use web_time::Instant as GalleryInstant;
 
 const GROUPS: &[(&str, &[&str])] = &[
     ("Explore", &["overview"]),
@@ -359,9 +365,7 @@ impl Gallery {
             number,
             input,
             textarea,
-            page: components()
-                .find(|name| std::env::args().nth(1).as_deref() == Some(*name))
-                .unwrap_or("overview"),
+            page: initial_page(),
             count: 0,
             checked: true,
             mixed: false,
@@ -544,8 +548,9 @@ impl Gallery {
     fn reset_form(&self, modal: bool, cx: &mut Context<Self>) -> gpui::Div {
         let t = cx.omarchy();
         div().flex().flex_col().gap(px(18.))
-            .child(icon(IconName::TriangleAlert).size(px(24.)).text_color(t.danger))
-            .child(dialog_title("Reset workspace settings?", cx))
+            .child(div().flex().items_center().gap(px(10.))
+                .child(icon(IconName::TriangleAlert).size(px(20.)).text_color(t.danger))
+                .child(dialog_title("Reset workspace settings?", cx)))
             .child(dialog_description(format!("The custom name “{}” will be replaced with “Personal workspace”. Your files will stay in place.", self.saved_workspace), cx))
             .child(div().flex().justify_end().gap(px(8.))
                 .child(dialog_button(if modal { "modal-cancel" } else { "specimen-cancel" }, "Cancel", ButtonVariant::Secondary, cx)
@@ -2108,7 +2113,7 @@ impl Gallery {
         content = content.child(sections);
         content
     }
-    fn advance_toast(&mut self, now: std::time::Instant, cx: &mut Context<Self>) {
+    fn advance_toast(&mut self, now: GalleryInstant, cx: &mut Context<Self>) {
         let change = self
             .toast_lifecycle
             .advance(now, self.toast_hovered || self.toast_focused);
@@ -2123,7 +2128,7 @@ impl Gallery {
     }
 
     fn dismiss_toast_id(&mut self, id: u8, cx: &mut Context<Self>) {
-        let now = std::time::Instant::now();
+        let now = GalleryInstant::now();
         self.toast_lifecycle.dismiss(&id, now);
         self.toast_lifecycle.advance(now, false);
         self.toast_message = self
@@ -2140,7 +2145,7 @@ impl Gallery {
     }
 
     fn show_toast(&mut self, message: &'static str, cx: &mut Context<Self>) {
-        let now = std::time::Instant::now();
+        let now = GalleryInstant::now();
         self.toast_lifecycle.push(
             if message == "Could not sync workspace" {
                 1
@@ -2174,7 +2179,7 @@ impl Gallery {
                     if this.toast_message.is_none() {
                         return false;
                     }
-                    this.advance_toast(std::time::Instant::now(), cx);
+                    this.advance_toast(GalleryInstant::now(), cx);
                     this.toast_lifecycle
                         .iter()
                         .any(|(_, message, _)| *message != "Could not sync workspace")
@@ -3067,16 +3072,20 @@ impl Render for Gallery {
                                 MenuItem::new("System theme").checked(self.theme_mode == 0),
                                 MenuItem::new("Tokyo Night").checked(self.theme_mode == 1),
                                 MenuItem::new("Flexoki Light").checked(self.theme_mode == 2),
-                                MenuItem::new("Exit").separator_before(),
+                                MenuItem::new("Exit")
+                                    .separator_before()
+                                    .disabled(cfg!(target_family = "wasm")),
                             ],
                             {
                                 let target = cx.entity();
                                 move |index, _, cx| {
                                     target.update(cx, |this, cx| {
                                         match index {
-                                            0 => Theme::system_or_default().apply(cx),
-                                            1 => Theme::tokyo_night().apply(cx),
-                                            2 => Theme::flexoki_light().apply(cx),
+                                            0 => {
+                                                apply_gallery_theme(Theme::system_or_default(), cx)
+                                            }
+                                            1 => apply_gallery_theme(Theme::tokyo_night(), cx),
+                                            2 => apply_gallery_theme(Theme::flexoki_light(), cx),
                                             _ => {
                                                 cx.quit();
                                                 return;
@@ -3332,6 +3341,7 @@ impl gpui::Render for NavigationPage {
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
 fn install_panic_report() {
     let previous = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -3357,6 +3367,7 @@ fn install_panic_report() {
     }));
 }
 
+#[cfg(not(target_family = "wasm"))]
 pub fn run() {
     install_panic_report();
     gpui_platform::application().run(move |cx| {
@@ -3377,6 +3388,35 @@ pub fn run() {
         .expect("open component gallery");
         cx.activate(true);
     });
+}
+
+fn initial_page() -> &'static str {
+    #[cfg(not(target_family = "wasm"))]
+    if let Some(page) = components().find(|name| std::env::args().nth(1).as_deref() == Some(*name))
+    {
+        return page;
+    }
+    "overview"
+}
+
+fn apply_gallery_theme(theme: Theme, cx: &mut App) {
+    #[cfg(target_family = "wasm")]
+    let theme = Theme {
+        font: "Inter Variable".into(),
+        ..theme
+    };
+    theme.apply(cx);
+}
+
+#[cfg(target_family = "wasm")]
+pub fn open_web_gallery(cx: &mut App) {
+    gpui_omarchy::init(cx);
+    apply_gallery_theme(Theme::tokyo_night(), cx);
+    cx.open_window(WindowOptions::default(), |window, cx| {
+        cx.new(|cx| Gallery::new(window, cx))
+    })
+    .expect("open web component gallery");
+    cx.activate(true);
 }
 
 fn change<T>(

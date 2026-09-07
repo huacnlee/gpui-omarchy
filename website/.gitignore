@@ -3,3 +3,4 @@ dist/
 .astro/
 test-results/
 playwright-report/
+public/gallery/wasm/

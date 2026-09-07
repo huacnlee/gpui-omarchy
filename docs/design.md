@@ -113,3 +113,10 @@ interaction tests pass. A current native build opened the DatePicker popup with
 its accessibility tree active without the duplicate-focus panic. Further native
 month navigation and selection checks remain pending after conflicting window
 changes interrupted the automation session.
+
+The website embeds the same gallery source through `examples/gallery-wasm`,
+using gpui-base and gpui-omarchy directly. Its single-threaded GPUI Web backend
+runs without cross-origin isolation; font loading and time sources have
+target-specific adaptations. The browser uses bundled Inter because native
+system fonts are unavailable. Icons embed the same GPUI Kit SVGs for immediate
+first paint. The website's former HTML component simulation has been removed.

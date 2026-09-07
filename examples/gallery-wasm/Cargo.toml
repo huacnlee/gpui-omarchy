@@ -1,0 +1,30 @@
+[package]
+name = "gpui-omarchy-gallery-wasm"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+gpui-omarchy = { path = "../.." }
+gpui = { package = "gpui-pre", version = "=0.3.1" }
+gpui-base = "=0.6.0"
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.1" }
+chrono = "0.4.45"
+wasm-bindgen = "=0.2.121"
+web-time = "1"
+
+[profile.release]
+lto = "thin"
+opt-level = "s"
+debug = false
+
+# gpui-pre-macros 0.3.1 leaves a helper ungated in release builds while its
+# module is gated on debug_assertions. Keep this host proc-macro's module
+# enabled without enabling the runtime inspector in the gallery.
+[profile.release.package.gpui-pre-macros]
+debug-assertions = true

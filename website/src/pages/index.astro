@@ -1,7 +1,6 @@
 ---
 import '../styles/global.css';
 import { Code } from 'astro:components';
-import ComponentWorkbench from '../components/ComponentWorkbench';
 import ThemeMenu from '../components/ThemeMenu';
 import CopyButton from '../components/CopyButton';
 import { componentGroups } from '../data/components';
@@ -23,7 +22,7 @@ panel("Workspace", cx).child(
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A gpui-kit component library designed for Omarchy. Native Rust components, system themes, and the freedom of gpui-base." />
-    <title>GPUI Omarchy — GPUI Kit, styled for Omarchy.</title>
+    <title>GPUI Omarchy — Native components built on gpui-base.</title>
     <script is:inline>
       try { const theme=localStorage.getItem('gpui-omarchy-theme'); if(['tokyo-night','flexoki-light','catppuccin'].includes(theme)) document.documentElement.dataset.theme=theme; } catch {}
     </script>
@@ -42,17 +41,18 @@ panel("Workspace", cx).child(
     <main id="main" class="shell">
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-brand"><span class="hero-gpui">GPUI /</span><span class="wordmark" style={`--wordmark-url:url("${asset('brand/omarchy-wordmark.svg')}")`} role="img" aria-label="Omarchy"></span></div>
-        <h1 id="hero-title">GPUI Kit. Styled for Omarchy.</h1>
-        <p class="lead">Built on <a class="text-link" href="https://gpui-kit.com/">GPUI Kit</a>, powered by <a class="text-link" href="https://gpui-kit.com/base/">gpui-base</a>, and shaped by <a class="text-link" href="https://github.com/huacnlee/omarchy-style">Omarchy Style</a>.<br class="hidden sm:block" /> Native components that show how far custom design can go.</p>
+        <h1 id="hero-title">GPUI Omarchy</h1>
+        <p class="lead">A native Rust component library built on <a class="text-link" href="https://gpui-kit.com/base/">gpui-base</a>, designed for the Omarchy desktop.<br class="hidden sm:block" /> Part of the <a class="text-link" href="https://gpui-kit.com/">GPUI Kit</a> ecosystem. Guided by <a class="text-link" href="https://github.com/huacnlee/omarchy-style">Omarchy Style</a>.</p>
         <div class="actions"><a class="button primary" href="#start">Build with Omarchy</a><a class="button" href="#components">Explore components</a></div>
         <p class="hero-note">Rust + GPUI · Open source · MIT licensed</p>
       </section>
-      <section class="workbench-section" aria-label="Interactive component preview">
-        <ComponentWorkbench client:load />
-        <div class="specimen-caption"><span>Try the controls. Change the theme. Make yourself at home.</span><a class="text-link" href="#native-gallery">See the native gallery</a></div>
+      <section class="live-gallery" aria-label="Live GPUI Omarchy gallery">
+        <div class="gallery-toolbar"><span>Component gallery</span><a class="text-link" href={asset('gallery/index.html')} target="_blank" rel="noopener">Open gallery ↗</a></div>
+        <iframe src={asset('gallery/index.html')} title="GPUI Omarchy component gallery running in WebAssembly" loading="lazy" allow="clipboard-read; clipboard-write"></iframe>
+        <p class="gallery-caption">The Rust gallery, running in your browser with WebAssembly. <a class="text-link" href={`${repo}/tree/feat/omarchy-components-gallery/examples/gallery`}>View example source</a></p>
       </section>
       <section class="section split" id="foundation">
-        <div><h2>GPUI Kit at the core.<br />Omarchy in every detail.</h2><p>Omarchy is more than a palette. It's the relationship between quiet surfaces, clear edges, and the work in front of you.</p><p>GPUI Omarchy explores how far <a class="text-link" href="https://gpui-kit.com/base/">gpui-base</a> can go: shared behavior, freely customized presentation.</p></div>
+        <div><h2>Built on gpui-base.<br />Designed for Omarchy.</h2><p>Omarchy is more than a palette. It's the relationship between quiet surfaces, clear edges, and the work in front of you.</p><p>GPUI Omarchy demonstrates how far <a class="text-link" href="https://gpui-kit.com/base/">gpui-base</a> can go: shared behavior, freely customized presentation.</p></div>
         <dl class="principles">
           <div><dt><a href="https://gpui-kit.com/">GPUI Kit</a> — the foundation</dt><dd>A native Rust component ecosystem. GPUI Omarchy brings its building blocks into applications designed for the Omarchy desktop.</dd></div>
           <div><dt><a href="https://gpui-kit.com/base/">gpui-base</a> — freedom to customize</dt><dd>Shared state and interaction primitives, freely customized presentation. This library puts that freedom into practice with a complete visual language of its own.</dd></div>

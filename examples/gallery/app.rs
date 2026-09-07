@@ -3677,7 +3677,11 @@ mod tests {
             input.update(cx, |state, cx| state.focus(window, cx));
             window.draw(cx).clear(cx);
         });
-        cx.simulate_keystrokes("cmd-a");
+        cx.simulate_keystrokes(if cfg!(target_os = "macos") {
+            "cmd-a"
+        } else {
+            "ctrl-a"
+        });
         cx.simulate_input("Studio");
         let overview = cx.debug_bounds("omarchy-tab-0").unwrap().center();
         cx.simulate_click(overview, Default::default());

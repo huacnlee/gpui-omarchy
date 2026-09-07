@@ -20,7 +20,7 @@ pub struct Link {
 impl Link {
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
-            base: gpui_base::Link::new(id),
+            base: gpui_base::Link::new(id).cursor_pointer(),
             disabled: false,
             hover: None,
             active: None,
@@ -113,7 +113,9 @@ impl StatefulInteractiveElement for Link {
 impl RenderOnce for Link {
     fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
         let mut base = self.base;
-        if !self.disabled {
+        if self.disabled {
+            base = base.cursor_default();
+        } else {
             if let Some(style) = self.hover {
                 base = base.hover(|_| *style);
             }

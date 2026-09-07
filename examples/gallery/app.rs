@@ -1827,22 +1827,76 @@ impl Gallery {
     }
     fn render_radio_page(
         &mut self,
-        mut content: gpui::Div,
+        content: gpui::Div,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> gpui::Div {
+        let theme = cx.omarchy().clone();
+        let mut options = gpui_base::RadioGroup::new("list-density")
+            .aria_label("List density")
+            .flex()
+            .flex_col()
+            .gap(px(4.));
         for (index, label) in ["Compact", "Comfortable", "Spacious"]
             .into_iter()
             .enumerate()
         {
-            content = content.child(radio(index, label, self.choice == index, cx).on_change(
-                change(cx.listener(move |this, _, _, cx| {
-                    this.choice = index;
-                    cx.notify();
-                })),
-            ));
+            options = options.child(
+                radio(index, label, self.choice == index, cx)
+                    .set_position(index + 1, 3)
+                    .debug_selector(move || format!("density-option-{index}"))
+                    .on_change(change(cx.listener(move |this, _, _, cx| {
+                        this.choice = index;
+                        cx.notify();
+                    }))),
+            );
+        }
+        let row_height = [28., 36., 44.][self.choice];
+        let mut preview = div()
+            .w_full()
+            .max_w(px(420.))
+            .border_1()
+            .border_color(theme.border)
+            .flex()
+            .flex_col();
+        for (index, (name, status)) in [
+            ("Project brief", "Updated today"),
+            ("Meeting notes", "Updated yesterday"),
+            ("Release checklist", "Draft"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            preview = preview.child(
+                div()
+                    .debug_selector(move || format!("density-preview-{index}"))
+                    .h(px(row_height))
+                    .px(px(10.))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .when(index > 0, |row| row.border_t_1().border_color(theme.border))
+                    .child(name)
+                    .child(div().text_color(theme.secondary).child(status)),
+            );
         }
         content
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(8.))
+                    .child("List density")
+                    .child(options),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(8.))
+                    .child("Preview")
+                    .child(preview),
+            )
     }
     fn render_switch_page(
         &mut self,
@@ -3493,6 +3547,32 @@ mod tests {
                 "Studio"
             );
         });
+    }
+
+    #[gpui::test]
+    fn radio_density_updates_the_list_preview(cx: &mut TestAppContext) {
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        view.update(cx, |this, cx| {
+            this.page = "radio";
+            cx.notify();
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        let compact = cx.debug_bounds("density-preview-0").unwrap().size.height;
+        let spacious = cx.debug_bounds("density-option-2").unwrap().center();
+        cx.simulate_click(spacious, Default::default());
+        cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+            assert_eq!(view.read(cx).choice, 2);
+        });
+        assert!(cx.debug_bounds("density-preview-0").unwrap().size.height > compact);
+        let compact_option = cx.debug_bounds("density-option-0").unwrap().center();
+        cx.simulate_click(compact_option, Default::default());
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        assert_eq!(
+            cx.debug_bounds("density-preview-0").unwrap().size.height,
+            compact
+        );
     }
 
     #[gpui::test]

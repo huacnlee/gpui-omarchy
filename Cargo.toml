@@ -3,7 +3,7 @@ name = "gpui-omarchy"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-description = "Keyboard-first Omarchy components built on gpui-base"
+description = "A gpui-kit component library designed for the Omarchy system and its UI and UX conventions"
 repository = "https://github.com/huacnlee/gpui-omarchy"
 
 [dependencies]

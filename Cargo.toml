@@ -1,0 +1,22 @@
+[package]
+name = "gpui-omarchy"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Keyboard-first Omarchy components built on gpui-base"
+repository = "https://github.com/huacnlee/gpui-omarchy"
+
+[dependencies]
+gpui = { package = "gpui-pre", version = "=0.3.1" }
+gpui-base = "=0.6.0"
+gpui-kit-assets = "=0.6.0"
+toml = "0.8"
+chrono = "0.4.45"
+
+[dev-dependencies]
+tempfile = "3"
+gpui = { package = "gpui-pre", version = "=0.3.1", features = ["test-support"] }
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.1", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
+
+[profile.dev]
+debug = "limited"

@@ -69,7 +69,7 @@ pub fn dialog_button(
     label: impl Into<SharedString>,
     variant: crate::ButtonVariant,
     cx: &App,
-) -> gpui_base::Button {
+) -> crate::Button {
     let t = cx.omarchy();
     let color = match variant {
         crate::ButtonVariant::Primary => t.accent,

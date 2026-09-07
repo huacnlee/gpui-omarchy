@@ -1,8 +1,10 @@
 # gpui-omarchy
 
 Independent presentation library on gpui-base 0.6.0. No dependency on the
-gpui-component facade. Public constructors return composable base elements,
-retaining their interaction, accessibility, child composition, and styling APIs.
+gpui-component facade. Public constructors return composable base elements, retaining their interaction,
+accessibility, child composition, and styling APIs. Button uses a thin facade
+that withholds transient styles when disabled while delegating activation and
+focus behavior to base.
 Application entities own values and react to callbacks; controls do not maintain
 competing internal copies of application state.
 
@@ -92,13 +94,12 @@ matching the modal action treatment. This is an application-level mapping:
 upstream Button.qml has no Primary variant, and its gallery Apply button uses
 `bordered: true`. Persistent fills indicate selected/active state, not priority.
 
-Interaction audit: the current base Button prevents disabled activation, verified
-for pointer, Return and Space. Its disabled style is resolved before GPUI applies
-hover/active refinements, so disabled hover feedback remains unresolved. This
-requires a base interaction-state fix; changing only the disabled fill does not
-fix the precedence. OtpInput also retains its tracked focus when disabled and
-has no clipboard paste handler. Keep both as dependency gaps until a patched
-base is integrated and verified.
+Interaction audit: Omarchy Button now owns disabled presentation. Its wrapper
+withholds hover, pressed and focus-visible refinements when disabled, regardless
+of builder order. Pointer, Return and Space activation remain guarded by base.
+The fix works with the published gpui-base 0.6.0 and does not require an upstream
+release. OtpInput still retains its tracked focus when disabled and has no
+clipboard paste handler; those remain separate integration gaps.
 
 TextView now has Markdown and HTML constructors with shared Omarchy typography,
 selection, code and link colors. Both formats have destination-opening tests;

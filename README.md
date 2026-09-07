@@ -125,9 +125,12 @@ If the gallery panics, it writes the error location and full backtrace to `gpui-
 
 ## Website
 
-The [website](website/README.md) presents GPUI Kit, gpui-base, and Omarchy Style through an interactive component preview. Built with Bun, Astro, Tailwind CSS, and Base UI.
+The [website](website/README.md) presents GPUI Kit, gpui-base, and Omarchy Style with the actual Rust gallery compiled to WebAssembly, native screenshots, and component source links. Built with Bun, Astro, Tailwind CSS, and Base UI.
+
+Install the [WASM build tools](examples/gallery-wasm/README.md), then run:
 
 ```sh
+bash examples/gallery-wasm/scripts/build.sh --release
 cd website
 bun install
 bun run dev

@@ -54,11 +54,38 @@ impl RenderOnce for Icon {
     fn render(self, window: &mut Window, _: &mut App) -> impl IntoElement {
         // Svg only paints when its own text color is set. Resolve inheritance here,
         // then apply caller refinements so explicit size and color still win.
-        let data = gpui_kit_assets::Assets::get(self.name.path()).expect("bundled icon exists");
         svg()
-            .data(&data.data)
+            .data(&icon_data(self.name))
             .text_color(window.text_style().color)
             .refine_style(&self.style)
+    }
+}
+#[cfg(not(target_family = "wasm"))]
+fn icon_data(name: IconName) -> std::borrow::Cow<'static, [u8]> {
+    gpui_kit_assets::Assets::get(name.path())
+        .expect("bundled icon exists")
+        .data
+}
+
+// gpui-kit-assets exposes asynchronous AssetSource loading on the web rather
+// than Assets::get. Embed the small set used here so first paint is complete.
+#[cfg(target_family = "wasm")]
+fn icon_data(name: IconName) -> &'static [u8] {
+    match name {
+        IconName::Check => include_bytes!("../assets/icons/check.svg"),
+        IconName::Minus => include_bytes!("../assets/icons/minus.svg"),
+        IconName::Plus => include_bytes!("../assets/icons/plus.svg"),
+        IconName::ChevronDown => include_bytes!("../assets/icons/chevron-down.svg"),
+        IconName::Calendar => include_bytes!("../assets/icons/calendar.svg"),
+        IconName::ChevronLeft => include_bytes!("../assets/icons/chevron-left.svg"),
+        IconName::ChevronRight => include_bytes!("../assets/icons/chevron-right.svg"),
+        IconName::Star => include_bytes!("../assets/icons/star.svg"),
+        IconName::ExternalLink => include_bytes!("../assets/icons/external-link.svg"),
+        IconName::Close => include_bytes!("../assets/icons/close.svg"),
+        IconName::Search => include_bytes!("../assets/icons/search.svg"),
+        IconName::Menu => include_bytes!("../assets/icons/menu.svg"),
+        IconName::Settings => include_bytes!("../assets/icons/settings.svg"),
+        IconName::TriangleAlert => include_bytes!("../assets/icons/triangle-alert.svg"),
     }
 }
 /// A 16px GPUI Kit icon. No application AssetSource replacement is needed.

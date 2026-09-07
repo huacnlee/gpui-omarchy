@@ -6,6 +6,12 @@ on:
   pull_request:
     paths:
       - 'website/**'
+      - 'src/**'
+      - 'assets/**'
+      - 'examples/gallery/**'
+      - 'examples/gallery-wasm/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - '.github/workflows/website.yml'
   workflow_dispatch:
 
@@ -19,6 +25,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: 2
     defaults:
       run:
         working-directory: website
@@ -27,11 +36,32 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.4.0'
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            examples/gallery-wasm/target
+          key: website-wasm-${{ runner.os }}-${{ hashFiles('examples/gallery-wasm/Cargo.lock') }}
+      - name: Install wasm-bindgen
+        run: cargo install wasm-bindgen-cli --version 0.2.121 --locked
+      - name: Build real gallery
+        run: bash examples/gallery-wasm/scripts/build.sh --release
+        working-directory: .
       - run: bun install --frozen-lockfile
       - run: bun run build
         env:
           SITE_URL: https://huacnlee.github.io
           BASE_PATH: /gpui-omarchy
+      - name: Install test browser
+        run: bun --bun x playwright install --with-deps chromium
+      - name: Test production website
+        run: bun --bun x playwright test
+        env:
+          PLAYWRIGHT_PRODUCTION: '1'
       - uses: actions/upload-pages-artifact@v3
         with:
           path: website/dist

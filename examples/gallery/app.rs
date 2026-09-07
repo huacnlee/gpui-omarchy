@@ -57,7 +57,6 @@ const GROUPS: &[(&str, &[&str])] = &[
         &[
             "icon",
             "avatar",
-            "selectable_text",
             "text_view",
             "panel",
             "virtual_list",
@@ -114,7 +113,6 @@ fn description(page: &str) -> &'static str {
         "table" => "Aligned columns for comparing records.",
         "color_picker" => "Choose a label color with Hex and HSLA controls.",
         "text_view" => "Read structured documents with selectable text and links.",
-        "selectable_text" => "Select and copy read-only text without an input field.",
         "sheet" => "Inspect project details in an edge-attached panel.",
         "scrollbar" => "Drag the scroll thumb to move through a long activity log.",
         "virtual_list" => "Browse a large activity log with variable-height rows.",
@@ -2940,12 +2938,6 @@ impl Render for Gallery {
                     content = self.render_horizontal_scrollbar(content, cx);
                 }
             }
-            "selectable_text" => {
-                content = content.child("Project brief")
-                    .child(div().w_full().max_w(px(480.)).debug_selector(|| "selectable-brief".into())
-                        .child(selectable_text("project-brief", "Website refresh\nReview the homepage layout and keyboard navigation before Friday.\nOwner: Alex Lee", cx)))
-                    .child(div().text_color(t.secondary).child("Drag to select text, then use your system Copy shortcut. This text is read-only."));
-            }
             "progress" => {
                 content = self.render_progress_page(content, window, cx);
             }
@@ -4023,38 +4015,6 @@ mod tests {
                 .is_some()
             );
         }
-    }
-
-    #[gpui::test]
-    fn read_only_text_drag_selection_copies_exact_text(cx: &mut TestAppContext) {
-        cx.update(gpui_omarchy::init);
-        let (view, cx) = cx.add_window_view(Gallery::new);
-        cx.update(|window, cx| {
-            view.update(cx, |this, cx| {
-                this.page = "selectable_text";
-                this.navigation_focus.focus(window, cx);
-                cx.notify();
-            });
-            window.draw(cx).clear(cx);
-        });
-        let bounds = cx.debug_bounds("selectable-brief").unwrap();
-        let start = gpui::point(bounds.left(), bounds.top() + px(5.));
-        let end = gpui::point(bounds.left() + px(100.), start.y);
-        cx.simulate_mouse_down(start, gpui::MouseButton::Left, Default::default());
-        cx.simulate_mouse_move(end, Some(gpui::MouseButton::Left), Default::default());
-        cx.simulate_mouse_up(end, gpui::MouseButton::Left, Default::default());
-        let selected = cx.update(|window, cx| {
-            window.draw(cx).clear(cx);
-            gpui_base::TextSelection::selected_text(window, cx)
-        });
-        assert!(!selected.is_empty());
-        assert!("Website refresh".starts_with(&selected));
-        cx.simulate_keystrokes(if cfg!(target_os = "macos") {
-            "cmd-c"
-        } else {
-            "ctrl-c"
-        });
-        cx.update(|_, cx| assert_eq!(cx.read_from_clipboard().unwrap().text().unwrap(), selected));
     }
 
     #[gpui::test]

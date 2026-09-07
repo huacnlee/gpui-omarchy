@@ -77,8 +77,12 @@ pub fn slider(
                         .track_focus(&focus)
                         .hover(|s| s.bg(t.selection))
                         .focus_visible(|s| s.bg(t.accent).border_color(t.bright))
-                        .on_mouse_down(MouseButton::Left, move |_, window, cx| {
-                            pointer_focus.focus(window, cx)
+                        // The base thumb stops bubbling presses to keep the
+                        // track from jumping. Acquire focus before that handler.
+                        .capture_any_mouse_down(move |event, window, cx| {
+                            if event.button == MouseButton::Left {
+                                pointer_focus.focus(window, cx);
+                            }
                         })
                         .on_key_down(move |event: &KeyDownEvent, window, cx| {
                             if event.keystroke.modifiers.modified() {
@@ -149,6 +153,36 @@ fn keyboard_value(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[gpui_kit::test]
+    fn clicking_a_thumb_gives_it_keyboard_focus(cx: &mut gpui_kit::TestAppContext) {
+        cx.update(crate::init);
+        struct Probe(Entity<SliderState>);
+        impl gpui_kit::Render for Probe {
+            fn render(
+                &mut self,
+                window: &mut Window,
+                cx: &mut gpui_kit::Context<Self>,
+            ) -> impl IntoElement {
+                slider(&self.0, false, window, cx).w(px(200.))
+            }
+        }
+        let (view, cx) = cx.add_window_view(|_, cx| {
+            Probe(cx.new(|_| {
+                SliderState::new()
+                    .min(0.)
+                    .max(100.)
+                    .step(5.)
+                    .default_value(50.)
+            }))
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.simulate_click(gpui_kit::point(px(100.), px(14.)), Default::default());
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.simulate_keystrokes("right");
+        cx.update(|_, cx| assert_eq!(view.read(cx).0.read(cx).value(), SliderValue::Single(55.)));
+    }
+
     #[test]
     fn keys_respect_endpoints_and_prevent_range_crossing() {
         assert_eq!(

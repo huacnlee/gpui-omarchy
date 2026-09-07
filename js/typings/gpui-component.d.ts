@@ -1,0 +1,53 @@
+// Declaration generation only. Hosts supply the complete native catalog types.
+declare module "gpui-base" {
+  export const InputState: unknown;
+  export const TextareaState: unknown;
+  export const CalendarState: unknown;
+  export const SliderState: unknown;
+  export const OtpState: unknown;
+}
+declare module "gpui-component" {
+  export const Button: unknown;
+  export const ChoiceItem: unknown;
+  export const ButtonGroup: unknown;
+  export const TabList: unknown;
+  export const Input: unknown;
+  export const Textarea: unknown;
+  export const NumberInput: unknown;
+  export const Calendar: unknown;
+  export const Slider: unknown;
+  export const OtpInput: unknown;
+  export const Tab: unknown;
+  export const Tabs: unknown;
+  export const ToggleGroup: unknown;
+  export const FocusScope: unknown;
+  export const Tooltip: unknown;
+  export const Checkbox: unknown;
+  export const Switch: unknown;
+  export const Radio: unknown;
+  export const Toggle: unknown;
+  export const Panel: unknown;
+  export const Separator: unknown;
+  export const VerticalSeparator: unknown;
+  export const Keycap: unknown;
+  export const Badge: unknown;
+  export const EmptyState: unknown;
+  export const Progress: unknown;
+  export const Toast: unknown;
+  export const Table: unknown;
+  export const TableRow: unknown;
+  export const TableHead: unknown;
+  export const TableCell: unknown;
+  export const DialogBackdrop: unknown;
+  export const DialogPopup: unknown;
+  export const DialogTitle: unknown;
+  export const DialogDescription: unknown;
+  export const SheetSurface: unknown;
+  export const PopoverSurface: unknown;
+  export const AccordionPanel: unknown;
+  export const Avatar: unknown;
+  export const AvatarImage: unknown;
+  export const Icon: unknown;
+  export const Markdown: unknown;
+  export const Html: unknown;
+}

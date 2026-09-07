@@ -1,0 +1,30 @@
+[package]
+name = "gpui-omarchy-shell"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "MIT"
+description = "Native gpui-omarchy components for JavaScript in gpui-shell"
+
+[features]
+default = []
+gpui-shell = ["dep:gpui-shell", "dep:gpui-omarchy", "dep:gpui-kit"]
+
+[dependencies]
+gpui-kit = { git = "https://github.com/longbridge/gpui-kit", rev = "4b383ec8a47e14d4e19759535442e783df99ff67", default-features = false, optional = true }
+gpui-omarchy = { path = "..", optional = true }
+gpui-shell = { git = "https://github.com/longbridge/gpui-kit", rev = "4b383ec8a47e14d4e19759535442e783df99ff67", optional = true }
+
+# The bridge and the native catalog must share GPUI types. These patches are
+# needed by embedding applications too, until the shell is released on crates.io.
+[patch.crates-io]
+gpui-kit = { git = "https://github.com/longbridge/gpui-kit", rev = "4b383ec8a47e14d4e19759535442e783df99ff67" }
+gpui-base = { git = "https://github.com/longbridge/gpui-kit", rev = "4b383ec8a47e14d4e19759535442e783df99ff67" }
+gpui-kit-assets = { git = "https://github.com/longbridge/gpui-kit", rev = "4b383ec8a47e14d4e19759535442e783df99ff67" }
+
+[[test]]
+name = "catalog"
+required-features = ["gpui-shell"]
+
+[profile.dev]
+debug = "limited"

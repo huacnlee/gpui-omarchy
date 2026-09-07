@@ -1,2 +1,5 @@
 /target
 .DS_Store
+/shell/target/
+/js/examples/hello-world/gpui.d.ts
+/js/examples/hello-world/node_modules/

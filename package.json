@@ -1,0 +1,10 @@
+{
+  "name": "gpui-omarchy",
+  "private": true,
+  "type": "module",
+  "main": "js/src/index.js",
+  "types": "js/src/index.d.ts",
+  "scripts": {
+    "test": "cd js && bun test"
+  }
+}

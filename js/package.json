@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "scripts": {
+    "types": "rm -f src/*.d.ts && bunx typescript@7.0.2 -p tsconfig.json",
+    "test": "bun run types && bun test",
+    "check": "bun run types && bun test"
+  }
+}

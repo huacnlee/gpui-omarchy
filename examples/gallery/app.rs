@@ -911,6 +911,7 @@ impl Gallery {
                     ButtonVariant::Secondary,
                     cx,
                 )
+                .styles(|styles| styles.selected(|style| style.bg(t.border)))
                 .child(icon(IconName::ChevronDown).text_color(t.foreground)),
                 vec![
                     MenuItem::new("New workspace").icon(IconName::Plus),
@@ -3054,7 +3055,7 @@ impl Render for Gallery {
                 })
                 .size_full(),
             );
-        focus_scope("gallery")
+        root("gallery")
             .relative()
             .debug_selector(|| "gallery-root".into())
             .size_full()
@@ -3095,6 +3096,7 @@ impl Render for Gallery {
                                     ButtonVariant::Secondary,
                                     cx,
                                 )
+                                .styles(|styles| styles.selected(|style| style.bg(t.border)))
                                 .child(icon(IconName::ChevronDown).size(px(14.))),
                                 "Appearance and application commands",
                             ),
@@ -3400,7 +3402,7 @@ fn install_panic_report() {
 #[cfg(not(target_family = "wasm"))]
 pub fn run() {
     install_panic_report();
-    gpui_platform::application().run(move |cx| {
+    gpui::platform::application().run(move |cx| {
         gpui_omarchy::init(cx);
         cx.open_window(
             WindowOptions {

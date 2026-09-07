@@ -57,10 +57,19 @@ Themes are loaded at startup. Applications can reload them with `Theme::system_o
 
 ## Usage
 
+Add the library to your application:
+
+```toml
+[dependencies]
+gpui-omarchy = "0.1.0"
+```
+
+Use `gpui_omarchy::gpui` for GPUI types and `gpui_omarchy::application()` for the desktop entry point. These are provided through GPUI Kit with its component facade disabled. See the [complete quick start](examples/hello.rs).
+
 Call `gpui_omarchy::init(cx)` once at startup, then create components inside `Render`:
 
 ```rust,ignore
-use gpui::ParentElement;
+use gpui_omarchy::gpui::ParentElement;
 use gpui_omarchy::{button, panel, ButtonVariant};
 
 panel("Workspace", cx).child(
@@ -76,7 +85,7 @@ Constructors return composable gpui-base elements with their native builder APIs
 
 Select and Combobox use an application-owned `Entity<ChoiceState>` and `ChoiceItem` options. Observe changes with `cx.observe`, then read the selected option's stable `value` through `state.selected()`. The constructors return customizable `gpui_base::Select` and `gpui_base::Combobox` elements. Combobox searches existing options in its popup; it does not create free-text values.
 
-Wrap a window or form in `focus_scope("root")` to enable Tab and Shift+Tab traversal. Text fields and popups retain their own keyboard behavior.
+Wrap a window or form in `root("app")` to enable Tab and Shift+Tab traversal. Text fields and popups retain their own keyboard behavior.
 
 `toggle_group(id, cx)` composes independent `toggle` children for multiple-choice filters. Add icons explicitly through child elements.
 

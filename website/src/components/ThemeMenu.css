@@ -20,8 +20,8 @@
 .theme-menu-trigger { min-width: 158px; justify-content: space-between; }
 .theme-menu-caret { display: block; flex-shrink: 0; }
 .theme-menu-trigger:hover,
-.theme-menu-trigger[data-popup-open],
 .copy-button:hover { background: var(--hover); }
+.theme-menu-trigger[data-popup-open] { background: var(--border); }
 .theme-menu-trigger:focus-visible,
 .copy-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .theme-menu-positioner { z-index: 200; }

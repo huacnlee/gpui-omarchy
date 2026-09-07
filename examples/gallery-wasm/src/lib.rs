@@ -14,8 +14,8 @@ thread_local! {
 
 #[wasm_bindgen]
 pub fn run() -> Result<(), JsValue> {
-    gpui_platform::web_init();
-    let application = gpui_platform::single_threaded_web();
+    gpui::platform::web_init();
+    let application = gpui::platform::single_threaded_web();
     let handle = application.run_embedded(|cx| {
         cx.text_system()
             .add_fonts(vec![

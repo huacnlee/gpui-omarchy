@@ -2115,26 +2115,40 @@ impl Gallery {
             .toast_lifecycle
             .advance(now, self.toast_hovered || self.toast_focused);
         if change.changed {
-            self.toast_message = self.toast_lifecycle.get(&0).copied();
+            self.toast_message = self
+                .toast_lifecycle
+                .iter()
+                .next_back()
+                .map(|(_, message, _)| *message);
             cx.notify();
         }
     }
 
-    fn dismiss_toast(&mut self, cx: &mut Context<Self>) {
+    fn dismiss_toast_id(&mut self, id: u8, cx: &mut Context<Self>) {
         let now = std::time::Instant::now();
-        self.toast_lifecycle.dismiss(&0, now);
+        self.toast_lifecycle.dismiss(&id, now);
         self.toast_lifecycle.advance(now, false);
-        self.toast_message = None;
-        self.toast_timer = None;
-        self.toast_hovered = false;
-        self.toast_focused = false;
+        self.toast_message = self
+            .toast_lifecycle
+            .iter()
+            .next_back()
+            .map(|(_, message, _)| *message);
+        if self.toast_message.is_none() {
+            self.toast_timer = None;
+            self.toast_hovered = false;
+            self.toast_focused = false;
+        }
         cx.notify();
     }
 
     fn show_toast(&mut self, message: &'static str, cx: &mut Context<Self>) {
         let now = std::time::Instant::now();
         self.toast_lifecycle.push(
-            0,
+            if message == "Could not sync workspace" {
+                1
+            } else {
+                0
+            },
             message,
             gpui_base::ToastOptions {
                 timeout: (message != "Could not sync workspace")
@@ -2144,7 +2158,11 @@ impl Gallery {
         );
         self.toast_lifecycle.advance(now, false);
         self.toast_message = Some(message);
-        if message == "Could not sync workspace" {
+        if !self
+            .toast_lifecycle
+            .iter()
+            .any(|(_, message, _)| *message != "Could not sync workspace")
+        {
             self.toast_timer = None;
             cx.notify();
             return;
@@ -2159,7 +2177,9 @@ impl Gallery {
                         return false;
                     }
                     this.advance_toast(std::time::Instant::now(), cx);
-                    this.toast_message.is_some()
+                    this.toast_lifecycle
+                        .iter()
+                        .any(|(_, message, _)| *message != "Could not sync workspace")
                 }) else {
                     break;
                 };
@@ -2169,6 +2189,102 @@ impl Gallery {
             }
         }));
         cx.notify();
+    }
+
+    fn render_notifications(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
+        div()
+            .absolute()
+            .right(px(14.))
+            .bottom(px(48.))
+            .w(px(320.))
+            .id("notification-stack")
+            .track_focus(&self.toast_focus)
+            .flex()
+            .flex_col()
+            .gap(px(8.))
+            .occlude()
+            .on_hover(cx.listener(|this, hovered, _, _| this.toast_hovered = *hovered))
+            .children(
+                self.toast_lifecycle
+                    .iter()
+                    .map(|(id, message, _)| {
+                        let id = *id;
+                        let message = *message;
+                        toast(("gallery-toast", id as usize), cx)
+                            .debug_selector(move || {
+                                if id == 0 {
+                                    "gallery-toast"
+                                } else {
+                                    "sync-error-toast"
+                                }
+                                .into()
+                            })
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(10.))
+                                    .child(
+                                        icon(if id == 1 {
+                                            IconName::TriangleAlert
+                                        } else {
+                                            IconName::Check
+                                        })
+                                        .size(px(16.)),
+                                    )
+                                    .child(div().flex_1().child(message))
+                                    .child(
+                                        button(
+                                            ("dismiss-toast", id as usize),
+                                            "",
+                                            ButtonVariant::Secondary,
+                                            cx,
+                                        )
+                                        .size(px(18.))
+                                        .p(px(0.))
+                                        .flex_shrink_0()
+                                        .debug_selector(|| "dismiss-toast".into())
+                                        .accessibility_label("Dismiss notification")
+                                        .child(icon(IconName::Close).size(px(14.)))
+                                        .on_click(
+                                            cx.listener(move |this, _, _, cx| {
+                                                this.dismiss_toast_id(id, cx)
+                                            }),
+                                        ),
+                                    ),
+                            )
+                            .child(
+                                button(
+                                    ("toast-action", id as usize),
+                                    match message {
+                                        "Workspace saved" => "Undo",
+                                        "Could not sync workspace" => "Retry",
+                                        _ => "Dismiss",
+                                    },
+                                    ButtonVariant::Outline,
+                                    cx,
+                                )
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| {
+                                        match message {
+                                            "Workspace saved" => {
+                                                this.toast_saved = false;
+                                                this.show_toast("Save undone", cx);
+                                            }
+                                            "Could not sync workspace" => {
+                                                this.dismiss_toast_id(id, cx);
+                                                this.toast_saved = true;
+                                                this.show_toast("Workspace saved", cx);
+                                            }
+                                            _ => this.dismiss_toast_id(id, cx),
+                                        }
+                                        cx.notify();
+                                    },
+                                )),
+                            )
+                    })
+                    .collect::<Vec<_>>(),
+            )
     }
 
     fn render_toast_page(
@@ -2211,7 +2327,7 @@ impl Gallery {
                 "Example workspace: unsaved"
             })
             .child(div().text_color(t.secondary).child(
-                "Saved notifications close after six seconds. Hover or focus pauses the timer; errors remain until dismissed.",
+                "Save and sync notifications appear together. Saved notifications close after six seconds; hover or focus pauses the timer. Errors remain until dismissed.",
             ));
         content
     }
@@ -3047,89 +3163,8 @@ impl Render for Gallery {
             .when(self.sheet_open, |root| {
                 root.child(self.render_project_sheet(cx))
             })
-            .when_some(self.toast_message, |root, message| {
-                root.child(
-                    div()
-                        .absolute()
-                        .right(px(14.))
-                        .bottom(px(48.))
-                        .w(px(320.))
-                        .occlude()
-                        .child(
-                            toast("gallery-toast", cx)
-                                .debug_selector(|| "gallery-toast".into())
-                                .track_focus(&self.toast_focus)
-                                .on_hover(
-                                    cx.listener(|this, hovered, _, _| {
-                                        this.toast_hovered = *hovered
-                                    }),
-                                )
-                                .child(
-                                    div()
-                                        .flex()
-                                        .items_center()
-                                        .gap(px(10.))
-                                        .child(
-                                            icon(if message != "Could not sync workspace" {
-                                                IconName::Check
-                                            } else {
-                                                IconName::TriangleAlert
-                                            })
-                                            .size(px(16.)),
-                                        )
-                                        .child(div().flex_1().child(message))
-                                        .child(
-                                            button(
-                                                "dismiss-toast",
-                                                "",
-                                                ButtonVariant::Secondary,
-                                                cx,
-                                            )
-                                            .size(px(18.))
-                                            .p(px(0.))
-                                            .flex_shrink_0()
-                                            .debug_selector(|| "dismiss-toast".into())
-                                            .accessibility_label("Dismiss notification")
-                                            .child(icon(IconName::Close).size(px(14.)))
-                                            .on_click(
-                                                cx.listener(|this, _, _, cx| {
-                                                    this.dismiss_toast(cx);
-                                                }),
-                                            ),
-                                        ),
-                                )
-                                .child(
-                                    button(
-                                        "toast-action",
-                                        if message == "Workspace saved" {
-                                            "Undo"
-                                        } else if message == "Could not sync workspace" {
-                                            "Retry"
-                                        } else {
-                                            "Dismiss"
-                                        },
-                                        ButtonVariant::Outline,
-                                        cx,
-                                    )
-                                    .on_click(cx.listener(
-                                        |this, _, _, cx| {
-                                            match this.toast_message {
-                                                Some("Workspace saved") => {
-                                                    this.toast_saved = false;
-                                                    this.show_toast("Save undone", cx);
-                                                }
-                                                Some("Could not sync workspace") => {
-                                                    this.toast_saved = true;
-                                                    this.show_toast("Workspace saved", cx);
-                                                }
-                                                _ => this.dismiss_toast(cx),
-                                            }
-                                            cx.notify();
-                                        },
-                                    )),
-                                ),
-                        ),
-                )
+            .when(self.toast_message.is_some(), |root| {
+                root.child(self.render_notifications(cx))
             })
     }
 }
@@ -3490,6 +3525,39 @@ mod tests {
     }
 
     #[gpui::test]
+    fn toast_stack_keeps_independent_notifications(cx: &mut TestAppContext) {
+        use std::time::{Duration, Instant};
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        view.update(cx, |this, cx| {
+            this.show_toast("Workspace saved", cx);
+            this.show_toast("Could not sync workspace", cx);
+            this.toast_timer = None;
+            assert_eq!(this.toast_lifecycle.len(), 2);
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        let saved = cx.debug_bounds("gallery-toast").unwrap();
+        let error = cx.debug_bounds("sync-error-toast").unwrap();
+        assert!(
+            saved.bottom_right().y < error.origin.y,
+            "cards must not overlap"
+        );
+        assert_eq!(saved.origin.x, error.origin.x);
+        view.update(cx, |this, cx| {
+            this.dismiss_toast_id(0, cx);
+            assert_eq!(this.toast_lifecycle.len(), 1);
+            assert_eq!(this.toast_message, Some("Could not sync workspace"));
+            this.show_toast("Workspace saved", cx);
+            this.toast_timer = None;
+            this.advance_toast(Instant::now() + Duration::from_secs(7), cx);
+            assert_eq!(this.toast_lifecycle.len(), 1);
+            assert_eq!(this.toast_message, Some("Could not sync workspace"));
+            this.dismiss_toast_id(1, cx);
+            assert!(this.toast_lifecycle.is_empty());
+        });
+    }
+
+    #[gpui::test]
     fn dismissed_toast_does_not_pause_the_next_notification(cx: &mut TestAppContext) {
         use std::time::{Duration, Instant};
         cx.update(gpui_omarchy::init);
@@ -3498,7 +3566,7 @@ mod tests {
             this.show_toast("Workspace saved", cx);
             this.toast_hovered = true;
             this.toast_focused = true;
-            this.dismiss_toast(cx);
+            this.dismiss_toast_id(0, cx);
             assert!(this.toast_lifecycle.is_empty());
             assert!(this.toast_timer.is_none());
             assert!(!this.toast_hovered && !this.toast_focused);

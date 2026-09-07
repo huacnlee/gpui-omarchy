@@ -6,7 +6,7 @@ The library brings Omarchy’s system themes, restrained visual style and keyboa
 
 It also serves as a practical proving ground for **[gpui-base’s customization capabilities](https://gpui-kit.com/base/)**: building a complete Omarchy design system tests how freely applications can define their own visual identity and interaction patterns on top of base primitives. The project demonstrates that a shared behavioral foundation can support a fully custom design language, while exposing gaps to improve in gpui-base.
 
-The project is under development, with 48 component previews in one gallery. Form, navigation, overlay and data components are still being expanded; the framework is not yet complete.
+The project is under development, with 47 component previews in one gallery. Form, navigation, overlay and data components are still being expanded; the framework is not yet complete.
 
 ## Gallery
 
@@ -76,7 +76,7 @@ Constructors return composable gpui-base elements with their native builder APIs
 
 Select and Combobox use an application-owned `Entity<ChoiceState>` and `ChoiceItem` options. Observe changes with `cx.observe`, then read the selected option's stable `value` through `state.selected()`. The constructors return customizable `gpui_base::Select` and `gpui_base::Combobox` elements. Combobox searches existing options in its popup; it does not create free-text values.
 
-Wrap a window or form in `focus_scope("root")` to enable Tab and Shift+Tab traversal. Editors can still handle indentation, and popups retain their own keyboard behavior.
+Wrap a window or form in `focus_scope("root")` to enable Tab and Shift+Tab traversal. Text fields and popups retain their own keyboard behavior.
 
 `toggle_group(id, cx)` composes independent `toggle` children for multiple-choice filters. Add icons explicitly through child elements.
 
@@ -106,7 +106,7 @@ Wrap a window or form in `focus_scope("root")` to enable Tab and Shift+Tab trave
 
 `color_picker(id, &state, window, cx)` uses base ColorPickerState with Hex input and HSLA sliders. Enter commits Hex input; Escape discards an uncommitted preview. Sliders apply immediately. Observe the state or subscribe to ColorPickerEvent to update application previews.
 
-`date_picker(id, &state, cx)` uses DatePickerState. Its public calendar state supports ranges and disabled dates. Selecting a date closes the popup; Escape cancels and restores focus. `otp_input` uses base OtpState. `editor` uses EditorState and supports line numbers, indentation and text editing.
+`date_picker(id, &state, cx)` uses DatePickerState. Its public calendar state supports ranges and disabled dates. Selecting a date closes the popup; Escape cancels and restores focus. `otp_input` uses base OtpState.
 
 `hover_card` provides a delayed supplementary preview; essential content should also be accessible on the main page. `dock_area` installs the Omarchy DockAreaRenderer. Its example demonstrates dragging, merging and splitting tabbed panels. Docking supports tabs and split layouts; floating layouts are not offered.
 

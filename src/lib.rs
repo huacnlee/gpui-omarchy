@@ -41,7 +41,7 @@ pub use dock::dock_area;
 pub use focus::focus_scope;
 pub use hover_card::hover_card;
 pub use icon::{IconName, icon};
-pub use input::{editor, input, number_input, textarea};
+pub use input::{input, number_input, textarea};
 pub use list::{scrollbar, virtual_list};
 pub use menu::{MenuItem, menu};
 pub use navigation::*;

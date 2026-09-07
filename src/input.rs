@@ -112,19 +112,3 @@ pub fn number_input(state: &Entity<InputState>, cx: &mut App) -> gpui_base::Numb
                 .child(crate::icon(crate::IconName::Plus).size(px(12.)))
         })
 }
-
-/// Source editing with base-owned selection, clipboard, undo and indentation.
-pub fn editor(
-    id: impl Into<ElementId>,
-    state: &Entity<gpui_base::input::EditorState>,
-    window: &Window,
-    cx: &mut App,
-) -> InputBase {
-    let style = cx.omarchy().input_style();
-    state.update(cx, |state, _| state.set_editor_style(style));
-    let focused = state.read(cx).focus_handle(cx).is_focused(window);
-    frame(id, focused, cx)
-        .py(px(8.))
-        .min_h(px(280.))
-        .child(gpui_base::Editor::new(state))
-}

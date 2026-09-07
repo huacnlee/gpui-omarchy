@@ -1,4 +1,24 @@
-import {test,expect} from '@playwright/test';
+import {test,expect,type Locator,type Page} from '@playwright/test';
+
+async function waitForGalleryPaint(page: Page, canvas: Locator) {
+  // A created WebGPU canvas can still be blank. Inspect actual rendered pixels.
+  // Retry the whole capture because GPUI can replace the canvas during startup.
+  await expect(async () => {
+    const png = await canvas.screenshot();
+    const count = await page.evaluate(async (bytes) => {
+      const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], {type:'image/png'}));
+      const surface = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const ctx = surface.getContext('2d')!;
+      ctx.drawImage(bitmap, 0, 0);
+      const pixels = ctx.getImageData(0, 0, bitmap.width, bitmap.height).data;
+      const colors = new Set<number>();
+      for(let i=0;i<pixels.length;i+=16) colors.add((pixels[i]<<16)|(pixels[i+1]<<8)|pixels[i+2]);
+      bitmap.close();
+      return colors.size;
+    }, [...png]);
+    expect(count).toBeGreaterThan(30);
+  }).toPass({timeout:30_000});
+}
 
 test('themes persist and all layouts fit narrow screens',async({page})=>{
   await page.goto('./');
@@ -50,21 +70,7 @@ test('the homepage runs the real WebAssembly gallery', async ({page}) => {
   await expect(gallery.locator('html')).toHaveAttribute('data-gallery-ready', 'true', {timeout:90_000});
   const canvas = gallery.locator('canvas');
   await expect(canvas).toBeVisible();
-  // A created WebGPU canvas can still be blank. Inspect actual rendered pixels.
-  await expect.poll(async () => {
-    const png = await canvas.screenshot();
-    return page.evaluate(async (bytes) => {
-      const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], {type:'image/png'}));
-      const surface = new OffscreenCanvas(bitmap.width, bitmap.height);
-      const ctx = surface.getContext('2d')!;
-      ctx.drawImage(bitmap, 0, 0);
-      const pixels = ctx.getImageData(0, 0, bitmap.width, bitmap.height).data;
-      const colors = new Set<number>();
-      for(let i=0;i<pixels.length;i+=16) colors.add((pixels[i]<<16)|(pixels[i+1]<<8)|pixels[i+2]);
-      bitmap.close();
-      return colors.size;
-    }, [...png]);
-  }, {timeout:30_000}).toBeGreaterThan(30);
+  await waitForGalleryPaint(page, canvas);
   const overview = await canvas.screenshot();
   await canvas.click({position:{x:40,y:150}, delay:100});
   await page.mouse.move(0,0);
@@ -120,16 +126,31 @@ test('Select and Combobox stay interactive and scrolling survives', async ({page
   await page.goto(new URL('gallery/index.html',baseURL).href);
   await expect(page.locator('html')).toHaveAttribute('data-gallery-ready','true',{timeout:90_000});
   const canvas = page.locator('canvas');
-  await canvas.click({position:{x:35,y:412},delay:100});
+  await waitForGalleryPaint(page, canvas);
+  // The WASM canvas has no DOM controls. These coordinates are for the fixed
+  // 1060×760 viewport; verify navigation separately from opening the popup.
+  const overview = await canvas.screenshot();
+  await canvas.click({position:{x:35,y:386},delay:100});
+  await page.mouse.move(1000,700);
+  await expect.poll(async()=>!(await canvas.screenshot()).equals(overview)).toBe(true);
   const select = await canvas.screenshot();
   await canvas.click({position:{x:400,y:204},delay:100});
   await page.mouse.move(1000,700);
   await expect.poll(async()=>!(await canvas.screenshot()).equals(select)).toBe(true);
-  await canvas.click({position:{x:340,y:271},delay:100});
-  await canvas.click({position:{x:35,y:438},delay:100});
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  // Compare after closing the popup, so opening it alone cannot satisfy selection.
+  await expect.poll(async()=>!(await canvas.screenshot()).equals(select)).toBe(true);
+  const selected = await canvas.screenshot();
+  await canvas.click({position:{x:35,y:412},delay:100});
+  await page.mouse.move(1000,700);
+  await expect.poll(async()=>!(await canvas.screenshot()).equals(selected)).toBe(true);
+  const combobox = await canvas.screenshot();
   await canvas.click({position:{x:400,y:204},delay:100});
+  await expect.poll(async()=>!(await canvas.screenshot()).equals(combobox)).toBe(true);
   await page.keyboard.type('sandbox',{delay:100});
   await page.keyboard.press('Enter');
+  await expect.poll(async()=>!(await canvas.screenshot()).equals(combobox)).toBe(true);
   const beforeScroll = await canvas.screenshot();
   await page.mouse.move(80,550);
   await page.mouse.wheel(0,700);

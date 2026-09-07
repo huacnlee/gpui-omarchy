@@ -1,1 +1,14 @@
-<svg fill="none" height="1200" viewBox="0 0 1200 1200" width="1200" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m1200 1200h-480v-80h400v-1040h-479.996v160h-400v720h720v-720h-80v-80h159.996v880h-400v160h-640v-1200h1200zm-1120-80h480v-80h-400l.004-400h-80.004zm0-560h80.004v-400h400v-80h-480.004z" fill="#9ece6a" fill-rule="evenodd"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 16 16" fill="none">
+  <title>GPUI Omarchy</title>
+  <!-- Integer 16px geometry keeps the hollow, interlocking G sharp at favicon sizes. -->
+  <defs>
+    <mask id="g-opening" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16">
+      <path fill="white" d="M0 0h16v16H0z"/>
+      <path fill="black" d="M12 4h4v3h-4z"/>
+    </mask>
+  </defs>
+  <g fill="#9ece6a">
+    <path mask="url(#g-opening)" fill-rule="evenodd" d="M16 16H9v-1h6V1H8v2H3v10h10V3h-2V2h3v12H8v2H0V0h16zM1 15H7v-1H2V9H1zM1 8H2V2H7V1H1z"/>
+    <path fill-rule="evenodd" d="M8 7h8v3H8zM9 8v1h6V8z"/>
+  </g>
+</svg>

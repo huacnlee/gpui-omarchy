@@ -6,7 +6,7 @@ The library brings Omarchy’s system themes, restrained visual style and keyboa
 
 It also serves as a practical proving ground for **[gpui-base’s customization capabilities](https://gpui-kit.com/base/)**: building a complete Omarchy design system tests how freely applications can define their own visual identity and interaction patterns on top of base primitives. The project demonstrates that a shared behavioral foundation can support a fully custom design language, while exposing gaps to improve in gpui-base.
 
-The project is under development, with 47 component previews in one gallery. Form, navigation, overlay and data components are still being expanded; the framework is not yet complete.
+The project is under development, with 46 component previews in one gallery. Form, navigation, overlay and data components are still being expanded; the framework is not yet complete.
 
 ## Gallery
 
@@ -90,7 +90,6 @@ Wrap a window or form in `focus_scope("root")` to enable Tab and Shift+Tab trave
 
 `toast(id, cx)` returns a composable base Toast surface. Applications control its lifecycle, optionally using base ToastManager. The gallery displays notifications at the bottom right with Undo and Retry actions. Saved notifications expire after six seconds, with the timer paused during hover or focus; errors remain until handled manually.
 
-`selectable_text(id, text, cx)` supports read-only text selection with a themed selection background. Render `gpui_base::TextSelectionLayer` once after the window content and wrap the region in `focus_scope` to connect the system Copy shortcut.
 
 `avatar(initials, cx)` returns a square base Avatar. Set its image slot with `.image(avatar_image(source))`. The application decides whether to fall back to initials when image loading fails.
 

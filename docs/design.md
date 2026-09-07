@@ -41,7 +41,7 @@ forms and navigation; overlays and data surfaces; complete component examples
 and visual/runtime audit. This document records intended scope, not completion.
 
 
-Current checkpoint: 47 component previews are implemented in one gallery.
+Current checkpoint: 46 component previews are implemented in one gallery.
 Menu uses the base Popover with keyboard selection and disabled-item skipping;
 Dialog and AlertDialog use base modal hosts with focus recovery and outline actions.
 Icons come from gpui-kit-assets with explicit inherited-color resolution.

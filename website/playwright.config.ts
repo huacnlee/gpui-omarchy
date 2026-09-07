@@ -10,7 +10,7 @@ const graphicsArgs = process.platform === 'linux'
 const localURL = production ? 'http://127.0.0.1:4323/gpui-omarchy/' : 'http://127.0.0.1:4321';
 export default defineConfig({
   testDir: './tests',
-  use: { screenshot: 'only-on-failure', trace: 'retain-on-failure', baseURL: previewURL || localURL, launchOptions: { args: graphicsArgs } },
+  use: { headless: process.env.PLAYWRIGHT_HEADED !== '1', screenshot: 'only-on-failure', trace: 'retain-on-failure', baseURL: previewURL || localURL, launchOptions: { args: graphicsArgs } },
   webServer: previewURL ? undefined : {
     command: production ? 'BASE_PATH=/gpui-omarchy bun run preview --port 4323' : 'bun run dev',
     url: localURL,

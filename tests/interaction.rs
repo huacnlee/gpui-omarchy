@@ -141,3 +141,41 @@ fn menu_keyboard_skips_disabled_and_selects(cx: &mut TestAppContext) {
     cx.simulate_keystrokes("down enter");
     assert_eq!(selected.get(), 2);
 }
+
+#[gpui::test]
+fn links_open_urls_and_disabled_links_remain_inert(cx: &mut TestAppContext) {
+    struct Links;
+    impl Render for Links {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            div().flex().flex_col().children([
+                link(
+                    "enabled",
+                    "Project",
+                    "https://github.com/huacnlee/gpui-omarchy",
+                    cx,
+                )
+                .debug_selector(|| "enabled-link".into()),
+                link(
+                    "disabled",
+                    "Unavailable",
+                    "https://example.com/disabled",
+                    cx,
+                )
+                .disabled(true)
+                .debug_selector(|| "disabled-link".into()),
+            ])
+        }
+    }
+    cx.update(gpui_omarchy::init);
+    let (_, cx) = cx.add_window_view(|_, _| Links);
+    cx.update(|window, cx| window.draw(cx).clear(cx));
+    let disabled = cx.debug_bounds("disabled-link").unwrap().center();
+    cx.simulate_click(disabled, Modifiers::default());
+    assert_eq!(cx.opened_url(), None);
+    let enabled = cx.debug_bounds("enabled-link").unwrap().center();
+    cx.simulate_click(enabled, Modifiers::default());
+    assert_eq!(
+        cx.opened_url().as_deref(),
+        Some("https://github.com/huacnlee/gpui-omarchy")
+    );
+}

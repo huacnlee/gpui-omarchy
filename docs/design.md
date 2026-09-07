@@ -25,7 +25,7 @@ menu, accordion, pagination), surfaces (panel, separator, keycap, badge,
 empty state, progress, table, tooltip, popover, dialog, notification), and an
 interactive preview for each component in a single Sidebar-driven gallery.
 Specialized capabilities need individual behavior audits; unstyled re-exports
-do not count as finished Omarchy components. Color picker remains on the backlog.
+do not count as finished Omarchy components. Color picker now composes base Hex editing and HSLA sliders.
 
 Validation: cargo fmt, cargo check --all-targets, cargo test; test the styled
 controls' keyboard and pointer interaction, theme contrast and token projection.
@@ -39,7 +39,7 @@ forms and navigation; overlays and data surfaces; complete component examples
 and visual/runtime audit. This document records intended scope, not completion.
 
 
-Current checkpoint: 41 component previews are implemented in one gallery.
+Current checkpoint: 48 component previews are implemented in one gallery.
 Menu uses the base Popover with keyboard selection and disabled-item skipping;
 Dialog and AlertDialog use base modal hosts with focus recovery and outline actions.
 Icons come from gpui-kit-assets with explicit inherited-color resolution.
@@ -51,7 +51,9 @@ navigation. Tooltip uses the base tooltip surface and GPUI hover lifecycle.
 The focus_scope helper connects Tab traversal for forms and the gallery.
 Popover now includes internal keyboard isolation and focus recovery. Collapsible
 provides a controlled single region. Toast provides the base notification surface
-and a bottom-right, manually dismissed example with actions.
+and a bottom-right example with Undo/Retry actions. Saved notifications expire
+after six seconds; hover/focus pauses expiry, errors persist, and replacement
+restarts the timeout. Multi-notification stacking remains to be integrated.
 This is partial progress: notification lifecycle integration and specialized
 components remain, along with system structural
 scaling and a complete visual/interaction audit.
@@ -86,3 +88,15 @@ Primary buttons use transparent backgrounds with accent outlines and text,
 matching the modal action treatment. This is an application-level mapping:
 upstream Button.qml has no Primary variant, and its gallery Apply button uses
 `bordered: true`. Persistent fills indicate selected/active state, not priority.
+
+Interaction audit: the current base Button prevents disabled activation, verified
+for pointer, Return and Space. Its disabled style is resolved before GPUI applies
+hover/active refinements, so disabled hover feedback remains unresolved. This
+requires a base interaction-state fix; changing only the disabled fill does not
+fix the precedence. OtpInput also retains its tracked focus when disabled and
+has no clipboard paste handler. Keep both as dependency gaps until a patched
+base is integrated and verified.
+
+TextView now has Markdown and HTML constructors with shared Omarchy typography,
+selection, code and link colors. Both formats have destination-opening tests;
+this does not replace native selection and visual review.

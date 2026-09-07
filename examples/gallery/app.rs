@@ -3055,7 +3055,7 @@ impl Render for Gallery {
                 })
                 .size_full(),
             );
-        root("gallery")
+        focus_scope("gallery")
             .relative()
             .debug_selector(|| "gallery-root".into())
             .size_full()

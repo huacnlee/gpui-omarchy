@@ -190,7 +190,7 @@ mod tests {
     }
     impl Render for Harness {
         fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-            crate::root("otp-test")
+            crate::focus_scope("otp-test")
                 .size_full()
                 .child(otp_input(&self.state, window, cx).disabled(self.disabled))
         }

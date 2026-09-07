@@ -520,7 +520,7 @@ mod tests {
     }
     impl Render for Harness {
         fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-            crate::root("root")
+            crate::focus_scope("root")
                 .size_full()
                 .child(button("before", "Before", ButtonVariant::Secondary, cx))
                 .child(div().w(px(280.)).child(if self.searchable {

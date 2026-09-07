@@ -282,7 +282,7 @@ mod tests {
                 button_group("options", items, Some(self.selected), change, window, cx)
                     .into_any_element()
             };
-            crate::root("root")
+            crate::focus_scope("root")
                 .size_full()
                 .flex()
                 .flex_col()

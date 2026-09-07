@@ -57,7 +57,7 @@ mod tests {
     }
     impl Render for Harness {
         fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-            crate::root("tree-test")
+            crate::focus_scope("tree-test")
                 .size_full()
                 .child(tree(&self.state, cx))
         }

@@ -47,9 +47,7 @@ pub use controls::*;
 pub use date_picker::{DatePickerState, date_picker};
 pub use dialog::*;
 pub use dock::dock_area;
-#[allow(deprecated)]
 pub use focus::focus_scope;
-pub use focus::root;
 pub use hover_card::hover_card;
 pub use icon::{IconName, icon};
 pub use input::{input, number_input, textarea};

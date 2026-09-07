@@ -67,7 +67,7 @@ Constructors return composable gpui-base elements with their native builder APIs
 
 Select and Combobox use an application-owned `Entity<ChoiceState>` and `ChoiceItem` options. Observe changes with `cx.observe`, then read the selected option's stable `value` through `state.selected()`. The constructors return customizable `gpui_base::Select` and `gpui_base::Combobox` elements. Combobox searches existing options in its popup; it does not create free-text values.
 
-Wrap a window or form in `root("app")` to enable Tab and Shift+Tab traversal. Text fields and popups retain their own keyboard behavior.
+Wrap a window or form in `focus_scope("app")` to enable Tab and Shift+Tab traversal. Text fields and popups retain their own keyboard behavior.
 
 `toggle_group(id, cx)` composes independent `toggle` children for multiple-choice filters. Add icons explicitly through child elements.
 

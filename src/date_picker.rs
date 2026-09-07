@@ -147,7 +147,7 @@ mod tests {
     }
     impl Render for Harness {
         fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-            crate::root("date-picker-test")
+            crate::focus_scope("date-picker-test")
                 .size_full()
                 .child(date_picker("date", &self.state, cx).disabled(self.disabled))
         }

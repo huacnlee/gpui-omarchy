@@ -1,7 +1,7 @@
 use gpui_omarchy::gpui::{
     AppContext, Context, IntoElement, ParentElement, Render, Styled, Window, WindowOptions,
 };
-use gpui_omarchy::{ActiveTheme, ButtonVariant, button, panel, root};
+use gpui_omarchy::{ActiveTheme, ButtonVariant, button, focus_scope, panel};
 
 struct Hello {
     clicks: usize,
@@ -9,20 +9,23 @@ struct Hello {
 
 impl Render for Hello {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        root("hello").size_full().bg(cx.omarchy().background).child(
-            panel("Welcome to Omarchy", cx).child(
-                button(
-                    "hello",
-                    format!("Clicked {} times", self.clicks),
-                    ButtonVariant::Primary,
-                    cx,
-                )
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.clicks += 1;
-                    cx.notify();
-                })),
-            ),
-        )
+        focus_scope("hello")
+            .size_full()
+            .bg(cx.omarchy().background)
+            .child(
+                panel("Welcome to Omarchy", cx).child(
+                    button(
+                        "hello",
+                        format!("Clicked {} times", self.clicks),
+                        ButtonVariant::Primary,
+                        cx,
+                    )
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.clicks += 1;
+                        cx.notify();
+                    })),
+                ),
+            )
     }
 }
 

@@ -63,7 +63,7 @@ mod tests {
     impl Render for Harness {
         fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
             let target = cx.entity();
-            crate::root("root").size_full().child(popover(
+            crate::focus_scope("root").size_full().child(popover(
                 "options",
                 crate::button(
                     "trigger",

@@ -149,7 +149,7 @@ mod tests {
     }
     impl Render for Harness {
         fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-            crate::root("color-test")
+            crate::focus_scope("color-test")
                 .size_full()
                 .child(color_picker("test", &self.state, window, cx).disabled(self.disabled))
         }

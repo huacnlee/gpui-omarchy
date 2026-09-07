@@ -22,7 +22,7 @@ pub(crate) fn init(cx: &mut App) {
 /// Wrap a window or form in this scope to connect Tab and Shift+Tab to GPUI's
 /// tab order. Nested editors may consume Tab for indentation; single-line
 /// fields propagate it here. Popup-specific handlers take priority.
-pub fn root(id: impl Into<ElementId>) -> Stateful<Div> {
+pub fn focus_scope(id: impl Into<ElementId>) -> Stateful<Div> {
     div()
         .id(id)
         .tab_group()
@@ -43,10 +43,4 @@ pub fn root(id: impl Into<ElementId>) -> Stateful<Div> {
         .on_action(
             |_: &gpui_base::input::OutdentInline, window: &mut Window, cx| window.focus_prev(cx),
         )
-}
-
-/// Compatibility alias for [`root`].
-#[deprecated(note = "use root instead")]
-pub fn focus_scope(id: impl Into<ElementId>) -> Stateful<Div> {
-    root(id)
 }

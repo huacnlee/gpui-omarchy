@@ -142,6 +142,31 @@ impl RenderOnce for OtpInput {
                 {
                     // Modified digits are shortcuts, never code entry.
                     cx.stop_propagation();
+                } else if !mods.control
+                    && !mods.platform
+                    && !mods.alt
+                    && event.keystroke.key != "backspace"
+                    && let Some(text) = event.keystroke.key_char.as_deref()
+                {
+                    // The produced character owns text entry. The physical key
+                    // can name a different digit (or a symbol) on another layout.
+                    let digit = code_digits(text, 1);
+                    if !digit.is_empty() {
+                        paste.update(cx, |state, cx| {
+                            let mut next = state.value().to_string();
+                            if next.chars().count() < state.len() {
+                                next.push_str(&digit);
+                                let complete = next.chars().count() == state.len();
+                                state.set_value(next, window, cx);
+                                cx.emit(gpui_base::OtpEvent::Change);
+                                if complete {
+                                    cx.emit(gpui_base::OtpEvent::Complete);
+                                }
+                            }
+                        });
+                        window.prevent_default();
+                    }
+                    cx.stop_propagation();
                 }
             })
             .child(
@@ -187,6 +212,36 @@ mod tests {
         cx.simulate_keystrokes("backspace 9");
         cx.update(|_, cx| assert_eq!(view.read(cx).state.read(cx).value().as_ref(), "123459"));
     }
+    #[gpui::test]
+    fn typed_characters_take_precedence_over_physical_digit_keys(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (view, cx) = cx.add_window_view(|window, cx| Harness {
+            state: cx.new(|cx| OtpState::new(6, window, cx)),
+            disabled: false,
+        });
+        cx.update(|window, cx| {
+            view.read(cx)
+                .state
+                .read(cx)
+                .focus_handle(cx)
+                .focus(window, cx);
+            window.draw(cx).clear(cx);
+        });
+        for (key, character, expected) in [
+            ("shift-1", "!", ""),
+            ("shift-&", "1", "1"),
+            ("2", "３", "13"),
+        ] {
+            cx.update(|window, cx| {
+                let mut stroke = gpui::Keystroke::parse(key).unwrap();
+                stroke.key_char = Some(character.into());
+                window.dispatch_keystroke(stroke, cx);
+                assert_eq!(view.read(cx).state.read(cx).value().as_ref(), expected);
+                window.draw(cx).clear(cx);
+            });
+        }
+    }
+
     #[gpui::test]
     fn paste_filters_code_and_disabled_input_ignores_events(cx: &mut TestAppContext) {
         cx.update(crate::init);

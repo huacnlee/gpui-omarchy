@@ -1,0 +1,64 @@
+---
+import { publicUrl } from '../lib/urls';
+interface Props {
+  title: string;
+  description: string;
+  path?: string;
+  guide?: boolean;
+}
+const { title, description, path = '', guide = false } = Astro.props;
+const canonical = publicUrl(Astro.site, path);
+const home = publicUrl(Astro.site);
+const image = publicUrl(Astro.site, 'social.png');
+const repo = 'https://github.com/huacnlee/gpui-omarchy';
+const schema = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': guide ? 'TechArticle' : 'WebPage',
+      '@id': `${canonical}#page`,
+      url: canonical,
+      name: title,
+      headline: title,
+      description,
+      inLanguage: 'en',
+      isPartOf: { '@id': `${home}#website` },
+      about: { '@id': `${home}#library` },
+      ...(guide ? { encoding: {
+        '@type': 'MediaObject', encodingFormat: 'text/markdown',
+        contentUrl: publicUrl(Astro.site, 'guides.md'),
+      } } : {}),
+    },
+    { '@type': 'WebSite', '@id': `${home}#website`, name: 'GPUI Omarchy', url: home, inLanguage: 'en' },
+    {
+      '@type': 'SoftwareSourceCode', '@id': `${home}#library`,
+      name: 'gpui-omarchy', codeRepository: repo, programmingLanguage: 'Rust',
+      license: `${repo}/blob/main/LICENSE`, url: home,
+      description: 'Native Rust components with Omarchy presentation, built on gpui-base.',
+    },
+  ],
+};
+---
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonical} />
+<link rel="sitemap" type="application/xml" href={publicUrl(Astro.site, 'sitemap.xml')} />
+<link rel="alternate" type="text/plain" title="AI documentation index" href={publicUrl(Astro.site, 'llms.txt')} />
+{guide && <link rel="alternate" type="text/markdown" title="Guides as Markdown" href={publicUrl(Astro.site, 'guides.md')} />}
+<meta property="og:type" content={guide ? 'article' : 'website'} />
+<meta property="og:site_name" content="GPUI Omarchy" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+<meta property="og:image" content={image} />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="512" />
+<meta property="og:image:height" content="512" />
+<meta property="og:image:alt" content="GPUI Omarchy project logo" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={image} />
+<meta name="twitter:image:alt" content="GPUI Omarchy project logo" />
+<script is:inline type="application/ld+json" set:html={JSON.stringify(schema).replace(/</g, '\\u003c')} />

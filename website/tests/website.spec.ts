@@ -48,7 +48,7 @@ test('themes persist and all layouts fit narrow screens',async({page})=>{
   }
 });
 
-test('page assets load and copy command works',async({page,context})=>{
+test('page assets load and Cargo.toml dependencies can be copied',async({page,context})=>{
   await context.grantPermissions(['clipboard-read','clipboard-write']);
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('./');
@@ -56,7 +56,7 @@ test('page assets load and copy command works',async({page,context})=>{
   await expect(page.getByRole('heading',{level:1})).toContainText('GPUI / OMARCHY');
   await page.getByRole('button',{name:'Copy'}).click();
   await expect(page.getByRole('button',{name:'Copy to clipboard'})).toHaveText('Copied');
-  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe('cargo add gpui-omarchy');
+  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe('[dependencies]\ngpui-kit = { version = "=0.6.0", default-features = false }\ngpui-omarchy = "0.1.0"');
   expect(errors).toEqual([]);
 });
 

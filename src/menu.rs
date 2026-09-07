@@ -1,10 +1,10 @@
 //! A keyboard menu composed from the base Popover and Button primitives.
 use crate::{ActiveTheme, ButtonVariant, IconName, button, icon};
-use gpui::{
+use gpui_kit::base::Popover;
+use gpui_kit::{
     App, ElementId, Focusable, KeyDownEvent, ParentElement, SharedString, Window, div, prelude::*,
     px,
 };
-use gpui_base::Popover;
 use std::rc::Rc;
 
 #[derive(Clone)]
@@ -54,7 +54,7 @@ impl MenuItem {
 /// Base positions the popup, dismisses outside/Escape and restores trigger focus.
 pub fn menu(
     id: impl Into<ElementId>,
-    trigger: impl gpui_base::Selectable + IntoElement + 'static,
+    trigger: impl gpui_kit::base::Selectable + IntoElement + 'static,
     items: Vec<MenuItem>,
     on_select: impl Fn(usize, &mut Window, &mut App) + 'static,
 ) -> Popover {
@@ -85,7 +85,7 @@ pub fn menu(
             div()
                 .id("menu-items")
                 .debug_selector(|| "omarchy-menu-content".into())
-                .role(gpui::Role::Menu)
+                .role(gpui_kit::Role::Menu)
                 .track_focus(&focus)
                 .w(px(240.))
                 .p(px(6.))
@@ -98,7 +98,7 @@ pub fn menu(
                 .text_color(t.foreground)
                 .font_family(t.font.clone())
                 .text_size(px(12.))
-                .on_action(move |_: &gpui_base::actions::Confirm, window, cx| {
+                .on_action(move |_: &gpui_kit::base::actions::Confirm, window, cx| {
                     if let Some(index) = *confirm_cursor.read(cx) {
                         confirm_close.update(cx, |state, cx| state.dismiss(window, cx));
                         confirm_select(index, window, cx);
@@ -141,13 +141,13 @@ pub fn menu(
                     let select = on_select.clone();
                     let row = button(("menu-item", index), "", ButtonVariant::Secondary, cx)
                         .accessibility_label(item.label.clone())
-                        .role(gpui::Role::MenuItem)
+                        .role(gpui_kit::Role::MenuItem)
                         .when_some(item.checked, |row, checked| {
-                            row.role(gpui::Role::MenuItemRadio)
+                            row.role(gpui_kit::Role::MenuItemRadio)
                                 .aria_toggled(if checked {
-                                    gpui::accesskit::Toggled::True
+                                    gpui_kit::accesskit::Toggled::True
                                 } else {
-                                    gpui::accesskit::Toggled::False
+                                    gpui_kit::accesskit::Toggled::False
                                 })
                         })
                         .focusable(false)

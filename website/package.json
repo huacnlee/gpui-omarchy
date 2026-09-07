@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "bun --bun astro dev --host 127.0.0.1",
-    "build": "bun --bun astro check && bun --bun astro build",
+    "build": "bun --bun astro check && bun --bun astro build && bun run test:seo",
+    "test:seo": "bun test scripts/seo.test.js",
     "preview": "bun --bun astro preview --host 127.0.0.1"
   },
   "dependencies": {

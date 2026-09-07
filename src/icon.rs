@@ -1,6 +1,6 @@
 //! GPUI Kit's bundled icons, resolved against the current text color at render time.
-use gpui::{App, IntoElement, RenderOnce, StyleRefinement, Styled, Window, px, svg};
-use gpui_base::StyledExt;
+use gpui_kit::base::StyledExt;
+use gpui_kit::{App, IntoElement, RenderOnce, StyleRefinement, Styled, Window, px, svg};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IconName {
@@ -62,7 +62,7 @@ impl RenderOnce for Icon {
 }
 #[cfg(not(target_family = "wasm"))]
 fn icon_data(name: IconName) -> std::borrow::Cow<'static, [u8]> {
-    gpui_kit_assets::Assets::get(name.path())
+    gpui_kit::assets::Assets::get(name.path())
         .expect("bundled icon exists")
         .data
 }
@@ -120,7 +120,7 @@ mod tests {
             IconName::TriangleAlert,
         ] {
             assert!(
-                gpui_kit_assets::Assets::get(name.path()).is_some(),
+                gpui_kit::assets::Assets::get(name.path()).is_some(),
                 "{}",
                 name.path()
             );

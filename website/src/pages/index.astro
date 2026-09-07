@@ -3,10 +3,12 @@ import '../styles/global.css';
 import { Code } from 'astro:components';
 import ThemeMenu from '../components/ThemeMenu';
 import CopyButton from '../components/CopyButton';
+import Seo from '../components/Seo.astro';
 import quickStart from '../../../examples/hello.rs?raw';
 const asset = (path: string) => `${import.meta.env.BASE_URL.replace(/\/$/, '')}/${path}`;
 const repo = 'https://github.com/huacnlee/gpui-omarchy';
 const dependencies = `[dependencies]
+gpui-kit = { version = "=0.6.0", default-features = false }
 gpui-omarchy = "0.1.0"`;
 ---
 <!doctype html>
@@ -14,10 +16,10 @@ gpui-omarchy = "0.1.0"`;
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href={asset('favicon.svg')} />
+    <link rel="icon" type="image/png" sizes="192x192" href={asset('icon.png')} />
     <style is:inline set:html={`@font-face{font-family:"Omarchy Display";src:url("${asset('fonts/omarchy.ttf')}") format("truetype");font-weight:400;font-style:normal;font-display:swap;}`} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="A gpui-kit component library designed for Omarchy. Native Rust components, system themes, and the freedom of gpui-base." />
-    <title>GPUI Omarchy — Native components built on gpui-base.</title>
+    <Seo title="GPUI Omarchy — Native Rust UI components" description="Build native Rust applications with Omarchy components, system themes and gpui-base. Explore the live gallery and learn with complete guides and API examples." />
     <script is:inline>
       try { const theme=localStorage.getItem('gpui-omarchy-theme'); if(['tokyo-night','flexoki-light'].includes(theme)) document.documentElement.dataset.theme=theme; } catch {}
     </script>
@@ -25,10 +27,11 @@ gpui-omarchy = "0.1.0"`;
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header"><div class="shell">
-      <a class="site-name" href="#main">GPUI Omarchy</a>
+      <a class="site-name" href="#main" aria-label="GPUI Omarchy home"><span class="site-logo" style={`--site-logo-url:url("${asset('favicon.svg')}")`} aria-hidden="true"></span></a>
       <nav class="site-nav" aria-label="Main navigation">
         <a href="#components" class="desktop-link">Components</a>
         <a href="#start" class="desktop-link">Get started</a>
+        <a href={asset('guides/')} class="guides-link">Guides</a>
         <a href={repo}>GitHub</a>
         <ThemeMenu client:load />
       </nav>
@@ -37,12 +40,14 @@ gpui-omarchy = "0.1.0"`;
       <section class="hero" aria-labelledby="hero-title">
         <h1 id="hero-title" class="hero-brand">GPUI / OMARCHY</h1>
         <p class="lead">Native <a class="text-link" href="https://gpui-kit.com/base/">gpui-base</a> components for Omarchy.<br />Part of <a class="text-link" href="https://gpui-kit.com/">GPUI Kit</a>. Guided by <a class="text-link" href="https://github.com/huacnlee/omarchy-style">Omarchy Style</a>.</p>
-        <div class="actions"><a class="button primary" href="#start">Build with Omarchy</a><a class="button" href="#components">Explore components</a></div>
+        <div class="actions"><a class="button primary" href={asset('guides/')}>Read the guides</a><a class="button" href="#components">Explore components</a></div>
         <p class="hero-note">Rust + GPUI · Open source · MIT licensed</p>
       </section>
       <section id="components" class="live-gallery" aria-label="Live GPUI Omarchy gallery">
+        <h2 class="sr-only">Explore the components</h2>
         <iframe src={asset('gallery/index.html')} title="GPUI Omarchy component gallery running in WebAssembly" loading="lazy" allow="clipboard-read; clipboard-write"></iframe>
-        <p class="gallery-caption">The Rust gallery, running in your browser with WebAssembly. <a class="text-link" href={asset('gallery/index.html')} target="_blank" rel="noopener">Open gallery ↗</a> · <a class="text-link" href={`${repo}/tree/feat/omarchy-components-gallery/examples/gallery`}>View example source</a></p>
+        <p class="gallery-caption">The Rust gallery, running in your browser with WebAssembly. <a class="text-link" href={asset('gallery/index.html')} target="_blank" rel="noopener">Open gallery ↗</a> · <a class="text-link" href={`${repo}/tree/main/examples/gallery`}>View example source</a></p>
+        <p>Build with <a href={asset('guides/#build-forms')}>inputs and form controls</a>, <a href={asset('guides/#organize-navigation')}>navigation</a>, <a href={asset('guides/#open-menus-and-contextual-content')}>menus and popovers</a>, and <a href={asset('guides/#display-tables-lists-and-trees')}>tables, lists and trees</a>. Each guide explains state, keyboard behavior and composition.</p>
       </section>
       <section class="section split" id="foundation">
         <div><h2>Built on gpui-base.<br />Designed for Omarchy.</h2><p>Omarchy is more than a palette. It's the relationship between quiet surfaces, clear edges, and the work in front of you.</p><p>GPUI Omarchy demonstrates how far <a class="text-link" href="https://gpui-kit.com/base/">gpui-base</a> can go: shared behavior, freely customized presentation.</p></div>
@@ -53,10 +58,10 @@ gpui-omarchy = "0.1.0"`;
         </dl>
       </section>
       <section id="start" class="section split">
-        <div><h2>Add to your application.</h2><p>Declare the dependencies, then create your first window. Initialization loads your Omarchy theme automatically.</p><div class="setup-command"><code>cargo add gpui-omarchy</code><CopyButton client:load text="cargo add gpui-omarchy" /></div><div class="code-frame"><div class="code-bar"><span>Cargo.toml</span><span>TOML</span></div><Code code={dependencies} lang="toml" themes={{light:'github-light',dark:'tokyo-night'}} defaultColor="dark" /></div><p class="text-sm mt-6">Save the example as src/main.rs and run <code>cargo run</code>.</p><a class="text-link" href={`${repo}#usage`}>Read the usage guide</a></div>
+        <div><h2>Add to your application.</h2><p>Declare the dependencies, then create your first window. Initialization loads your Omarchy theme automatically.</p><div class="code-frame"><div class="code-bar"><span>Cargo.toml</span><CopyButton client:load text={dependencies} /></div><Code code={dependencies} lang="toml" themes={{light:'github-light',dark:'tokyo-night'}} defaultColor="dark" /></div><p class="text-sm mt-6">Save the example as src/main.rs and run <code>cargo run</code>.</p><a class="text-link" href={`${repo}#usage`}>Read the usage guide</a></div>
         <div class="code-frame"><div class="code-bar"><span>src/main.rs</span><span>Rust</span></div><Code code={quickStart} lang="rust" themes={{light:'github-light',dark:'tokyo-night'}} defaultColor="dark" /></div>
       </section>
     </main>
-    <footer class="site-footer"><div class="shell"><span>GPUI Omarchy · An independent community project.</span><span>By <a class="text-link" href="https://github.com/huacnlee">Jason Lee</a> · <a class="text-link" href={`${repo}/blob/feat/omarchy-components-gallery/LICENSE`}>MIT license</a></span></div></footer>
+    <footer class="site-footer"><div class="shell"><span>GPUI Omarchy · An independent community project.</span><span>By <a class="text-link" href="https://github.com/huacnlee">Jason Lee</a> · <a class="text-link" href={`${repo}/blob/main/LICENSE`}>MIT license</a></span></div></footer>
   </body>
 </html>

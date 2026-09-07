@@ -39,19 +39,22 @@ Native applications follow the system theme after `init`: a background check eve
 
 ## Usage
 
+Read the [single-page Guides](website/src/pages/guides.md) for application setup, state, themes, forms, navigation, overlays and data views, with API details alongside each task.
+
 Add the library to your application:
 
 ```toml
 [dependencies]
+gpui-kit = { version = "=0.6.0", default-features = false }
 gpui-omarchy = "0.1.0"
 ```
 
-Use `gpui_omarchy::gpui` for GPUI types and `gpui_omarchy::application()` for the desktop entry point. These are provided through GPUI Kit with its component facade disabled. See the [complete quick start](examples/hello.rs).
+Use `gpui_kit` for framework types, `gpui_kit::application()` for the desktop entry point, and `gpui_kit::base` for base state and composition APIs. GPUI Kit’s component facade is disabled so gpui-omarchy supplies the presentation. See the [complete quick start](examples/hello.rs).
 
 Call `gpui_omarchy::init(cx)` once at startup, then create components inside `Render`:
 
 ```rust,ignore
-use gpui_omarchy::gpui::ParentElement;
+use gpui_kit::ParentElement;
 use gpui_omarchy::{button, panel, ButtonVariant};
 
 panel("Workspace", cx).child(
@@ -65,7 +68,7 @@ panel("Workspace", cx).child(
 
 Constructors return composable gpui-base elements with their native builder APIs. Button uses a thin `gpui_omarchy::Button` wrapper that retains base activation, focus, children and styling APIs while withholding hover, pressed and focus-visible styles when disabled. Calling `.disabled(true)` before or after styling has the same result. `gpui_omarchy::Link` likewise suppresses hover, pressed and focus-visible styling when disabled, while retaining base URL activation behavior. Applications own checkbox, switch, radio and toggle state: pass the current value on each render and update it in `on_change`. Avoid overriding these values after construction, which can leave visual indicators out of sync. Component IDs must be unique within the same parent.
 
-Select and Combobox use an application-owned `Entity<ChoiceState>` and `ChoiceItem` options. Observe changes with `cx.observe`, then read the selected option's stable `value` through `state.selected()`. The constructors return customizable `gpui_base::Select` and `gpui_base::Combobox` elements. Combobox searches existing options in its popup; it does not create free-text values.
+Select and Combobox use an application-owned `Entity<ChoiceState>` and `ChoiceItem` options. Observe changes with `cx.observe`, then read the selected option's stable `value` through `state.selected()`. The constructors return customizable `gpui_kit::base::Select` and `gpui_kit::base::Combobox` elements. Combobox searches existing options in its popup; it does not create free-text values.
 
 Wrap a window or form in `focus_scope("app")` to enable Tab and Shift+Tab traversal. Text fields and popups retain their own keyboard behavior.
 
@@ -100,7 +103,7 @@ Wrap a window or form in `focus_scope("app")` to enable Tab and Shift+Tab traver
 
 `hover_card` provides a delayed supplementary preview; essential content should also be accessible on the main page. `dock_area` installs the Omarchy DockAreaRenderer. Its example demonstrates dragging, merging and splitting tabbed panels. Docking supports tabs and split layouts; floating layouts are not offered.
 
-Input state uses `gpui_base::input::{InputState, TextareaState}`. See the [gallery implementation](examples/gallery/app.rs) for initialization examples.
+Input state uses `gpui_kit::base::input::{InputState, TextareaState}`. See the [gallery implementation](examples/gallery/app.rs) for initialization examples.
 
 ## Validation
 

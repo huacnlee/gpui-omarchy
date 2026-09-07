@@ -2,7 +2,7 @@
 use gpui::{App, Global, Hsla, SharedString, px, rgb};
 use gpui_base::{ColorTokens, RadiusTokens, ThemeAppearance};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Theme {
     pub name: SharedString,
     pub appearance: ThemeAppearance,
@@ -24,6 +24,7 @@ pub struct Theme {
 impl Global for Theme {}
 
 impl Theme {
+    /// Omarchy's semantic Tokyo Night palette (quattro/themes/tokyo-night/colors.toml).
     pub fn tokyo_night() -> Self {
         Self {
             name: "Tokyo Night".into(),
@@ -31,10 +32,10 @@ impl Theme {
             background: rgb(0x1a1b26).into(),
             surface: rgb(0x24283b).into(),
             inset: rgb(0x13141c).into(),
-            foreground: rgb(0xc0caf5).into(),
+            foreground: rgb(0xa9b1d6).into(),
             secondary: rgb(0xa9b1d6).into(),
             bright: rgb(0xc0caf5).into(),
-            accent: rgb(0x9ece6a).into(),
+            accent: rgb(0x7aa2f7).into(),
             on_accent: rgb(0x13141c).into(),
             selection: rgb(0x292e42).into(),
             border: rgb(0x414868).into(),
@@ -127,7 +128,13 @@ impl Theme {
     }
 
     /// Atomically update presentation and base tokens, then redraw all windows.
+    /// Applying an explicit theme stops following system theme changes.
     pub fn apply(self, cx: &mut App) {
+        crate::system_theme::stop_following(cx);
+        self.apply_palette(cx);
+    }
+
+    pub(crate) fn apply_palette(self, cx: &mut App) {
         let base = gpui_base::Theme::global_mut(cx);
         base.appearance = self.appearance;
         base.tokens.colors = self.tokens();

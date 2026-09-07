@@ -78,5 +78,5 @@ pub fn init(cx: &mut gpui::App) {
     button_group::init(cx);
     popover::init(cx);
     date_picker::init(cx);
-    Theme::system_or_default().apply(cx);
+    Theme::follow_system(cx);
 }

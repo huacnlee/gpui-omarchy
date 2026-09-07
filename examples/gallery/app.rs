@@ -3114,7 +3114,10 @@ impl Render for Gallery {
                                     target.update(cx, |this, cx| {
                                         match index {
                                             0 => {
-                                                apply_gallery_theme(Theme::system_or_default(), cx)
+                                                #[cfg(not(target_family = "wasm"))]
+                                                Theme::follow_system(cx);
+                                                #[cfg(target_family = "wasm")]
+                                                apply_gallery_theme(Theme::system_or_default(), cx);
                                             }
                                             1 => apply_gallery_theme(Theme::tokyo_night(), cx),
                                             2 => apply_gallery_theme(Theme::flexoki_light(), cx),

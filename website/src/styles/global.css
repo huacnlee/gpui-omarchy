@@ -4,13 +4,14 @@
 
 :root,[data-theme='tokyo-night'] {
   color-scheme: dark;
-  --background:#1a1b26; --deep:#15161e; --surface:#202230; --foreground:#c0caf5; --muted:#a9b1d6;
-  --accent:#9ece6a; --brand-ink:#10140c; --border:#414868; --subtle:#292e42;
-  --hover:#292e42; --selected:#343b54; --selection:#414868;
+  /* Omarchy's semantic Tokyo Night palette (quattro/themes/tokyo-night/colors.toml). */
+  --background:#1a1b26; --deep:#13141c; --surface:#24283b; --foreground:#a9b1d6; --muted:#a9b1d6; --bright:#c0caf5;
+  --accent:#7aa2f7; --brand-ink:#13141c; --border:#414868; --subtle:#292e42;
+  --hover:#292e42; --selected:#414868; --selection:#292e42;
 }
 [data-theme='flexoki-light'] {
   color-scheme:light;
-  --background:#fffcf0; --deep:#f2f0e5; --surface:#f7f4e9; --foreground:#100f0f; --muted:#575653;
+  --background:#fffcf0; --deep:#f2f0e5; --surface:#f7f4e9; --foreground:#100f0f; --muted:#575653; --bright:#100f0f;
   --accent:#205ea6; --brand-ink:#fffcf0; --border:#b7b5ac; --subtle:#dad8ce;
   --hover:#e6e4d9; --selected:#dad8ce; --selection:#d0d9e4;
 }
@@ -23,7 +24,7 @@ h1,h2,h3,h4 { font-family:var(--font-sans); font-weight:600; line-height:1.2; le
 h1 { font-size:clamp(27px,3vw,36px); } h2 { font-size:28px; } h3 { font-size:20px; }
 p { text-wrap:pretty; } a,button,input { -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
 a { color:inherit; } button,input,select { font:inherit; } button { cursor:pointer; } button:disabled { cursor:default; opacity:.5; }
-::selection { background:var(--selection); color:var(--foreground); }
+::selection { background:var(--selection); color:var(--bright); }
 :focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
 [id] { scroll-margin-top:90px; }
 .shell { width:min(100% - 48px,1104px); margin-inline:auto; }

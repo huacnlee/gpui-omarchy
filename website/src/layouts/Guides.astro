@@ -1,0 +1,53 @@
+---
+import '../styles/global.css';
+import '../styles/guides.css';
+import ThemeMenu from '../components/ThemeMenu';
+import Seo from '../components/Seo.astro';
+const { frontmatter, headings = [] } = Astro.props;
+const asset = (path: string) => `${import.meta.env.BASE_URL.replace(/\/$/, '')}/${path}`;
+const chapters = headings.filter((heading: { depth: number }) => heading.depth === 2);
+---
+<!doctype html>
+<html lang="en" data-theme="tokyo-night">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href={asset('favicon.svg')} />
+    <link rel="icon" type="image/png" sizes="192x192" href={asset('icon.png')} />
+    <Seo title="GPUI Omarchy Guides — Rust components and API examples" description={frontmatter.description} path="guides/" guide />
+    <script is:inline>
+      try { const theme = localStorage.getItem('gpui-omarchy-theme'); if (['tokyo-night', 'flexoki-light'].includes(theme)) document.documentElement.dataset.theme = theme; } catch {}
+    </script>
+  </head>
+  <body class="guides-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header"><div class="shell">
+      <a class="site-name" href={asset('')} aria-label="GPUI Omarchy home"><span class="site-logo" style={`--site-logo-url:url("${asset('favicon.svg')}")`} aria-hidden="true"></span></a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href={asset('guides/')} aria-current="page">Guides</a>
+        <a href="https://github.com/huacnlee/gpui-omarchy" class="desktop-link">GitHub</a>
+        <ThemeMenu client:load />
+      </nav>
+    </div></header>
+    <div class="shell guides-grid">
+      <aside class="guide-contents">
+        <details open>
+          <summary>On this page</summary>
+          <nav aria-label="Guide chapters">
+            {chapters.map((chapter: { slug: string; text: string }, index: number) => (
+              <a href={`#${chapter.slug}`}><span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>{chapter.text}</a>
+            ))}
+          </nav>
+        </details>
+      </aside>
+      <main id="main" class="guide-prose">
+        <a class="guide-download" href={asset('guides.md')} download="gpui-omarchy-guides.md">Download Markdown</a>
+        <slot />
+      </main>
+    </div>
+    <footer class="site-footer"><div class="shell">
+      <span>GPUI Omarchy · An independent community project.</span>
+      <a href="https://github.com/huacnlee/gpui-omarchy/blob/main/website/src/pages/guides.md">Edit this guide</a>
+    </div></footer>
+  </body>
+</html>

@@ -30,7 +30,7 @@ export default function CopyButton({ text, label = 'Copy' }: CopyButtonProps) {
         {status === 'copied' ? 'Copied' : status === 'error' ? 'Retry copy' : label}
       </button>
       <span className="control-status" role="status">
-        {status === 'copied' ? 'Copied to clipboard.' : status === 'error' ? 'Could not access the clipboard. Retry or select and copy the command.' : ''}
+        {status === 'copied' ? 'Copied to clipboard.' : status === 'error' ? 'Could not access the clipboard. Retry or select and copy the code.' : ''}
       </span>
     </span>
   );

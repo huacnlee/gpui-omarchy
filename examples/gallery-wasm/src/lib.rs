@@ -9,13 +9,13 @@ mod gallery;
 thread_local! {
     static REQUESTED_THEME: RefCell<String> = RefCell::new("tokyo-night".into());
     static READY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-    static APPLICATION: RefCell<Option<gpui::ApplicationHandle>> = const { RefCell::new(None) };
+    static APPLICATION: RefCell<Option<gpui_kit::ApplicationHandle>> = const { RefCell::new(None) };
 }
 
 #[wasm_bindgen]
 pub fn run() -> Result<(), JsValue> {
-    gpui::platform::web_init();
-    let application = gpui::platform::single_threaded_web();
+    gpui_kit::platform::web_init();
+    let application = gpui_kit::platform::single_threaded_web();
     let handle = application.run_embedded(|cx| {
         cx.text_system()
             .add_fonts(vec![

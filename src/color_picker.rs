@@ -1,7 +1,7 @@
 //! Color editing backed by base's hex validation and synchronized HSLA state.
 use crate::{ActiveTheme, ButtonVariant, button, input, popover_surface, slider};
-use gpui::{App, ElementId, Entity, Focusable, Window, div, prelude::*, px};
-use gpui_base::{ColorPicker, ColorPickerState, Popup};
+use gpui_kit::base::{ColorPicker, ColorPickerState, Popup};
+use gpui_kit::{App, ElementId, Entity, Focusable, Window, div, prelude::*, px};
 
 pub fn color_picker(
     id: impl Into<ElementId>,
@@ -41,7 +41,7 @@ pub fn color_picker(
         )
         .on_click(|_, window, cx| {
             window.dispatch_action(
-                Box::new(gpui_base::actions::Confirm { secondary: false }),
+                Box::new(gpui_kit::base::actions::Confirm { secondary: false }),
                 cx,
             );
         });
@@ -130,7 +130,7 @@ pub fn color_picker(
 fn restore_committed_color(
     state: &mut ColorPickerState,
     window: &mut Window,
-    cx: &mut gpui::Context<ColorPickerState>,
+    cx: &mut gpui_kit::Context<ColorPickerState>,
 ) {
     if let Some(value) = state.value() {
         state.set_value(value, window, cx);
@@ -142,7 +142,7 @@ fn restore_committed_color(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui::{Context, Render, TestAppContext};
+    use gpui_kit::{Context, Render, TestAppContext};
     struct Harness {
         state: Entity<ColorPickerState>,
         disabled: bool,
@@ -154,12 +154,12 @@ mod tests {
                 .child(color_picker("test", &self.state, window, cx).disabled(self.disabled))
         }
     }
-    #[gpui::test]
+    #[gpui_kit::test]
     fn disabled_and_invalid_drafts_do_not_commit(cx: &mut TestAppContext) {
         cx.update(crate::init);
         let (view, cx) = cx.add_window_view(|window, cx| {
             let state = cx.new(|cx| {
-                ColorPickerState::new(window, cx).default_value(gpui::hsla(0., 1., 0.5, 1.))
+                ColorPickerState::new(window, cx).default_value(gpui_kit::hsla(0., 1., 0.5, 1.))
             });
             cx.observe(&state, |_, _, cx| cx.notify()).detach();
             Harness {
@@ -204,7 +204,7 @@ mod tests {
         cx.update(|window, cx| window.draw(cx).clear(cx));
         let opacity = cx.debug_bounds("color-channel-Opacity").unwrap();
         cx.simulate_click(
-            gpui::point(opacity.left() + opacity.size.width / 2., opacity.center().y),
+            gpui_kit::point(opacity.left() + opacity.size.width / 2., opacity.center().y),
             Default::default(),
         );
         cx.update(|window, cx| {
@@ -228,7 +228,7 @@ mod tests {
             window.draw(cx).clear(cx);
             let state = view.read(cx).state.read(cx);
             assert!(!state.is_open());
-            assert_eq!(state.value(), Some(gpui::hsla(1. / 3., 1., 0.5, 1.)));
+            assert_eq!(state.value(), Some(gpui_kit::hsla(1. / 3., 1., 0.5, 1.)));
             assert!(state.focus_handle(cx).is_focused(window));
         });
     }

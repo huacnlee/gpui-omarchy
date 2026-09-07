@@ -1,4 +1,4 @@
-use gpui_omarchy::gpui::{
+use gpui_kit::{
     AppContext, Context, IntoElement, ParentElement, Render, Styled, Window, WindowOptions,
 };
 use gpui_omarchy::{ActiveTheme, ButtonVariant, button, focus_scope, panel};
@@ -30,7 +30,7 @@ impl Render for Hello {
 }
 
 fn main() {
-    gpui_omarchy::application().run(|cx| {
+    gpui_kit::application().run(|cx| {
         gpui_omarchy::init(cx);
         cx.open_window(WindowOptions::default(), |_, cx| {
             cx.new(|_| Hello { clicks: 0 })

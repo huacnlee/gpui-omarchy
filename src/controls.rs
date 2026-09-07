@@ -289,7 +289,6 @@ pub fn link(
         .open_with(|url, _, _, cx| cx.open_url(url))
         .accessibility_label(label.clone())
         .child(label)
-        .child(icon(IconName::ExternalLink).size(px(12.)))
         .flex()
         .items_center()
         .gap(px(6.))

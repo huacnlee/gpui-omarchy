@@ -20,3 +20,8 @@ gpui = { package = "gpui-kit", version = "=0.6.0", default-features = false, fea
 
 [profile.dev]
 debug = "limited"
+
+# gpui-pre-macros 0.3.1 leaves a helper ungated in release builds while its
+# module is gated on debug_assertions. Enable it for the host proc-macro only.
+[profile.release.package.gpui-pre-macros]
+debug-assertions = true

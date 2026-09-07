@@ -34,7 +34,7 @@ impl Theme {
             foreground: rgb(0xc0caf5).into(),
             secondary: rgb(0xa9b1d6).into(),
             bright: rgb(0xc0caf5).into(),
-            accent: rgb(0x7aa2f7).into(),
+            accent: rgb(0x9ece6a).into(),
             on_accent: rgb(0x13141c).into(),
             selection: rgb(0x292e42).into(),
             border: rgb(0x414868).into(),

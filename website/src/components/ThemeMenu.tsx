@@ -42,7 +42,7 @@ export default function ThemeMenu() {
     <Menu.Root>
       <Menu.Trigger className="theme-menu-trigger" aria-label={`Theme: ${themes.find((item) => item.id === theme)?.name}`}>
         <span>{themes.find((item) => item.id === theme)?.name}</span>
-        <span className="theme-menu-caret" aria-hidden="true">⌄</span>
+        <svg className="theme-menu-caret" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner className="theme-menu-positioner" align="end" sideOffset={8} collisionPadding={16}>
@@ -52,7 +52,7 @@ export default function ThemeMenu() {
               {themes.map((item) => (
                 <Menu.RadioItem className="theme-menu-item" key={item.id} value={item.id} closeOnClick>
                   <span>{item.name}</span>
-                  <Menu.RadioItemIndicator className="theme-menu-check" aria-hidden="true">✓</Menu.RadioItemIndicator>
+                  <Menu.RadioItemIndicator className="theme-menu-check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg></Menu.RadioItemIndicator>
                 </Menu.RadioItem>
               ))}
             </Menu.RadioGroup>

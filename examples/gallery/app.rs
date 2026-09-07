@@ -178,6 +178,7 @@ struct Gallery {
     mixed: bool,
     enabled: bool,
     choice: usize,
+    radio_focus: FocusHandle,
     sheet_open: bool,
     sheet_focus: FocusHandle,
     sheet_trigger: FocusHandle,
@@ -368,6 +369,7 @@ impl Gallery {
             mixed: false,
             enabled: true,
             choice: 0,
+            radio_focus: cx.focus_handle(),
             sheet_open: false,
             sheet_focus: cx.focus_handle(),
             sheet_trigger: cx.focus_handle(),
@@ -1851,12 +1853,25 @@ impl Gallery {
     fn render_radio_page(
         &mut self,
         content: gpui::Div,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> gpui::Div {
         let theme = cx.omarchy().clone();
         let mut options = gpui_base::RadioGroup::new("list-density")
             .aria_label("List density")
+            .track_focus(&self.radio_focus.clone().tab_stop(true))
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
+                if event.keystroke.modifiers.modified() {
+                    return;
+                }
+                this.choice = match event.keystroke.key.as_str() {
+                    "down" | "right" | "j" | "l" => (this.choice + 1) % 3,
+                    "up" | "left" | "k" | "h" => (this.choice + 2) % 3,
+                    _ => return,
+                };
+                cx.stop_propagation();
+                cx.notify();
+            }))
             .flex()
             .flex_col()
             .gap(px(4.));
@@ -1867,9 +1882,19 @@ impl Gallery {
             options = options.child(
                 radio(index, label, self.choice == index, cx)
                     .set_position(index + 1, 3)
+                    .tab_stop(false)
+                    .when(
+                        self.radio_focus.is_focused(window) && self.choice == index,
+                        |row| {
+                            row.aria_active_descendant()
+                                .bg(theme.hover_fill())
+                                .border_color(theme.focus_border())
+                        },
+                    )
                     .debug_selector(move || format!("density-option-{index}"))
-                    .on_change(change(cx.listener(move |this, _, _, cx| {
+                    .on_change(change(cx.listener(move |this, _, window, cx| {
                         this.choice = index;
+                        this.radio_focus.focus(window, cx);
                         cx.notify();
                     }))),
             );
@@ -3596,6 +3621,27 @@ mod tests {
             cx.debug_bounds("density-preview-0").unwrap().size.height,
             compact
         );
+        cx.simulate_keystrokes("up");
+        cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+            assert_eq!(
+                view.read(cx).choice,
+                2,
+                "arrows wrap and select immediately"
+            );
+            assert!(view.read(cx).radio_focus.is_focused(window));
+        });
+        cx.simulate_keystrokes("j");
+        cx.update(|_, cx| assert_eq!(view.read(cx).choice, 0));
+        cx.simulate_keystrokes("tab");
+        cx.update(|window, cx| assert!(!view.read(cx).radio_focus.is_focused(window)));
+        cx.simulate_keystrokes("shift-tab");
+        cx.update(|window, cx| {
+            assert!(
+                view.read(cx).radio_focus.is_focused(window),
+                "one Tab stop for the group"
+            )
+        });
     }
 
     #[gpui::test]

@@ -77,7 +77,7 @@ cover completion events, modified digit shortcuts and disabled input. Tree point
 folder collapse/expand are covered by an integration test.
 
 Native AX review found unnamed Calendar day/month/year buttons. [gpui-kit PR #2996](https://github.com/longbridge/gpui-kit/pull/2996)
-assigns names when items are created and uses full ISO dates for day cells.
+was merged on September 7, 2026. It assigns names when items are created and uses full ISO dates for day cells.
 The regression test inspects all three views and fails on the old implementation.
 This remains a dependency gap until a version containing the fix is integrated. Native screenshots
 can remain stale while AX updates; do not treat these as final visual validation.

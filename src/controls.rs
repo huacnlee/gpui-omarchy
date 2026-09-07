@@ -1,13 +1,13 @@
 //! Styled constructors retain gpui-base's controlled-state builder APIs.
-use crate::{ActiveTheme, Button, IconName, icon};
+use crate::{ActiveTheme, Button, IconName, Link, icon};
 use gpui::prelude::FluentBuilder;
 use gpui::{
     App, ElementId, FontWeight, InteractiveElement, ParentElement, SharedString,
     StatefulInteractiveElement, Styled, div, px,
 };
 use gpui_base::{
-    Checkbox, CheckboxIndicator, CheckboxState, Link, Radio, Switch, SwitchThumb, SwitchTrack, Tab,
-    Tabs, Toggle,
+    Checkbox, CheckboxIndicator, CheckboxState, Radio, Switch, SwitchThumb, SwitchTrack, Tab, Tabs,
+    Toggle,
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

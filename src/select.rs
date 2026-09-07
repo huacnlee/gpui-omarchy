@@ -219,6 +219,7 @@ impl Focusable for ChoiceState {
     }
 }
 
+/// An option picker with j/k and Ctrl-j/k/n/p navigation while open.
 pub fn select(
     id: impl Into<ElementId>,
     state: &Entity<ChoiceState>,
@@ -241,6 +242,7 @@ pub fn select(
         .child(body)
 }
 
+/// A searchable picker with Ctrl-j/k/n/p navigation; plain letters edit the query.
 pub fn combobox(
     id: impl Into<ElementId>,
     state: &Entity<ChoiceState>,
@@ -463,7 +465,26 @@ fn presentation(
             return;
         }
         let key = event.keystroke.key.as_str();
-        if key == "tab" {
+        let modifiers = event.keystroke.modifiers;
+        let navigation =
+            if modifiers.control && !modifiers.alt && !modifiers.platform && !modifiers.shift {
+                match key {
+                    "j" | "n" => Some("down"),
+                    "k" | "p" => Some("up"),
+                    _ => None,
+                }
+            } else if !searchable && !modifiers.modified() {
+                match key {
+                    "j" => Some("down"),
+                    "k" => Some("up"),
+                    _ => None,
+                }
+            } else {
+                None
+            };
+        if let Some(key) = navigation.filter(|_| target.read(cx).open) {
+            target.update(cx, |state, cx| state.handle_key(key, window, cx));
+        } else if key == "tab" {
             let backward = event.keystroke.modifiers.shift;
             target.update(cx, |state, cx| {
                 state.handle_key(if backward { "shift-tab" } else { "tab" }, window, cx)
@@ -548,6 +569,43 @@ mod tests {
             assert!(state.read(cx).trigger_focus.is_focused(window));
         });
     }
+    #[gpui::test]
+    fn select_vim_navigation_skips_disabled_and_wraps(cx: &mut TestAppContext) {
+        let (state, cx) = harness(cx, false, false);
+        cx.simulate_keystrokes("enter j");
+        cx.update(|_, cx| assert_eq!(state.read(cx).cursor, Some(2)));
+        cx.simulate_keystrokes("j");
+        cx.update(|_, cx| assert_eq!(state.read(cx).cursor, Some(0)));
+        cx.simulate_keystrokes("k enter");
+        cx.update(|window, cx| {
+            assert_eq!(state.read(cx).selected().unwrap().value.as_ref(), "last");
+            assert!(!state.read(cx).open);
+            assert!(state.read(cx).trigger_focus.is_focused(window));
+        });
+    }
+
+    #[gpui::test]
+    fn combobox_vim_navigation_preserves_search_input(cx: &mut TestAppContext) {
+        let (state, cx) = harness(cx, true, false);
+        cx.simulate_keystrokes("enter ctrl-j");
+        cx.update(|_, cx| assert_eq!(state.read(cx).cursor, Some(2)));
+        cx.simulate_keystrokes("ctrl-k");
+        cx.update(|_, cx| assert_eq!(state.read(cx).cursor, Some(0)));
+        cx.simulate_keystrokes("ctrl-n");
+        cx.update(|_, cx| assert_eq!(state.read(cx).cursor, Some(2)));
+        cx.simulate_keystrokes("ctrl-p");
+        cx.update(|_, cx| assert_eq!(state.read(cx).cursor, Some(0)));
+        cx.simulate_keystrokes("j k");
+        cx.update(|_, cx| {
+            let choice = state.read(cx);
+            assert_eq!(choice.query.read(cx).value().as_ref(), "jk");
+            assert!(choice.visible(cx).is_empty());
+            assert_eq!(choice.cursor, None);
+        });
+        cx.simulate_keystrokes("ctrl-j enter");
+        cx.update(|_, cx| assert!(state.read(cx).open));
+    }
+
     #[gpui::test]
     fn combobox_filters_and_empty_result_cannot_commit(cx: &mut TestAppContext) {
         let (state, cx) = harness(cx, true, false);

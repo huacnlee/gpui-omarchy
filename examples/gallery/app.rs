@@ -2120,6 +2120,17 @@ impl Gallery {
         }
     }
 
+    fn dismiss_toast(&mut self, cx: &mut Context<Self>) {
+        let now = std::time::Instant::now();
+        self.toast_lifecycle.dismiss(&0, now);
+        self.toast_lifecycle.advance(now, false);
+        self.toast_message = None;
+        self.toast_timer = None;
+        self.toast_hovered = false;
+        self.toast_focused = false;
+        cx.notify();
+    }
+
     fn show_toast(&mut self, message: &'static str, cx: &mut Context<Self>) {
         let now = std::time::Instant::now();
         self.toast_lifecycle.push(
@@ -3082,8 +3093,7 @@ impl Render for Gallery {
                                             .child(icon(IconName::Close).size(px(14.)))
                                             .on_click(
                                                 cx.listener(|this, _, _, cx| {
-                                                    this.toast_message = None;
-                                                    cx.notify();
+                                                    this.dismiss_toast(cx);
                                                 }),
                                             ),
                                         ),
@@ -3112,7 +3122,7 @@ impl Render for Gallery {
                                                     this.toast_saved = true;
                                                     this.show_toast("Workspace saved", cx);
                                                 }
-                                                _ => this.toast_message = None,
+                                                _ => this.dismiss_toast(cx),
                                             }
                                             cx.notify();
                                         },
@@ -3476,6 +3486,26 @@ mod tests {
             assert!(this.toast_timer.is_none());
             this.advance_toast(Instant::now() + Duration::from_secs(600), cx);
             assert_eq!(this.toast_message, Some("Could not sync workspace"));
+        });
+    }
+
+    #[gpui::test]
+    fn dismissed_toast_does_not_pause_the_next_notification(cx: &mut TestAppContext) {
+        use std::time::{Duration, Instant};
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        view.update(cx, |this, cx| {
+            this.show_toast("Workspace saved", cx);
+            this.toast_hovered = true;
+            this.toast_focused = true;
+            this.dismiss_toast(cx);
+            assert!(this.toast_lifecycle.is_empty());
+            assert!(this.toast_timer.is_none());
+            assert!(!this.toast_hovered && !this.toast_focused);
+            this.show_toast("Workspace saved", cx);
+            this.toast_timer = None;
+            this.advance_toast(Instant::now() + Duration::from_secs(7), cx);
+            assert!(this.toast_message.is_none());
         });
     }
 

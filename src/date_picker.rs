@@ -88,7 +88,9 @@ pub fn date_picker(
         .format("%b %e, %Y")
         .unwrap_or_else(|| "Choose a date".into());
     let trigger = button("date-trigger", "", ButtonVariant::Outline, cx)
-        .track_focus(&focus)
+        // The outer picker owns focus; registering this handle on the trigger
+        // as well reports two focused accessibility nodes in the same frame.
+        .focusable(false)
         .accessibility_label("Choose a date")
         .debug_selector(|| "date-picker-trigger".into())
         .w_full()

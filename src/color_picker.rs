@@ -29,7 +29,9 @@ pub fn color_picker(
     let t = cx.omarchy().clone();
     let trigger = button("color-trigger", "Choose color", ButtonVariant::Outline, cx)
         .debug_selector(|| "color-picker-trigger".into())
-        .track_focus(&focus)
+        // The outer picker owns focus; registering this handle on the trigger
+        // as well reports two focused accessibility nodes in the same frame.
+        .focusable(false)
         .child(
             div()
                 .size(px(16.))

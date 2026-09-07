@@ -39,7 +39,7 @@ forms and navigation; overlays and data surfaces; complete component examples
 and visual/runtime audit. This document records intended scope, not completion.
 
 
-Current checkpoint: 48 component previews are implemented in one gallery.
+Current checkpoint: 47 component previews are implemented in one gallery.
 Menu uses the base Popover with keyboard selection and disabled-item skipping;
 Dialog and AlertDialog use base modal hosts with focus recovery and outline actions.
 Icons come from gpui-kit-assets with explicit inherited-color resolution.
@@ -59,7 +59,7 @@ components remain, along with system structural
 scaling and a complete visual/interaction audit.
 
 
-Tree, Resizable, OTP Input, NavStack, HoverCard, Editor, DatePicker and Dock
+Tree, Resizable, OTP Input, NavStack, HoverCard, DatePicker and Dock
 now have styled constructors and gallery pages. DatePicker Escape/focus return
 is tested; pointer selection, new component keyboard/drag interactions and
 native visual review still need broader validation. Dock's tabbed split layout
@@ -100,3 +100,12 @@ base is integrated and verified.
 TextView now has Markdown and HTML constructors with shared Omarchy typography,
 selection, code and link colors. Both formats have destination-opening tests;
 this does not replace native selection and visual review.
+
+Editor is intentionally excluded from the component library and gallery until a suitable syntax-highlighted editing experience is available.
+
+The native DatePicker report from September 7 identified an accessibility panic:
+`set_focus called more than once in a single frame`. The picker root and its
+trigger registered the same focus handle. DatePicker and ColorPicker now leave
+focus ownership with the root and make the inner trigger non-focusable. Headless
+interaction tests pass; native verification with accessibility enabled remains
+pending because the automation session reported conflicting window changes.

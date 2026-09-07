@@ -5,9 +5,6 @@ use gpui::{
 use gpui_base::CheckboxState;
 use gpui_omarchy::*;
 
-const EDITOR_EXAMPLE: &str =
-    "fn main() {\n    let workspace = \"Personal\";\n    println!(\"Hello, {workspace}\");\n}\n";
-
 const GROUPS: &[(&str, &[&str])] = &[
     ("Explore", &["overview"]),
     (
@@ -19,7 +16,6 @@ const GROUPS: &[(&str, &[&str])] = &[
         &[
             "input",
             "textarea",
-            "editor",
             "number_input",
             "select",
             "combobox",
@@ -122,7 +118,6 @@ fn description(page: &str) -> &'static str {
         "sheet" => "Inspect project details in an edge-attached panel.",
         "scrollbar" => "Drag the scroll thumb to move through a long activity log.",
         "virtual_list" => "Browse a large activity log with variable-height rows.",
-        "editor" => "Edit source text with line numbers and indentation.",
         "nav_stack" => "Navigate between persistent pages and return to where you left off.",
         "dock" => "Rearrange document panels by dragging their tabs.",
         "tree" => "Explore nested folders and select a workspace document.",
@@ -198,7 +193,6 @@ struct Gallery {
     tree_state: Entity<gpui_base::TreeState>,
     otp_state: Entity<gpui_base::OtpState>,
     color_state: Entity<gpui_base::ColorPickerState>,
-    editor_state: Entity<gpui_base::input::EditorState>,
     nav_state: Entity<gpui_base::NavStackState>,
     date_picker_state: Entity<DatePickerState>,
     dock_state: Entity<gpui_base::dock::DockArea>,
@@ -290,12 +284,6 @@ impl Gallery {
         let color_state =
             cx.new(|cx| gpui_base::ColorPickerState::new(window, cx).default_value(accent));
         cx.observe(&color_state, |_, _, cx| cx.notify()).detach();
-        let editor_state = cx.new(|cx| {
-            gpui_base::input::EditorState::new(window, cx)
-                .line_number(true)
-                .indent_guides(true)
-                .default_value(EDITOR_EXAMPLE)
-        });
         let nav_state = cx.new(|_| gpui_base::NavStackState::new());
         let task_page = cx.new(|cx| NavigationPage {
             level: 2,
@@ -331,7 +319,6 @@ impl Gallery {
         Self {
             dock_state,
             date_picker_state,
-            editor_state,
             color_state,
             nav_state,
             otp_state,
@@ -1759,33 +1746,6 @@ impl Gallery {
                 );
         content
     }
-    fn render_editor_page(
-        &mut self,
-        mut content: gpui::Div,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> gpui::Div {
-        let t = cx.omarchy().clone();
-        content = content
-            .child("main.rs")
-            .child(editor("source-editor", &self.editor_state, window, cx))
-            .child(
-                div()
-                    .text_color(t.secondary)
-                    .child("Tab indents · Use the system undo and clipboard shortcuts"),
-            )
-            .child(
-                button("reset-editor", "Reset example", ButtonVariant::Outline, cx)
-                    .debug_selector(|| "reset-editor".into())
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.editor_state.update(cx, |state, cx| {
-                            state.set_value(EDITOR_EXAMPLE, window, cx);
-                            state.focus(window, cx);
-                        })
-                    })),
-            );
-        content
-    }
     fn render_button_group_page(
         &mut self,
         mut content: gpui::Div,
@@ -2684,9 +2644,6 @@ impl Render for Gallery {
             }
             "tabs" => {
                 content = self.render_tabs_example(content, window, cx);
-            }
-            "editor" => {
-                content = self.render_editor_page(content, window, cx);
             }
             "nav_stack" => {
                 content = self.render_nav_stack_example(content, window, cx);
@@ -3724,49 +3681,6 @@ mod tests {
                 notes
             );
             assert_eq!(notes.read(cx).value().as_ref(), "Ready for review");
-        });
-    }
-
-    #[gpui::test]
-    fn editor_reset_restores_initial_source_and_editing_focus(cx: &mut TestAppContext) {
-        cx.update(gpui_omarchy::init);
-        let (view, cx) = cx.add_window_view(Gallery::new);
-        let initial = cx.update(|_, cx| view.read(cx).editor_state.read(cx).value().to_string());
-        cx.update(|window, cx| {
-            view.update(cx, |this, cx| {
-                this.page = "editor";
-                this.editor_state.update(cx, |state, cx| {
-                    state.set_value("", window, cx);
-                    state.focus(window, cx);
-                });
-                cx.notify();
-            });
-            window.draw(cx).clear(cx);
-        });
-        cx.simulate_input("// edited source");
-        cx.update(|_, cx| {
-            assert_eq!(
-                view.read(cx).editor_state.read(cx).value().as_ref(),
-                "// edited source"
-            )
-        });
-        let reset = cx.debug_bounds("reset-editor").unwrap().center();
-        cx.simulate_click(reset, Default::default());
-        cx.update(|window, cx| {
-            window.draw(cx).clear(cx);
-            let editor = view.read(cx).editor_state.read(cx);
-            assert_eq!(editor.value().as_ref(), initial);
-            assert!(gpui::Focusable::focus_handle(editor, cx).is_focused(window));
-        });
-        cx.simulate_input("// continued");
-        cx.update(|_, cx| {
-            assert!(
-                view.read(cx)
-                    .editor_state
-                    .read(cx)
-                    .value()
-                    .contains("// continued")
-            )
         });
     }
 

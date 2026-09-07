@@ -2,7 +2,7 @@
 
 **gpui-omarchy is a [gpui-kit](https://gpui-kit.com/) component library designed specifically for the Omarchy system.** It follows Omarchy’s UI and UX conventions, helping developers build desktop applications that feel at home in Omarchy.
 
-<img width="1172" height="872" alt="image" src="https://github.com/user-attachments/assets/0cde83ae-77d3-4e25-ba3e-252ca40303c9" />
+<img width="1920" height="1056" alt="image" src="https://github.com/user-attachments/assets/76be18ae-274d-493f-b4dc-967433121de1" />
 
 The library brings Omarchy’s system themes, restrained visual style and keyboard-first interactions to reusable GPUI components. Built on **[gpui-base](https://gpui-kit.com/base/)**, it combines Omarchy presentation with shared focus, input, accessibility and composition primitives.
 

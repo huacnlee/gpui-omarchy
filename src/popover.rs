@@ -1,7 +1,7 @@
 //! Contextual controls in an anchored, non-modal surface.
 use crate::ActiveTheme;
 use gpui::{App, Context, Div, ElementId, Window, div, prelude::*, px};
-use gpui_base::{Button, Popover, PopoverState};
+use gpui_base::{Popover, PopoverState};
 
 pub(crate) fn init(cx: &mut App) {
     // Suppress the outer Popover toggle bindings inside its content. Deeper
@@ -19,7 +19,7 @@ pub(crate) fn init(cx: &mut App) {
 /// and compose `popover_surface(cx)` with your own dimensions and children.
 pub fn popover<E: IntoElement>(
     id: impl Into<ElementId>,
-    trigger: Button,
+    trigger: impl gpui_base::Selectable + IntoElement + 'static,
     content: impl FnOnce(&mut PopoverState, &mut Window, &mut Context<PopoverState>) -> E + 'static,
 ) -> Popover {
     Popover::new(id)

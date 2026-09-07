@@ -72,7 +72,7 @@ panel("Workspace", cx).child(
 )
 ```
 
-Constructors return composable gpui-base elements with their native builder APIs. Applications own checkbox, switch, radio and toggle state: pass the current value on each render and update it in `on_change`. Avoid overriding these values after construction, which can leave visual indicators out of sync. Component IDs must be unique within the same parent.
+Constructors return composable gpui-base elements with their native builder APIs. Button uses a thin `gpui_omarchy::Button` wrapper that retains base activation, focus, children and styling APIs while withholding hover, pressed and focus-visible styles when disabled. Calling `.disabled(true)` before or after styling has the same result. Applications own checkbox, switch, radio and toggle state: pass the current value on each render and update it in `on_change`. Avoid overriding these values after construction, which can leave visual indicators out of sync. Component IDs must be unique within the same parent.
 
 Select and Combobox use an application-owned `Entity<ChoiceState>` and `ChoiceItem` options. Observe changes with `cx.observe`, then read the selected option's stable `value` through `state.selected()`. The constructors return customizable `gpui_base::Select` and `gpui_base::Combobox` elements. Combobox searches existing options in its popup; it does not create free-text values.
 

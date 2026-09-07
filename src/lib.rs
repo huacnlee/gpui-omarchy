@@ -1,7 +1,8 @@
 //! Omarchy's presentation language on gpui-base's interaction primitives.
 //!
 //! Call [`init`] once, then use the constructors in [`controls`] and [`surface`]
-//! inside `Render`. They return ordinary base elements with their builder APIs.
+//! inside `Render`. They retain base builder APIs; Button adds disabled-state style gating.
+pub mod button;
 pub mod button_group;
 pub mod calendar;
 pub mod color_picker;
@@ -31,6 +32,7 @@ pub mod theme;
 pub mod tooltip;
 pub mod tree;
 
+pub use button::Button;
 pub use button_group::{button_group, tab_list};
 pub use calendar::calendar;
 pub use color_picker::color_picker;

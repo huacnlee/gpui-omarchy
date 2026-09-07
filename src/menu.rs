@@ -4,7 +4,7 @@ use gpui::{
     App, ElementId, Focusable, KeyDownEvent, ParentElement, SharedString, Window, div, prelude::*,
     px,
 };
-use gpui_base::{Button, Popover};
+use gpui_base::Popover;
 use std::rc::Rc;
 
 #[derive(Clone)]
@@ -54,7 +54,7 @@ impl MenuItem {
 /// Base positions the popup, dismisses outside/Escape and restores trigger focus.
 pub fn menu(
     id: impl Into<ElementId>,
-    trigger: Button,
+    trigger: impl gpui_base::Selectable + IntoElement + 'static,
     items: Vec<MenuItem>,
     on_select: impl Fn(usize, &mut Window, &mut App) + 'static,
 ) -> Popover {

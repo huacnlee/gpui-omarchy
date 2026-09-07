@@ -8,7 +8,7 @@ description = "A gpui-kit component library designed for the Omarchy system and 
 repository = "https://github.com/huacnlee/gpui-omarchy"
 
 [dependencies]
-gpui = { package = "gpui-pre", version = "=0.3.1" }
+gpui = { package = "gpui-kit", version = "=0.6.0", default-features = false }
 gpui-base = "=0.6.0"
 gpui-kit-assets = "=0.6.0"
 toml = "0.8"
@@ -16,8 +16,7 @@ chrono = "0.4.45"
 
 [dev-dependencies]
 tempfile = "3"
-gpui = { package = "gpui-pre", version = "=0.3.1", features = ["test-support"] }
-gpui_platform = { package = "gpui-pre-platform", version = "=0.3.1", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
+gpui = { package = "gpui-kit", version = "=0.6.0", default-features = false, features = ["test-support"] }
 
 [profile.dev]
 debug = "limited"

@@ -57,11 +57,14 @@ jobs:
           SITE_URL: https://huacnlee.github.io
           BASE_PATH: /gpui-omarchy
       - name: Install test browser
-        run: bun --bun x playwright install --with-deps chromium
+        run: |
+          bun --bun x playwright install --with-deps chromium
+          sudo apt-get install -y xvfb xauth mesa-vulkan-drivers
       - name: Test production website
-        run: bun --bun x playwright test
+        run: xvfb-run -a bun --bun x playwright test
         env:
           PLAYWRIGHT_PRODUCTION: '1'
+          PLAYWRIGHT_HEADED: '1'
       - name: Upload browser diagnostics
         if: failure()
         uses: actions/upload-artifact@v4

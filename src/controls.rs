@@ -33,6 +33,11 @@ pub fn button(
         }
         ButtonVariant::Danger => (t.foreground.opacity(0.), t.danger),
     };
+    let interaction_border = if variant == ButtonVariant::Primary {
+        t.accent
+    } else {
+        t.focus_border()
+    };
     let label = label.into();
     Button::new(id)
         .accessibility_label(label.clone())
@@ -54,8 +59,8 @@ pub fn button(
         .font_weight(FontWeight::NORMAL)
         .bg(bg)
         .text_color(fg)
-        .hover(|s| s.bg(t.hover_fill()).border_color(t.focus_border()))
-        .focus_visible(|s| s.bg(t.hover_fill()).border_color(t.focus_border()))
+        .hover(|s| s.bg(t.hover_fill()).border_color(interaction_border))
+        .focus_visible(|s| s.bg(t.hover_fill()).border_color(interaction_border))
         .active(|s| s.bg(t.pressed_fill()))
         .styles(|s| {
             s.selected(|s| s.bg(t.selected_fill()))
@@ -247,7 +252,6 @@ pub fn toggle(
         .font_family(t.font.clone())
         .text_size(px(12.))
         .font_weight(FontWeight::NORMAL)
-        .child(icon(IconName::Star))
         .child(label)
         .hover(|s| s.bg(t.hover_fill()).border_color(t.focus_border()))
         .focus_visible(|s| s.bg(t.hover_fill()).border_color(t.focus_border()))
@@ -256,6 +260,20 @@ pub fn toggle(
             s.pressed(|s| s.bg(t.selected_fill()))
                 .disabled(|s| s.opacity(0.45))
         })
+}
+
+/// A multi-choice toolbar. Compose independent `toggle` children; each retains
+/// its own keyboard focus and controlled pressed state.
+pub fn toggle_group(id: impl Into<ElementId>, cx: &App) -> gpui_base::ToggleGroup {
+    let t = cx.omarchy();
+    gpui_base::ToggleGroup::new(id)
+        .flex()
+        .flex_wrap()
+        .items_center()
+        .gap(px(6.))
+        .font_family(t.font.clone())
+        .text_size(px(12.))
+        .text_color(t.foreground)
 }
 
 pub fn link(
@@ -268,6 +286,7 @@ pub fn link(
     let label = label.into();
     Link::new(id)
         .href(href)
+        .open_with(|url, _, _, cx| cx.open_url(url))
         .accessibility_label(label.clone())
         .child(label)
         .child(icon(IconName::ExternalLink).size(px(12.)))

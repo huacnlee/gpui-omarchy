@@ -5,9 +5,15 @@ use gpui::{
 use gpui_base::CheckboxState;
 use gpui_omarchy::*;
 
+const EDITOR_EXAMPLE: &str =
+    "fn main() {\n    let workspace = \"Personal\";\n    println!(\"Hello, {workspace}\");\n}\n";
+
 const GROUPS: &[(&str, &[&str])] = &[
     ("Explore", &["overview"]),
-    ("Actions", &["button", "button_group", "link", "toggle"]),
+    (
+        "Actions",
+        &["button", "button_group", "link", "toggle", "toggle_group"],
+    ),
     (
         "Forms",
         &[
@@ -19,6 +25,7 @@ const GROUPS: &[(&str, &[&str])] = &[
             "combobox",
             "calendar",
             "date_picker",
+            "color_picker",
             "otp_input",
             "slider",
             "checkbox",
@@ -40,6 +47,7 @@ const GROUPS: &[(&str, &[&str])] = &[
     (
         "Overlays",
         &[
+            "sheet",
             "dialog",
             "alert_dialog",
             "popover",
@@ -53,7 +61,11 @@ const GROUPS: &[(&str, &[&str])] = &[
         &[
             "icon",
             "avatar",
+            "selectable_text",
+            "text_view",
             "panel",
+            "virtual_list",
+            "scrollbar",
             "table",
             "tree",
             "resizable",
@@ -104,6 +116,12 @@ fn description(page: &str) -> &'static str {
         "accordion" => "Reveal supporting content when it is needed.",
         "pagination" => "Move through a paged collection.",
         "table" => "Aligned columns for comparing records.",
+        "color_picker" => "Choose a label color with Hex and HSLA controls.",
+        "text_view" => "Read structured documents with selectable text and links.",
+        "selectable_text" => "Select and copy read-only text without an input field.",
+        "sheet" => "Inspect project details in an edge-attached panel.",
+        "scrollbar" => "Drag the scroll thumb to move through a long activity log.",
+        "virtual_list" => "Browse a large activity log with variable-height rows.",
         "editor" => "Edit source text with line numbers and indentation.",
         "nav_stack" => "Navigate between persistent pages and return to where you left off.",
         "dock" => "Rearrange document panels by dragging their tabs.",
@@ -121,6 +139,7 @@ fn description(page: &str) -> &'static str {
         "badge" => "Short labels for neutral and semantic status.",
         "empty_state" => "Explain an empty collection and its next step.",
         "progress" => "Show how much of a known task is complete.",
+        "toggle_group" => "Combine independent filters to show more than one status.",
         "toggle" => "Keep a command active until it is pressed again.",
         "link" => "Open a named destination.",
         _ => "",
@@ -149,6 +168,11 @@ struct Gallery {
     collapse_open: bool,
     toast_message: Option<&'static str>,
     toast_saved: bool,
+    toast_lifecycle: gpui_base::ToastManager<u8, &'static str>,
+    toast_timer: Option<gpui::Task<()>>,
+    toast_hovered: bool,
+    toast_focused: bool,
+    toast_focus: FocusHandle,
     current_page: usize,
     number: Entity<gpui_base::input::InputState>,
     input: Entity<gpui_base::input::InputState>,
@@ -159,12 +183,21 @@ struct Gallery {
     mixed: bool,
     enabled: bool,
     choice: usize,
+    sheet_open: bool,
+    sheet_focus: FocusHandle,
+    sheet_trigger: FocusHandle,
+    activity_scroll: gpui_base::VirtualListScrollHandle,
+    timeline_scroll: gpui::ScrollHandle,
+    activity_sizes: std::rc::Rc<Vec<gpui::Size<gpui::Pixels>>>,
+    activity_rendered: usize,
     pressed: bool,
+    article_filters: [bool; 3],
     tab: usize,
     progress: f32,
     calendar_state: Entity<gpui_base::CalendarState>,
     tree_state: Entity<gpui_base::TreeState>,
     otp_state: Entity<gpui_base::OtpState>,
+    color_state: Entity<gpui_base::ColorPickerState>,
     editor_state: Entity<gpui_base::input::EditorState>,
     nav_state: Entity<gpui_base::NavStackState>,
     date_picker_state: Entity<DatePickerState>,
@@ -253,9 +286,16 @@ impl Gallery {
         cx.observe(&tree_state, |_, _, cx| cx.notify()).detach();
         let otp_state = cx.new(|cx| gpui_base::OtpState::new(6, window, cx));
         cx.observe(&otp_state, |_, _, cx| cx.notify()).detach();
-        let editor_state = cx.new(|cx| gpui_base::input::EditorState::new(window, cx)
-            .line_number(true).indent_guides(true)
-            .default_value("fn main() {\n    let workspace = \"Personal\";\n    println!(\"Hello, {workspace}\");\n}\n"));
+        let accent = cx.omarchy().accent;
+        let color_state =
+            cx.new(|cx| gpui_base::ColorPickerState::new(window, cx).default_value(accent));
+        cx.observe(&color_state, |_, _, cx| cx.notify()).detach();
+        let editor_state = cx.new(|cx| {
+            gpui_base::input::EditorState::new(window, cx)
+                .line_number(true)
+                .indent_guides(true)
+                .default_value(EDITOR_EXAMPLE)
+        });
         let nav_state = cx.new(|_| gpui_base::NavStackState::new());
         let task_page = cx.new(|cx| NavigationPage {
             level: 2,
@@ -292,6 +332,7 @@ impl Gallery {
             dock_state,
             date_picker_state,
             editor_state,
+            color_state,
             nav_state,
             otp_state,
             tree_state,
@@ -317,6 +358,15 @@ impl Gallery {
             collapse_open: false,
             toast_message: None,
             toast_saved: false,
+            toast_lifecycle: gpui_base::ToastManager::new(gpui_base::ToastMotion {
+                duration: std::time::Duration::ZERO,
+                exit_duration: std::time::Duration::ZERO,
+                ..Default::default()
+            }),
+            toast_timer: None,
+            toast_hovered: false,
+            toast_focused: false,
+            toast_focus: cx.focus_handle(),
             current_page: 1,
             number,
             input,
@@ -329,7 +379,19 @@ impl Gallery {
             mixed: false,
             enabled: true,
             choice: 0,
+            sheet_open: false,
+            sheet_focus: cx.focus_handle(),
+            sheet_trigger: cx.focus_handle(),
+            activity_scroll: gpui_base::VirtualListScrollHandle::new(),
+            timeline_scroll: gpui::ScrollHandle::new(),
+            activity_sizes: std::rc::Rc::new(
+                (0..1000)
+                    .map(|index| size(px(400.), px(if index % 5 == 0 { 44. } else { 28. })))
+                    .collect(),
+            ),
+            activity_rendered: 0,
             pressed: false,
+            article_filters: [true, true, false],
             tab: 0,
             progress: 30.,
         }
@@ -510,1068 +572,819 @@ impl Gallery {
     }
 }
 
-impl Render for Gallery {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+impl Gallery {
+    fn render_toggle_group(&self, mut content: gpui::Div, cx: &mut Context<Self>) -> gpui::Div {
         let t = cx.omarchy().clone();
-        let mut content = div()
-            .flex()
-            .flex_col()
-            .items_start()
-            .w_full()
-            .gap(px(14.))
-            .min_w_0();
-        match self.page {
-            "overview" => {
-                let form = self.workspace_form(false, window, cx);
-                content = content
-                    .child(
-                        div()
-                            .flex()
-                            .flex_wrap()
-                            .items_start()
-                            .gap(px(24.))
-                            .child(div().w(px(420.)).max_w(gpui::relative(1.)).child(form))
-                            .child(
-                                div()
-                                    .w(px(220.))
-                                    .flex()
-                                    .flex_col()
-                                    .gap(px(18.))
-                                    .child(
-                                        div()
-                                            .text_size(px(13.))
-                                            .font_weight(FontWeight::BOLD)
-                                            .child("Preferences"),
-                                    )
-                                    .child(
-                                        checkbox(
-                                            "overview-hidden",
-                                            "Show hidden files",
-                                            if self.checked {
-                                                CheckboxState::Checked
-                                            } else {
-                                                CheckboxState::Unchecked
-                                            },
-                                            cx,
-                                        )
-                                        .on_change(change(
-                                            cx.listener(|this, state, _, cx| {
-                                                this.checked = *state == CheckboxState::Checked;
-                                                cx.notify();
-                                            }),
-                                        )),
-                                    )
-                                    .child(
-                                        switch("overview-sync", "Sync enabled", self.enabled, cx)
-                                            .on_change(change(cx.listener(
-                                                |this, value, _, cx| {
-                                                    this.enabled = *value;
-                                                    cx.notify();
-                                                },
-                                            ))),
-                                    )
-                                    .child(separator(cx))
-                                    .child(
-                                        div()
-                                            .text_size(px(13.))
-                                            .font_weight(FontWeight::BOLD)
-                                            .child("Theme"),
-                                    )
-                                    .child(div().text_color(t.secondary).child(t.name.clone()))
-                                    .child(
-                                        div()
-                                            .text_color(t.secondary)
-                                            .child("Settings in this gallery stay in memory."),
-                                    ),
-                            ),
-                    )
-                    .child(div().mt(px(18.)).w_full().child(separator(cx)))
-                    .child(
-                        div()
-                            .text_size(px(13.))
-                            .font_weight(FontWeight::BOLD)
-                            .child("Explore components"),
-                    )
-                    .child(
-                        div().flex().flex_wrap().gap(px(8.)).children(
-                            [
-                                ("button", "Buttons"),
-                                ("input", "Text fields"),
-                                ("menu", "Menus"),
-                                ("dialog", "Dialogs"),
-                            ]
-                            .into_iter()
-                            .map(|(page, label)| {
-                                dialog_button(
-                                    (gpui::ElementId::from("overview-open"), page),
-                                    label,
-                                    ButtonVariant::Secondary,
-                                    cx,
-                                )
-                                .on_click(cx.listener(
-                                    move |this, _, _, cx| {
-                                        this.page = page;
-                                        cx.notify();
-                                    },
-                                ))
-                            }),
-                        ),
-                    );
+
+        let labels = ["Draft", "In review", "Published"];
+        let mut filters = toggle_group("article-status", cx).aria_label("Article status filters");
+        for (index, label) in labels.into_iter().enumerate() {
+            filters = filters.child(
+                toggle(index, label, self.article_filters[index], cx)
+                    .debug_selector(move || {
+                        ["article-filter-0", "article-filter-1", "article-filter-2"][index].into()
+                    })
+                    .on_change(change(cx.listener(move |this, next, _, cx| {
+                        this.article_filters[index] = *next;
+                        cx.notify();
+                    }))),
+            );
+        }
+        content = content.child("Article status").child(filters).child(
+            div()
+                .text_color(t.secondary)
+                .child("Select any combination. Turn every filter off to show no articles."),
+        );
+        let mut count = 0;
+        for (index, (title, status)) in [
+            ("Autumn release notes", 0),
+            ("Getting started", 1),
+            ("Keyboard shortcuts", 2),
+            ("Workspace migration", 0),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            if !self.article_filters[status] {
+                continue;
             }
-            "popover" => {
-                let target = cx.entity();
-                content = content
+            count += 1;
+            content = content.child(
+                div()
+                    .debug_selector(move || format!("filtered-article-{index}"))
+                    .flex()
+                    .flex_wrap()
+                    .justify_between()
+                    .gap(px(8.))
+                    .py(px(10.))
+                    .border_b_1()
+                    .border_color(t.divider())
+                    .child(title)
+                    .child(div().text_color(t.secondary).child(labels[status])),
+            );
+        }
+        content = content.child(
+            div()
+                .text_color(t.secondary)
+                .child(format!("{count} articles shown")),
+        );
+        if count == 0 {
+            content = content.child(
+                button(
+                    "show-all-articles",
+                    "Show all statuses",
+                    ButtonVariant::Outline,
+                    cx,
+                )
+                .debug_selector(|| "show-all-articles".into())
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.article_filters = [true; 3];
+                    cx.notify();
+                })),
+            );
+        }
+
+        content
+    }
+}
+
+// Separate page builders keep the gallery render stack bounded in debug builds.
+impl Gallery {
+    fn render_overview_example(
+        &mut self,
+        mut content: gpui::Div,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        let form = self.workspace_form(false, window, cx);
+        content = content
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_start()
+                    .gap(px(24.))
+                    .child(div().w(px(420.)).max_w(gpui::relative(1.)).child(form))
                     .child(
                         div()
-                            .w(px(360.))
-                            .max_w(gpui::relative(1.))
-                            .p(px(14.))
-                            .bg(t.normal_fill())
+                            .w(px(220.))
                             .flex()
                             .flex_col()
-                            .gap(px(8.))
+                            .gap(px(18.))
+                            .child(
+                                div()
+                                    .text_size(px(13.))
+                                    .font_weight(FontWeight::BOLD)
+                                    .child("Preferences"),
+                            )
+                            .child(
+                                checkbox(
+                                    "overview-hidden",
+                                    "Show hidden files",
+                                    if self.checked {
+                                        CheckboxState::Checked
+                                    } else {
+                                        CheckboxState::Unchecked
+                                    },
+                                    cx,
+                                )
+                                .on_change(change(cx.listener(
+                                    |this, state, _, cx| {
+                                        this.checked = *state == CheckboxState::Checked;
+                                        cx.notify();
+                                    },
+                                ))),
+                            )
+                            .child(
+                                switch("overview-sync", "Sync enabled", self.enabled, cx)
+                                    .on_change(change(cx.listener(|this, value, _, cx| {
+                                        this.enabled = *value;
+                                        cx.notify();
+                                    }))),
+                            )
+                            .child(separator(cx))
+                            .child(
+                                div()
+                                    .text_size(px(13.))
+                                    .font_weight(FontWeight::BOLD)
+                                    .child("Theme"),
+                            )
+                            .child(div().text_color(t.secondary).child(t.name.clone()))
+                            .child(
+                                div()
+                                    .text_color(t.secondary)
+                                    .child("Settings in this gallery stay in memory."),
+                            ),
+                    ),
+            )
+            .child(div().mt(px(18.)).w_full().child(separator(cx)))
+            .child(
+                div()
+                    .text_size(px(13.))
+                    .font_weight(FontWeight::BOLD)
+                    .child("Explore components"),
+            )
+            .child(
+                div().flex().flex_wrap().gap(px(8.)).children(
+                    [
+                        ("button", "Buttons"),
+                        ("input", "Text fields"),
+                        ("menu", "Menus"),
+                        ("dialog", "Dialogs"),
+                    ]
+                    .into_iter()
+                    .map(|(page, label)| {
+                        dialog_button(
+                            (gpui::ElementId::from("overview-open"), page),
+                            label,
+                            ButtonVariant::Secondary,
+                            cx,
+                        )
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.page = page;
+                            cx.notify();
+                        }))
+                    }),
+                ),
+            );
+        content
+    }
+    fn render_popover_example(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        let target = cx.entity();
+        content = content
+            .child(
+                div()
+                    .w(px(360.))
+                    .max_w(gpui::relative(1.))
+                    .p(px(14.))
+                    .bg(t.normal_fill())
+                    .flex()
+                    .flex_col()
+                    .gap(px(8.))
+                    .child(self.saved_workspace.clone())
+                    .child("Documents")
+                    .child("Projects")
+                    .when(self.checked, |preview| {
+                        preview.child(div().text_color(t.secondary).child(".config"))
+                    }),
+            )
+            .child(popover(
+                "display-options",
+                button(
+                    "display-options-trigger",
+                    "Display options",
+                    ButtonVariant::Secondary,
+                    cx,
+                )
+                .child(icon(IconName::ChevronDown).size(px(14.))),
+                move |_, _, cx| {
+                    let checked = target.read(cx).checked;
+                    let enabled = target.read(cx).enabled;
+                    let hidden_target = target.clone();
+                    let sync_target = target.clone();
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(14.))
+                        .child(div().font_weight(FontWeight::BOLD).child("Display options"))
+                        .child(
+                            checkbox(
+                                "popover-hidden",
+                                "Show hidden files",
+                                if checked {
+                                    CheckboxState::Checked
+                                } else {
+                                    CheckboxState::Unchecked
+                                },
+                                cx,
+                            )
+                            .on_change(move |value, _, _, cx| {
+                                hidden_target.update(cx, |this, cx| {
+                                    this.checked = value == CheckboxState::Checked;
+                                    cx.notify();
+                                })
+                            }),
+                        )
+                        .child(
+                            switch("popover-sync", "Sync workspace", enabled, cx).on_change(
+                                move |value, _, _, cx| {
+                                    sync_target.update(cx, |this, cx| {
+                                        this.enabled = value;
+                                        cx.notify();
+                                    })
+                                },
+                            ),
+                        )
+                },
+            ))
+            .child(div().text_color(t.secondary).child(if self.enabled {
+                "Workspace sync is enabled."
+            } else {
+                "Workspace sync is paused."
+            }));
+        content
+    }
+    fn render_tooltip_example(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        let action = if self.pressed {
+            "Remove from favorites"
+        } else {
+            "Add to favorites"
+        };
+        content = content
+            .child(
+                div()
+                    .w(px(360.))
+                    .max_w(gpui::relative(1.))
+                    .p(px(14.))
+                    .bg(t.normal_fill())
+                    .flex()
+                    .items_center()
+                    .gap(px(14.))
+                    .child(
+                        div()
+                            .flex_1()
+                            .flex()
+                            .flex_col()
+                            .gap(px(6.))
                             .child(self.saved_workspace.clone())
-                            .child("Documents")
-                            .child("Projects")
-                            .when(self.checked, |preview| {
-                                preview.child(div().text_color(t.secondary).child(".config"))
-                            }),
-                    )
-                    .child(popover(
-                        "display-options",
-                        button(
-                            "display-options-trigger",
-                            "Display options",
-                            ButtonVariant::Secondary,
-                            cx,
-                        )
-                        .child(icon(IconName::ChevronDown).size(px(14.))),
-                        move |_, _, cx| {
-                            let checked = target.read(cx).checked;
-                            let enabled = target.read(cx).enabled;
-                            let hidden_target = target.clone();
-                            let sync_target = target.clone();
-                            div()
-                                .flex()
-                                .flex_col()
-                                .gap(px(14.))
-                                .child(div().font_weight(FontWeight::BOLD).child("Display options"))
-                                .child(
-                                    checkbox(
-                                        "popover-hidden",
-                                        "Show hidden files",
-                                        if checked {
-                                            CheckboxState::Checked
-                                        } else {
-                                            CheckboxState::Unchecked
-                                        },
-                                        cx,
-                                    )
-                                    .on_change(
-                                        move |value, _, _, cx| {
-                                            hidden_target.update(cx, |this, cx| {
-                                                this.checked = value == CheckboxState::Checked;
-                                                cx.notify();
-                                            })
-                                        },
-                                    ),
-                                )
-                                .child(
-                                    switch("popover-sync", "Sync workspace", enabled, cx)
-                                        .on_change(move |value, _, _, cx| {
-                                            sync_target.update(cx, |this, cx| {
-                                                this.enabled = value;
-                                                cx.notify();
-                                            })
-                                        }),
-                                )
-                        },
-                    ))
-                    .child(div().text_color(t.secondary).child(if self.enabled {
-                        "Workspace sync is enabled."
-                    } else {
-                        "Workspace sync is paused."
-                    }));
-            }
-            "tooltip" => {
-                let action = if self.pressed {
-                    "Remove from favorites"
-                } else {
-                    "Add to favorites"
-                };
-                content = content
-                    .child(
-                        div()
-                            .w(px(360.))
-                            .max_w(gpui::relative(1.))
-                            .p(px(14.))
-                            .bg(t.normal_fill())
-                            .flex()
-                            .items_center()
-                            .gap(px(14.))
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .flex()
-                                    .flex_col()
-                                    .gap(px(6.))
-                                    .child(self.saved_workspace.clone())
-                                    .child(div().text_color(t.secondary).child(if self.pressed {
-                                        "In favorites"
-                                    } else {
-                                        "Not in favorites"
-                                    })),
-                            )
-                            .child(with_tooltip(
-                                button("tooltip-favorite", "", ButtonVariant::Secondary, cx)
-                                    .accessibility_label(action)
-                                    .selected(self.pressed)
-                                    .child(icon(IconName::Star))
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.pressed = !this.pressed;
-                                        cx.notify();
-                                    })),
-                                action,
-                            )),
-                    )
-                    .child(
-                        div().text_color(t.secondary).child(
-                            "Hover the star for its action. Tab and Return also activate it.",
-                        ),
-                    )
-                    .child(div().mt(px(14.)).child("Tooltip appearance"))
-                    .child(tooltip("Add to favorites", cx));
-            }
-            "select" | "combobox" => {
-                let searchable = self.page == "combobox";
-                let state = if searchable {
-                    &self.combo_choice
-                } else {
-                    &self.select_choice
-                };
-                let selected = state
-                    .read(cx)
-                    .selected()
-                    .map(|item| item.label.to_string())
-                    .unwrap_or_else(|| "None".into());
-                let control = if searchable {
-                    combobox("workspace-choice", state, window, cx).into_any_element()
-                } else {
-                    select("workspace-choice", state, window, cx).into_any_element()
-                };
-                let disabled = if searchable {
-                    combobox("managed-choice", &self.disabled_choice, window, cx).into_any_element()
-                } else {
-                    select("managed-choice", &self.disabled_choice, window, cx).into_any_element()
-                };
-                content = content
-                    .child(
-                        div()
-                            .w(px(360.))
-                            .max_w(gpui::relative(1.))
-                            .flex()
-                            .flex_col()
-                            .gap(px(8.))
-                            .child(if searchable {
-                                "Find a workspace"
+                            .child(div().text_color(t.secondary).child(if self.pressed {
+                                "In favorites"
                             } else {
-                                "Default workspace"
-                            })
-                            .child(control)
-                            .child(
-                                div()
-                                    .text_color(t.secondary)
-                                    .child("Archived workspaces cannot be selected."),
-                            )
-                            .child(div().mt(px(12.)).child(format!("Selected: {selected}"))),
-                    )
-                    .child(div().mt(px(18.)).w_full().child(separator(cx)))
-                    .child(
-                        div()
-                            .w(px(360.))
-                            .max_w(gpui::relative(1.))
-                            .flex()
-                            .flex_col()
-                            .gap(px(8.))
-                            .child("Managed workspace")
-                            .child(disabled)
-                            .child(
-                                div()
-                                    .text_color(t.secondary)
-                                    .child("This setting is managed by your organization."),
-                            ),
-                    );
-            }
-            "menu" => {
-                let target = cx.entity();
-                content = content
-                    .child(menu(
-                        "workspace-menu",
-                        button(
-                            "menu-trigger",
-                            "Workspace actions",
-                            ButtonVariant::Secondary,
-                            cx,
-                        )
-                        .child(icon(IconName::ChevronDown).text_color(t.foreground)),
-                        vec![
-                            MenuItem::new("New workspace").icon(IconName::Plus),
-                            MenuItem::new("Favorite workspace").icon(IconName::Star),
-                            MenuItem::new("Unavailable action").disabled(true),
-                        ],
-                        move |index, _, cx| {
-                            target.update(cx, |this, cx| {
-                                this.menu_result =
-                                    ["New workspace", "Favorite workspace", "Unavailable action"]
-                                        [index]
-                                        .into();
-                                cx.notify();
-                            })
-                        },
-                    ))
-                    .child(self.menu_result.clone());
-            }
-            "dialog" | "alert_dialog" => {
-                let alert = self.page == "alert_dialog";
-                let specimen = if alert {
-                    self.reset_form(false, cx)
-                } else {
-                    self.workspace_form(false, window, cx)
-                };
-                content = content
-                    .child(
-                        div()
-                            .text_size(px(13.))
-                            .font_weight(FontWeight::BOLD)
-                            .child(if alert {
-                                "Destructive confirmation"
-                            } else {
-                                "Form dialog"
-                            }),
-                    )
-                    .child(div().text_color(t.secondary).child(if alert {
-                        "A named consequence, a clear way back, and a distinct destructive action."
-                    } else {
-                        "A short task with visible labels and outline actions."
-                    }))
-                    .child(dialog_popup(cx).w(px(460.)).child(specimen))
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(12.))
-                            .mt(px(6.))
-                            .child(
-                                dialog_button(
-                                    "open-modal",
-                                    if alert {
-                                        "Open alert dialog…"
-                                    } else {
-                                        "Open dialog…"
-                                    },
-                                    ButtonVariant::Secondary,
-                                    cx,
-                                )
-                                .track_focus(&self.modal_trigger)
-                                .on_click(cx.listener(
-                                    |this, _, window, cx| {
-                                        let value = this.saved_workspace.clone();
-                                        this.workspace_draft.update(cx, |state, cx| {
-                                            state.set_value(value, window, cx)
-                                        });
-                                        this.modal_open = true;
-                                        this.modal_focus.focus(window, cx);
-                                        cx.notify();
-                                    },
-                                )),
-                            )
-                            .child(div().text_color(t.secondary).child(if alert {
-                                "Escape cancels · Backdrop keeps the dialog open"
-                            } else {
-                                "Escape cancels · Tab moves between controls"
+                                "Not in favorites"
                             })),
                     )
-                    .when(!self.modal_result.is_empty(), |content| {
-                        content.child(
-                            div()
-                                .text_color(t.secondary)
-                                .child(self.modal_result.clone()),
-                        )
-                    });
-                if self.modal_open {
-                    let body = if alert {
-                        self.reset_form(true, cx)
-                    } else {
-                        self.workspace_form(true, window, cx)
-                    };
-                    let popup = div()
-                        .id("modal-surface")
-                        .occlude()
-                        .max_w(gpui::relative(0.9))
-                        .child(dialog_popup(cx).w(px(460.)).child(body));
-                    let close = cx.listener(|this, confirmed: &bool, window, cx| {
-                        this.modal_open = false;
-                        if *confirmed {
-                            if this.page == "alert_dialog" {
-                                this.reset_workspace(window, cx);
-                            } else {
-                                this.save_workspace(true, window, cx);
-                            }
-                        } else {
-                            this.modal_result = "Changes discarded".into();
-                        }
-                        this.modal_trigger.focus(window, cx);
+                    .child(with_tooltip(
+                        button("tooltip-favorite", "", ButtonVariant::Secondary, cx)
+                            .accessibility_label(action)
+                            .selected(self.pressed)
+                            .child(icon(IconName::Star))
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.pressed = !this.pressed;
+                                cx.notify();
+                            })),
+                        action,
+                    )),
+            )
+            .child(
+                div()
+                    .text_color(t.secondary)
+                    .child("Hover the star for its action. Tab and Return also activate it."),
+            )
+            .child(div().mt(px(14.)).child("Tooltip appearance"))
+            .child(tooltip("Add to favorites", cx));
+        content
+    }
+    fn render_menu_example(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        let target = cx.entity();
+        content = content
+            .child(menu(
+                "workspace-menu",
+                button(
+                    "menu-trigger",
+                    "Workspace actions",
+                    ButtonVariant::Secondary,
+                    cx,
+                )
+                .child(icon(IconName::ChevronDown).text_color(t.foreground)),
+                vec![
+                    MenuItem::new("New workspace").icon(IconName::Plus),
+                    MenuItem::new("Favorite workspace").icon(IconName::Star),
+                    MenuItem::new("Unavailable action").disabled(true),
+                ],
+                move |index, _, cx| {
+                    target.update(cx, |this, cx| {
+                        this.menu_result =
+                            ["New workspace", "Favorite workspace", "Unavailable action"][index]
+                                .into();
                         cx.notify();
-                    });
-                    if alert {
-                        content = content.child(
-                            alert_dialog(&self.modal_focus, cx)
-                                .popup(
-                                    div()
-                                        .size_full()
-                                        .flex()
-                                        .items_center()
-                                        .justify_center()
-                                        .child(popup),
-                                )
-                                .request_close(move |confirmed, window, cx| {
-                                    close(&confirmed, window, cx)
-                                }),
-                        );
-                    } else {
-                        content = content.child(
-                            dialog(&self.modal_focus, cx)
-                                .on_ok({
-                                    let draft = self.workspace_draft.clone();
-                                    move |_, _, cx| !draft.read(cx).value().trim().is_empty()
-                                })
-                                .popup(popup)
-                                .request_close(move |confirmed, window, cx| {
-                                    close(&confirmed, window, cx)
-                                }),
-                        );
-                    }
-                }
-            }
-            "slider" => {
-                content = content
-                    .child(format!("Volume: {}", self.slider_value.read(cx).value()))
-                    .child(slider(&self.slider_value, false, window, cx))
-                    .child(format!("Range: {}", self.slider_range.read(cx).value()))
-                    .child(slider(&self.slider_range, false, window, cx))
-                    .child("Disabled")
-                    .child(slider(&self.slider_disabled, true, window, cx))
-                    .child("Arrow keys / h l  adjust · Home / End  bounds · Tab  next thumb");
-            }
-            "icon" => {
-                for (name, glyph) in [
-                    ("Check", IconName::Check),
-                    ("Minus", IconName::Minus),
-                    ("Plus", IconName::Plus),
-                    ("Chevron down", IconName::ChevronDown),
-                    ("Chevron right", IconName::ChevronRight),
-                    ("Star", IconName::Star),
-                    ("External link", IconName::ExternalLink),
-                    ("Close", IconName::Close),
-                    ("Search", IconName::Search),
-                    ("Menu", IconName::Menu),
-                    ("Settings", IconName::Settings),
-                    ("Alert", IconName::TriangleAlert),
-                ] {
-                    content = content.child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(8.))
-                            .child(icon(glyph))
-                            .child(name),
-                    );
-                }
-            }
-            "collapsible" => {
-                content = content.child(
-                    collapsible(self.collapse_open, cx)
-                        .child(
-                            button("collapse-trigger", "", ButtonVariant::Outline, cx)
-                                .debug_selector(|| "collapse-trigger".into())
-                                .accessibility_label("Advanced settings")
-                                .aria_expanded(self.collapse_open)
-                                .child(
-                                    icon(if self.collapse_open {
-                                        IconName::ChevronDown
-                                    } else {
-                                        IconName::ChevronRight
-                                    })
-                                    .size(px(14.)),
-                                )
-                                .child("Advanced settings")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.collapse_open = !this.collapse_open;
-                                    cx.notify();
-                                })),
-                        )
-                        .content(
-                            div()
-                                .flex()
-                                .flex_col()
-                                .gap(px(14.))
-                                .p(px(14.))
-                                .bg(t.normal_fill())
-                                .child("Workspace synchronization")
-                                .child(
-                                    switch("collapse-sync", "Sync workspace", self.enabled, cx)
-                                        .debug_selector(|| "collapse-sync".into())
-                                        .on_change(change(cx.listener(|this, next, _, cx| {
-                                            this.enabled = *next;
-                                            cx.notify();
-                                        }))),
-                                )
-                                .child(div().text_color(t.secondary).child(
-                                    "Your selection is preserved when this section is collapsed.",
-                                )),
-                        ),
-                );
-            }
-            "toast" => {
-                content = content.child(div().flex().flex_wrap().gap(px(8.))
-                    .child(button("show-toast", "Save workspace", ButtonVariant::Outline, cx)
-                        .on_click(cx.listener(|this, _, _, cx| { this.toast_saved = true; this.toast_message = Some("Workspace saved"); cx.notify(); })))
-                    .child(button("show-error-toast", "Show error", ButtonVariant::Secondary, cx)
-                        .on_click(cx.listener(|this, _, _, cx| { this.toast_message = Some("Could not sync workspace"); cx.notify(); }))))
-                    .child(if self.toast_saved { "Example workspace: saved" } else { "Example workspace: unsaved" })
-                    .child(div().text_color(t.secondary).child("Notifications appear at the bottom right. Dismiss them when you are finished."));
-            }
-            "accordion" => {
-                let mut sections = accordion("sections", cx);
-                for (index, (title, description)) in [
-                    ("Appearance", "Uses the current Omarchy system theme, with Tokyo Night as the fallback. Change the theme from the application menu."),
-                    ("Keyboard navigation", "Tab moves between controls. Return or Space activates the focused control. Escape closes an open menu or dialog."),
-                    ("Workspace data", "Changes in this gallery stay in memory for this session. Resetting an example does not remove files on disk."),
-                ].into_iter().enumerate() {
-                    sections = sections.child(gpui_base::AccordionItem::new().open(self.expanded[index])
-                        .header(gpui_base::AccordionHeader::new(accordion_trigger(("section", index), title, self.expanded[index], cx)
-                            .debug_selector(move || format!("accordion-trigger-{index}"))
-                            .on_change(change(cx.listener(move |this, next, _, cx| { this.expanded[index] = *next; cx.notify(); })))))
-                        .panel(accordion_panel(cx).child(div().debug_selector(move || format!("accordion-panel-{index}")).child(description))));
-                }
-                content = content.child(sections);
-            }
-            "pagination" => {
-                let listener = cx.listener(|this, page, _, cx| {
-                    this.current_page = *page;
-                    cx.notify();
-                });
-                let state = gpui_base::PaginationState::new(self.current_page, 12)
-                    .on_change(move |page, window, cx| listener(&page, window, cx));
-                content = content
-                    .child(format!("Page {} of 12", self.current_page))
-                    .child(pagination("pages", state, cx));
-            }
-            "table" => {
-                let records = [
-                    (
-                        "Website refresh",
-                        "Active",
-                        Status::Success,
-                        "Alex Lee",
-                        "Sep 7",
-                        "12 files",
-                    ),
-                    (
-                        "Design system",
-                        "Active",
-                        Status::Success,
-                        "Morgan Kim",
-                        "Sep 6",
-                        "28 files",
-                    ),
-                    (
-                        "Release notes",
-                        "Review",
-                        Status::Warning,
-                        "Sam Rivera",
-                        "Sep 5",
-                        "4 files",
-                    ),
-                    (
-                        "Desktop client",
-                        "Active",
-                        Status::Success,
-                        "Alex Lee",
-                        "Sep 4",
-                        "36 files",
-                    ),
-                    (
-                        "Onboarding",
-                        "Review",
-                        Status::Warning,
-                        "Morgan Kim",
-                        "Sep 3",
-                        "9 files",
-                    ),
-                    (
-                        "Research archive",
-                        "Archived",
-                        Status::Neutral,
-                        "Sam Rivera",
-                        "Aug 28",
-                        "42 files",
-                    ),
-                    (
-                        "API reference",
-                        "Active",
-                        Status::Success,
-                        "Alex Lee",
-                        "Aug 26",
-                        "17 files",
-                    ),
-                    (
-                        "Brand assets",
-                        "Archived",
-                        Status::Neutral,
-                        "Morgan Kim",
-                        "Aug 21",
-                        "24 files",
-                    ),
-                ];
-                let mut heading = table_row("heading", 1, cx);
-                for (index, title) in ["Project", "Status", "Owner", "Updated", "Files"]
-                    .into_iter()
-                    .enumerate()
-                {
-                    heading = heading.child(table_head(index, index + 1, cx).child(title));
-                }
-                content = content
+                    })
+                },
+            ))
+            .child(self.menu_result.clone());
+        content
+    }
+    fn render_table_example(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        let records = [
+            (
+                "Website refresh",
+                "Active",
+                Status::Success,
+                "Alex Lee",
+                "Sep 7",
+                "12 files",
+            ),
+            (
+                "Design system",
+                "Active",
+                Status::Success,
+                "Morgan Kim",
+                "Sep 6",
+                "28 files",
+            ),
+            (
+                "Release notes",
+                "Review",
+                Status::Warning,
+                "Sam Rivera",
+                "Sep 5",
+                "4 files",
+            ),
+            (
+                "Desktop client",
+                "Active",
+                Status::Success,
+                "Alex Lee",
+                "Sep 4",
+                "36 files",
+            ),
+            (
+                "Onboarding",
+                "Review",
+                Status::Warning,
+                "Morgan Kim",
+                "Sep 3",
+                "9 files",
+            ),
+            (
+                "Research archive",
+                "Archived",
+                Status::Neutral,
+                "Sam Rivera",
+                "Aug 28",
+                "42 files",
+            ),
+            (
+                "API reference",
+                "Active",
+                Status::Success,
+                "Alex Lee",
+                "Aug 26",
+                "17 files",
+            ),
+            (
+                "Brand assets",
+                "Archived",
+                Status::Neutral,
+                "Morgan Kim",
+                "Aug 21",
+                "24 files",
+            ),
+        ];
+        let mut heading = table_row("heading", 1, cx);
+        for (index, title) in ["Project", "Status", "Owner", "Updated", "Files"]
+            .into_iter()
+            .enumerate()
+        {
+            heading = heading.child(table_head(index, index + 1, cx).child(title));
+        }
+        content = content
+            .child(
+                div()
+                    .flex()
+                    .justify_between()
+                    .child("Workspace projects")
                     .child(
+                        div()
+                            .text_color(t.secondary)
+                            .child("8 projects · Sample data"),
+                    ),
+            )
+            .child(
+                div()
+                    .id("project-table-scroll")
+                    .w_full()
+                    .overflow_x_scroll()
+                    .child(
+                        table("projects", cx)
+                            .min_w(px(640.))
+                            .child(gpui_base::TableHeader::new("head").child(heading))
+                            .child(gpui_base::TableBody::new("body").children(
+                                records.into_iter().enumerate().map(
+                                    |(index, (name, label, status, owner, updated, files))| {
+                                        table_row(index, index + 2, cx)
+                                            .child(
+                                                table_cell("name", 1, cx)
+                                                    .child(div().truncate().child(name)),
+                                            )
+                                            .child(
+                                                table_cell("status", 2, cx).child(
+                                                    div()
+                                                        .text_color(match status {
+                                                            Status::Neutral => t.secondary,
+                                                            Status::Success => t.success,
+                                                            Status::Warning => t.warning,
+                                                            Status::Error => t.danger,
+                                                        })
+                                                        .child(label),
+                                                ),
+                                            )
+                                            .child(table_cell("owner", 3, cx).child(owner))
+                                            .child(table_cell("updated", 4, cx).child(updated))
+                                            .child(table_cell("files", 5, cx).child(files))
+                                    },
+                                ),
+                            )),
+                    ),
+            );
+        content
+    }
+    fn render_button_example(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content = content.child(div().text_color(t.secondary).child("Appearance"));
+        for (key, label, variant) in [
+            ("primary", "Primary", ButtonVariant::Primary),
+            ("outline", "Outline", ButtonVariant::Outline),
+            ("secondary", "Secondary", ButtonVariant::Secondary),
+            ("danger", "Danger", ButtonVariant::Danger),
+        ] {
+            content = content.child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap(px(8.))
+                    .child(div().w(px(90.)).text_color(t.secondary).child(label))
+                    .child(button(key, "Apply", variant, cx).on_click(cx.listener(
+                        |this, _, _, cx| {
+                            this.count += 1;
+                            cx.notify();
+                        },
+                    )))
+                    .child(
+                        button(
+                            (gpui::ElementId::from(key), "disabled"),
+                            "Unavailable",
+                            variant,
+                            cx,
+                        )
+                        .disabled(true),
+                    ),
+            );
+        }
+        content = content
+            .child(div().text_color(t.secondary).child("Icons and actions"))
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap(px(8.))
+                    .child(
+                        button("icon-action", "", ButtonVariant::Outline, cx)
+                            .accessibility_label("Add workspace")
+                            .child(icon(IconName::Plus).size(px(14.)))
+                            .child("Add workspace")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.count += 1;
+                                cx.notify();
+                            })),
+                    )
+                    .child(with_tooltip(
+                        button("icon-only", "", ButtonVariant::Outline, cx)
+                            .accessibility_label("Add workspace")
+                            .child(icon(IconName::Plus).size(px(14.)))
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.count += 1;
+                                cx.notify();
+                            })),
+                        "Add workspace",
+                    ))
+                    .child(
+                        button("icon-disabled", "", ButtonVariant::Outline, cx)
+                            .accessibility_label("Add workspace unavailable")
+                            .child(icon(IconName::Plus).size(px(14.)))
+                            .disabled(true),
+                    )
+                    .child(
+                        button("reset-count", "Reset", ButtonVariant::Secondary, cx).on_click(
+                            cx.listener(|this, _, _, cx| {
+                                this.count = 0;
+                                cx.notify();
+                            }),
+                        ),
+                    ),
+            )
+            .child(
+                div()
+                    .text_color(t.secondary)
+                    .child(format!("Activations: {}", self.count)),
+            );
+        content
+    }
+    fn render_tabs_example(
+        &mut self,
+        mut content: gpui::Div,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        let labels = ["Overview", "Activity", "Settings"];
+        let target = cx.entity();
+        let strip = tab_list(
+            "workspace-tabs",
+            labels
+                .iter()
+                .map(|&label| ChoiceItem::new(label, label))
+                .collect(),
+            Some(self.tab),
+            move |index, _, cx| {
+                target.update(cx, |this, cx| {
+                    this.tab = index;
+                    cx.notify();
+                })
+            },
+            window,
+            cx,
+        );
+        let mut body = div()
+            .id("workspace-tab-panel")
+            .role(gpui::Role::TabPanel)
+            .flex()
+            .flex_col()
+            .gap(px(14.))
+            .p(px(14.))
+            .w_full()
+            .min_h(px(240.))
+            .bg(t.normal_fill());
+        match self.tab {
+            0 => {
+                body = body
+                    .child(
+                        div()
+                            .font_weight(gpui::FontWeight::BOLD)
+                            .child("Personal workspace"),
+                    )
+                    .child(
+                        div()
+                            .text_color(t.secondary)
+                            .child("Your files and projects, organized in one place."),
+                    );
+                for (name, detail) in [
+                    ("Documents", "Notes and reference material"),
+                    ("Projects", "Active work and experiments"),
+                    ("Archive", "Completed projects"),
+                ] {
+                    body = body.child(
                         div()
                             .flex()
                             .justify_between()
-                            .child("Workspace projects")
-                            .child(
-                                div()
-                                    .text_color(t.secondary)
-                                    .child("8 projects · Sample data"),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .id("project-table-scroll")
-                            .w_full()
-                            .overflow_x_scroll()
-                            .child(
-                                table("projects", cx)
-                                    .min_w(px(640.))
-                                    .child(gpui_base::TableHeader::new("head").child(heading))
-                                    .child(gpui_base::TableBody::new("body").children(
-                                        records.into_iter().enumerate().map(
-                                            |(
-                                                index,
-                                                (name, label, status, owner, updated, files),
-                                            )| {
-                                                table_row(index, index + 2, cx)
-                                                    .child(
-                                                        table_cell("name", 1, cx)
-                                                            .child(div().truncate().child(name)),
-                                                    )
-                                                    .child(
-                                                        table_cell("status", 2, cx).child(
-                                                            div()
-                                                                .text_color(match status {
-                                                                    Status::Neutral => t.secondary,
-                                                                    Status::Success => t.success,
-                                                                    Status::Warning => t.warning,
-                                                                    Status::Error => t.danger,
-                                                                })
-                                                                .child(label),
-                                                        ),
-                                                    )
-                                                    .child(table_cell("owner", 3, cx).child(owner))
-                                                    .child(
-                                                        table_cell("updated", 4, cx).child(updated),
-                                                    )
-                                                    .child(table_cell("files", 5, cx).child(files))
-                                            },
-                                        ),
-                                    )),
-                            ),
-                    );
-            }
-            "number_input" => {
-                content = content
-                    .child("Quantity")
-                    .child(number_input(&self.number, cx))
-                    .child("Arrow Up / Arrow Down  adjust by 1")
-            }
-            "input" => {
-                content = content
-                    .child("Workspace name")
-                    .child(input("workspace-name", &self.input, window, cx).max_w(px(380.)))
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(8.))
-                            .child(
-                                button("submit-input", "Read value", ButtonVariant::Primary, cx)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.count = this.input.read(cx).value().chars().count();
-                                        cx.notify();
-                                    })),
-                            )
-                            .child(
-                                button("reset-input", "Reset value", ButtonVariant::Outline, cx)
-                                    .debug_selector(|| "reset-input".into())
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.input.update(cx, |state, cx| {
-                                            state.set_value("", window, cx);
-                                            state.focus(window, cx);
-                                        });
-                                        this.count = 0;
-                                        cx.notify();
-                                    })),
-                            ),
-                    )
-                    .child(format!("Submitted length: {} characters", self.count));
-            }
-            "textarea" => {
-                content = content
-                    .child("Workspace notes")
-                    .child(textarea("notes", &self.textarea, window, cx).max_w(px(520.)))
-                    .child("Supports multiple lines, selection, clipboard and IME")
-            }
-            "button" => {
-                content = content.child(div().text_color(t.secondary).child("Appearance"));
-                for (key, label, variant) in [
-                    ("primary", "Primary", ButtonVariant::Primary),
-                    ("outline", "Outline", ButtonVariant::Outline),
-                    ("secondary", "Secondary", ButtonVariant::Secondary),
-                    ("danger", "Danger", ButtonVariant::Danger),
-                ] {
-                    content = content.child(
-                        div()
-                            .flex()
-                            .flex_wrap()
-                            .items_center()
-                            .gap(px(8.))
-                            .child(div().w(px(90.)).text_color(t.secondary).child(label))
-                            .child(button(key, "Apply", variant, cx).on_click(cx.listener(
-                                |this, _, _, cx| {
-                                    this.count += 1;
-                                    cx.notify();
-                                },
-                            )))
-                            .child(
-                                button(
-                                    (gpui::ElementId::from(key), "disabled"),
-                                    "Unavailable",
-                                    variant,
-                                    cx,
-                                )
-                                .disabled(true),
-                            ),
+                            .gap(px(14.))
+                            .border_b_1()
+                            .border_color(t.divider())
+                            .pb(px(10.))
+                            .child(name)
+                            .child(div().text_color(t.secondary).child(detail)),
                     );
                 }
-                content = content
-                    .child(div().text_color(t.secondary).child("Icons and actions"))
+            }
+            1 => {
+                body = body
                     .child(
                         div()
-                            .flex()
-                            .flex_wrap()
-                            .items_center()
-                            .gap(px(8.))
-                            .child(
-                                button("icon-action", "", ButtonVariant::Outline, cx)
-                                    .accessibility_label("Add workspace")
-                                    .child(icon(IconName::Plus).size(px(14.)))
-                                    .child("Add workspace")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.count += 1;
-                                        cx.notify();
-                                    })),
-                            )
-                            .child(with_tooltip(
-                                button("icon-only", "", ButtonVariant::Outline, cx)
-                                    .accessibility_label("Add workspace")
-                                    .child(icon(IconName::Plus).size(px(14.)))
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.count += 1;
-                                        cx.notify();
-                                    })),
-                                "Add workspace",
-                            ))
-                            .child(
-                                button("icon-disabled", "", ButtonVariant::Outline, cx)
-                                    .accessibility_label("Add workspace unavailable")
-                                    .child(icon(IconName::Plus).size(px(14.)))
-                                    .disabled(true),
-                            )
-                            .child(
-                                button("reset-count", "Reset", ButtonVariant::Secondary, cx)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.count = 0;
-                                        cx.notify();
-                                    })),
-                            ),
+                            .font_weight(gpui::FontWeight::BOLD)
+                            .child("Recent activity"),
                     )
                     .child(
                         div()
                             .text_color(t.secondary)
-                            .child(format!("Activations: {}", self.count)),
+                            .child("Sample workspace history"),
                     );
+                for (event, time) in [
+                    ("Updated project notes", "Today · 09:42"),
+                    ("Added a reference document", "Today · 09:15"),
+                    ("Archived a completed project", "Yesterday · 16:30"),
+                ] {
+                    body = body.child(
+                        div()
+                            .flex()
+                            .justify_between()
+                            .gap(px(14.))
+                            .border_b_1()
+                            .border_color(t.divider())
+                            .pb(px(10.))
+                            .child(event)
+                            .child(div().text_color(t.secondary).child(time)),
+                    );
+                }
             }
-            "checkbox" => {
-                let state = if self.mixed {
-                    CheckboxState::Indeterminate
-                } else if self.checked {
-                    CheckboxState::Checked
-                } else {
-                    CheckboxState::Unchecked
-                };
-                content = content
+            _ => {
+                body = body
+                    .child("Workspace name")
                     .child(
-                        checkbox("check", "Include hidden files", state, cx).on_change(change(
-                            cx.listener(|this, next, _, cx| {
-                                this.checked = *next == CheckboxState::Checked;
-                                this.mixed = false;
-                                cx.notify();
-                            }),
-                        )),
+                        input("tab-workspace-name", &self.workspace_name, window, cx)
+                            .max_w(px(360.)),
                     )
                     .child(
-                        checkbox(
-                            "check-disabled",
-                            "Managed by policy",
-                            CheckboxState::Checked,
-                            cx,
-                        )
-                        .disabled(true),
-                    )
-                    .child(
-                        button("mixed", "Set mixed state", ButtonVariant::Secondary, cx).on_click(
-                            cx.listener(|this, _, _, cx| {
-                                this.mixed = true;
-                                cx.notify();
-                            }),
-                        ),
-                    );
-            }
-            "switch" => {
-                content = content
-                    .child(
-                        switch("switch", "Show metadata", self.enabled, cx).on_change(change(
-                            cx.listener(|this, next, _, cx| {
+                        switch("tab-sync", "Sync workspace", self.enabled, cx)
+                            .debug_selector(|| "tab-sync".into())
+                            .on_change(change(cx.listener(|this, next, _, cx| {
                                 this.enabled = *next;
                                 cx.notify();
-                            }),
-                        )),
+                            }))),
                     )
-                    .child(if self.enabled {
-                        "Metadata visible"
-                    } else {
-                        "Metadata hidden"
-                    })
+                    .child(div().text_color(t.secondary).child(
+                        "Changes apply immediately and remain available when you switch tabs.",
+                    ));
             }
-            "radio" => {
-                for (index, label) in ["Compact", "Comfortable", "Spacious"]
-                    .into_iter()
-                    .enumerate()
-                {
-                    content =
-                        content.child(radio(index, label, self.choice == index, cx).on_change(
-                            change(cx.listener(move |this, _, _, cx| {
-                                this.choice = index;
-                                cx.notify();
-                            })),
-                        ));
-                }
-            }
-            "toggle" => {
-                content = content.child(
-                    toggle("toggle", "Favorite panel", self.pressed, cx).on_change(change(
-                        cx.listener(|this, next, _, cx| {
-                            this.pressed = *next;
-                            cx.notify();
-                        }),
-                    )),
-                )
-            }
-            "link" => {
-                content = content
-                    .child(link(
-                        "manual",
-                        "Open Omarchy manual",
-                        "https://omarchy.org/manual",
-                        cx,
-                    ))
-                    .child(
-                        link(
-                            "disabled-link",
-                            "Unavailable link",
-                            "https://omarchy.org",
-                            cx,
+        }
+        content = content
+            .child(strip.aria_label("Workspace pages"))
+            .child(body);
+        content
+    }
+    fn render_resizable_example(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content = content.child("Horizontal").child(div().w_full().h(px(300.)).border_1().border_color(t.border)
+                    .child(resizable("workspace-panes", gpui::Axis::Horizontal, cx)
+                        .child(resizable_panel().size(px(220.)).size_range(px(140.)..px(420.))
+                            .child(div().size_full().p(px(14.)).flex().flex_col().gap(px(10.))
+                                .child("Documents").child("Project brief.md").child("Meeting notes.md")))
+                        .child(resizable_panel().size_range(px(180.)..px(1600.))
+                            .child(div().size_full().p(px(14.)).flex().flex_col().gap(px(14.))
+                                .child(div().font_weight(FontWeight::BOLD).child("Project brief"))
+                                .child("A focused desktop workspace for files, notes and project activity.")
+                                .child(div().text_color(t.secondary).child("Drag the divider to give this preview more room."))))));
+        content = content.child("Vertical").child(
+            div()
+                .w_full()
+                .h(px(240.))
+                .border_1()
+                .border_color(t.border)
+                .child(
+                    resizable("preview-console", gpui::Axis::Vertical, cx)
+                        .child(
+                            resizable_panel()
+                                .size(px(140.))
+                                .size_range(px(80.)..px(180.))
+                                .child(
+                                    div()
+                                        .size_full()
+                                        .p(px(14.))
+                                        .flex()
+                                        .flex_col()
+                                        .gap(px(10.))
+                                        .child("Preview")
+                                        .child("The workspace is ready for review."),
+                                ),
                         )
-                        .disabled(true),
-                    )
-            }
-            "button_group" => {
-                let labels = ["Top", "Right", "Bottom", "Left"];
-                let target = cx.entity();
-                let group = button_group(
-                    "toolbar-position",
-                    labels
-                        .iter()
-                        .map(|&label| ChoiceItem::new(label, label))
-                        .collect(),
-                    Some(self.toolbar_position),
-                    move |index, _, cx| {
-                        target.update(cx, |this, cx| {
-                            this.toolbar_position = index;
-                            cx.notify();
-                        })
-                    },
-                    window,
-                    cx,
-                );
-                content = content
-                    .child("Toolbar position")
-                    .child(group.aria_label("Toolbar position"))
-                    .child(div().text_color(t.secondary).child(format!(
-                        "Toolbar is placed at the {}.",
-                        labels[self.toolbar_position].to_lowercase()
-                    )))
-                    .child(
-                        div()
-                            .text_color(t.secondary)
-                            .child("Left / Right move the cursor · Return / Space choose"),
-                    );
-            }
-            "tabs" => {
-                let labels = ["Overview", "Activity", "Settings"];
-                let target = cx.entity();
-                let strip = tab_list(
-                    "workspace-tabs",
-                    labels
-                        .iter()
-                        .map(|&label| ChoiceItem::new(label, label))
-                        .collect(),
-                    Some(self.tab),
-                    move |index, _, cx| {
-                        target.update(cx, |this, cx| {
-                            this.tab = index;
-                            cx.notify();
-                        })
-                    },
-                    window,
-                    cx,
-                );
-                let mut body = div()
-                    .id("workspace-tab-panel")
-                    .role(gpui::Role::TabPanel)
+                        .child(
+                            resizable_panel().size_range(px(60.)..px(160.)).child(
+                                div()
+                                    .size_full()
+                                    .p(px(14.))
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(10.))
+                                    .child("Activity")
+                                    .child(
+                                        div()
+                                            .text_color(t.secondary)
+                                            .child("All changes saved · No pending tasks"),
+                                    ),
+                            ),
+                        ),
+                ),
+        );
+        content
+    }
+    fn render_avatar_example(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content = content.child(
+            div()
+                .font_weight(FontWeight::BOLD)
+                .child("Workspace members"),
+        );
+        for (initials, name, role) in [
+            ("HL", "huacnlee", "Owner"),
+            ("MK", "Morgan Kim", "Editor"),
+            ("SR", "Sam Rivera", "Viewer"),
+        ] {
+            content = content.child(
+                div()
                     .flex()
-                    .flex_col()
+                    .items_center()
+                    .gap(px(10.))
+                    .pb(px(10.))
+                    .border_b_1()
+                    .border_color(t.divider())
+                    .child(avatar(initials, cx).when(initials == "HL", |avatar| {
+                        avatar.image(avatar_image(gallery_avatar()))
+                    }))
+                    .child(div().flex_1().child(name))
+                    .child(div().text_color(t.secondary).child(role)),
+            );
+        }
+        content = content
+            .child(div().text_color(t.secondary).child("Sizes"))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
                     .gap(px(14.))
-                    .p(px(14.))
-                    .w_full()
-                    .min_h(px(240.))
-                    .bg(t.normal_fill());
-                match self.tab {
-                    0 => {
-                        body = body
-                            .child(
-                                div()
-                                    .font_weight(gpui::FontWeight::BOLD)
-                                    .child("Personal workspace"),
-                            )
-                            .child(
-                                div()
-                                    .text_color(t.secondary)
-                                    .child("Your files and projects, organized in one place."),
-                            );
-                        for (name, detail) in [
-                            ("Documents", "Notes and reference material"),
-                            ("Projects", "Active work and experiments"),
-                            ("Archive", "Completed projects"),
-                        ] {
-                            body = body.child(
-                                div()
-                                    .flex()
-                                    .justify_between()
-                                    .gap(px(14.))
-                                    .border_b_1()
-                                    .border_color(t.divider())
-                                    .pb(px(10.))
-                                    .child(name)
-                                    .child(div().text_color(t.secondary).child(detail)),
-                            );
-                        }
-                    }
-                    1 => {
-                        body = body
-                            .child(
-                                div()
-                                    .font_weight(gpui::FontWeight::BOLD)
-                                    .child("Recent activity"),
-                            )
-                            .child(
-                                div()
-                                    .text_color(t.secondary)
-                                    .child("Sample workspace history"),
-                            );
-                        for (event, time) in [
-                            ("Updated project notes", "Today · 09:42"),
-                            ("Added a reference document", "Today · 09:15"),
-                            ("Archived a completed project", "Yesterday · 16:30"),
-                        ] {
-                            body = body.child(
-                                div()
-                                    .flex()
-                                    .justify_between()
-                                    .gap(px(14.))
-                                    .border_b_1()
-                                    .border_color(t.divider())
-                                    .pb(px(10.))
-                                    .child(event)
-                                    .child(div().text_color(t.secondary).child(time)),
-                            );
-                        }
-                    }
-                    _ => {
-                        body = body.child("Workspace name")
-                            .child(input("tab-workspace-name", &self.workspace_name, window, cx).max_w(px(360.)))
-                            .child(switch("tab-sync", "Sync workspace", self.enabled, cx)
-                                .debug_selector(|| "tab-sync".into())
-                                .on_change(change(cx.listener(|this, next, _, cx| { this.enabled = *next; cx.notify(); }))))
-                            .child(div().text_color(t.secondary).child("Changes apply immediately and remain available when you switch tabs."));
-                    }
-                }
-                content = content
-                    .child(strip.aria_label("Workspace pages"))
-                    .child(body);
-            }
-            "editor" => {
-                content = content
-                    .child("main.rs")
-                    .child(editor("source-editor", &self.editor_state, window, cx))
                     .child(
-                        div()
-                            .text_color(t.secondary)
-                            .child("Tab indents · Use the system undo and clipboard shortcuts"),
+                        avatar("HL", cx)
+                            .image(avatar_image(gallery_avatar()))
+                            .size(px(24.))
+                            .text_size(px(10.)),
                     )
+                    .child(avatar("HL", cx).image(avatar_image(gallery_avatar())))
                     .child(
-                        button("reset-editor", "Reset example", ButtonVariant::Outline, cx)
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.editor_state.update(cx, |state, cx| {
-                                    state.set_value(
-                                        "fn main() {\n    println!(\"Hello, workspace\");\n}\n",
-                                        window,
-                                        cx,
-                                    );
-                                })
-                            })),
-                    );
-            }
-            "nav_stack" => {
-                content = content
+                        avatar("HL", cx)
+                            .image(avatar_image(gallery_avatar()))
+                            .size(px(48.))
+                            .text_size(px(16.)),
+                    ),
+            );
+        content
+    }
+    fn render_nav_stack_example(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content = content
                     .child(
                         div()
                             .flex()
@@ -1609,61 +1422,265 @@ impl Render for Gallery {
                     .child(div().text_color(t.secondary).child(
                         "Try it: open Website refresh, open its task, edit the note, then go Back and Forward. Your note stays on the task page.",
                     ));
-            }
-            "otp_input" => {
-                content = content
-                    .child("Verification code")
-                    .child(otp_input(&self.otp_state, window, cx))
-                    .child(div().text_color(t.secondary).child(
-                        "Demo only — no code is sent. Type six digits; Backspace removes a digit.",
-                    ))
-                    .child(if self.otp_state.read(cx).value().len() == 6 {
-                        "Code complete"
-                    } else {
-                        "Waiting for six digits"
-                    })
+        content
+    }
+}
+
+impl Gallery {
+    fn render_progress_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        content = content
+            .child(format!("Progress: {:.0}%", self.progress))
+            .child(progress("progress", self.progress, cx))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.))
                     .child(
-                        button("reset-otp", "Reset code", ButtonVariant::Outline, cx).on_click(
-                            cx.listener(|this, _, window, cx| {
-                                this.otp_state.update(cx, |state, cx| {
-                                    state.set_value("", window, cx);
-                                    state.focus(window, cx);
-                                })
+                        button("advance", "Advance 10%", ButtonVariant::Primary, cx).on_click(
+                            cx.listener(|this, _, _, cx| {
+                                this.progress = (this.progress + 10.).min(100.);
+                                cx.notify();
                             }),
                         ),
-                    );
-            }
-            "hover_card" => {
-                content = content
-                    .child("Workspace owner")
-                    .child(hover_card(
-                        "member-preview",
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(8.))
-                            .child(avatar("AL", cx))
-                            .child("Alex Lee"),
-                        |_, _, cx| {
-                            div()
-                                .flex()
-                                .flex_col()
-                                .gap(px(10.))
-                                .child(div().font_weight(FontWeight::BOLD).child("Alex Lee"))
-                                .child("Design engineer · Workspace owner")
-                                .child(div().text_color(cx.omarchy().secondary).child(
-                                    "Maintains the design system and reviews desktop releases.",
-                                ))
-                        },
-                    ))
+                    )
                     .child(
-                        div()
-                            .text_color(t.secondary)
-                            .child("Hover over the member to preview their profile."),
-                    );
-            }
-            "dock" => {
-                content = content
+                        button("reset", "Reset", ButtonVariant::Secondary, cx).on_click(
+                            cx.listener(|this, _, _, cx| {
+                                this.progress = 0.;
+                                cx.notify();
+                            }),
+                        ),
+                    ),
+            );
+        content
+    }
+    fn render_empty_state_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        content = if self.count == 0 {
+            content.child(
+                empty_state(
+                    "No workspaces",
+                    "Create a workspace to collect your projects.",
+                    cx,
+                )
+                .child(
+                    button("create", "Create workspace", ButtonVariant::Primary, cx).on_click(
+                        cx.listener(|this, _, _, cx| {
+                            this.count = 1;
+                            cx.notify();
+                        }),
+                    ),
+                ),
+            )
+        } else {
+            content.child("Workspace created").child(
+                button("reset-empty", "Reset example", ButtonVariant::Secondary, cx).on_click(
+                    cx.listener(|this, _, _, cx| {
+                        this.count = 0;
+                        cx.notify();
+                    }),
+                ),
+            )
+        };
+        content
+    }
+    fn render_badge_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        for (label, status) in [
+            ("Idle", Status::Neutral),
+            ("Applied", Status::Success),
+            ("Needs attention", Status::Warning),
+            ("Failed", Status::Error),
+        ] {
+            content = content.child(badge(label, status, cx));
+        }
+        content
+    }
+    fn render_keycap_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        content = content.child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(8.))
+                .child(keycap("Tab", cx))
+                .child("Next control")
+                .child(keycap("Return", cx))
+                .child("Activate"),
+        );
+        content
+    }
+    fn render_separator_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content = content
+            .child(div().text_color(t.secondary).child("Horizontal"))
+            .child("Appearance")
+            .child(separator(cx))
+            .child("Keyboard")
+            .child(div().mt(px(14.)).text_color(t.secondary).child("Vertical"))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(10.))
+                    .child(
+                        button("separator-add", "Add", ButtonVariant::Secondary, cx).on_click(
+                            cx.listener(|this, _, _, cx| {
+                                this.count += 1;
+                                cx.notify();
+                            }),
+                        ),
+                    )
+                    .child(vertical_separator(cx))
+                    .child(
+                        button("separator-reset", "Reset", ButtonVariant::Secondary, cx).on_click(
+                            cx.listener(|this, _, _, cx| {
+                                this.count = 0;
+                                cx.notify();
+                            }),
+                        ),
+                    )
+                    .child(vertical_separator(cx))
+                    .child(format!("{} items", self.count)),
+            );
+        content
+    }
+    fn render_panel_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        content = content.child(
+            panel("Workspace", cx)
+                .child("Theme-aware surface with a title and composable children")
+                .child(badge("Ready", Status::Success, cx)),
+        );
+        content
+    }
+    fn render_calendar_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content = content
+            .child("Schedule a workspace review")
+            .child(calendar("review-calendar", &self.calendar_state, cx))
+            .child(
+                div()
+                    .text_color(t.secondary)
+                    .child("Choose a weekday. Weekends are unavailable."),
+            )
+            .child(
+                self.calendar_state
+                    .read(cx)
+                    .date()
+                    .format("%A, %B %e, %Y")
+                    .unwrap_or_else(|| "No date selected".into()),
+            )
+            .child(
+                button("clear-date", "Clear date", ButtonVariant::Outline, cx).on_click(
+                    cx.listener(|this, _, window, cx| {
+                        this.calendar_state.update(cx, |state, cx| {
+                            state.set_date(gpui_base::Date::Single(None), window, cx)
+                        });
+                    }),
+                ),
+            );
+        content
+    }
+    fn render_date_picker_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content = content
+            .child("Review date")
+            .child(date_picker("review-date", &self.date_picker_state, cx))
+            .child(
+                div()
+                    .text_color(t.secondary)
+                    .child("Select a day to confirm. Escape cancels the calendar."),
+            );
+        content
+    }
+    fn render_color_picker_page(
+        &mut self,
+        mut content: gpui::Div,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        let color = self.color_state.read(cx).value().unwrap_or(t.accent);
+        content = content.child("Project label color")
+                    .child(color_picker("project-color", &self.color_state, window, cx))
+                    .child(div().flex().items_center().gap(px(10.))
+                        .child(div().size(px(20.)).bg(color))
+                        .child("Website refresh"))
+                    .child(div().text_color(t.secondary).child("The swatch shows the committed label color. Escape discards an unconfirmed Hex edit."));
+        content
+    }
+    fn render_tree_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content = content
+            .child("Workspace files")
+            .child(tree(&self.tree_state, cx).max_w(px(440.)))
+            .child(
+                div().text_color(t.secondary).child(
+                    self.tree_state
+                        .read(cx)
+                        .selected_item()
+                        .map(|item| format!("Selected: {}", item.label))
+                        .unwrap_or_else(|| "Select a file or folder".into()),
+                ),
+            )
+            .child(
+                div()
+                    .text_color(t.secondary)
+                    .child("Arrow keys navigate · Left / Right collapse and expand"),
+            );
+        content
+    }
+    fn render_dock_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content = content
                     .child(button("reset-dock", "Reset layout", ButtonVariant::Outline, cx)
                         .on_click(cx.listener(|this, _, window, cx| {
                             let layout = demo_dock_layout(cx);
@@ -1671,274 +1688,1080 @@ impl Render for Gallery {
                         })))
                     .child(div().w_full().h(px(360.)).child(self.dock_state.clone()))
                     .child(div().text_color(t.secondary).child("Drag tabs to merge or split panes. Drag a divider to resize. Reset layout restores all three panels."));
-            }
-            "tree" => {
-                content = content
-                    .child("Workspace files")
-                    .child(tree(&self.tree_state, cx).max_w(px(440.)))
-                    .child(
-                        div().text_color(t.secondary).child(
-                            self.tree_state
-                                .read(cx)
-                                .selected_item()
-                                .map(|item| format!("Selected: {}", item.label))
-                                .unwrap_or_else(|| "Select a file or folder".into()),
-                        ),
-                    )
-                    .child(
-                        div()
-                            .text_color(t.secondary)
-                            .child("Arrow keys navigate · Left / Right collapse and expand"),
-                    );
-            }
-            "resizable" => {
-                content = content.child("Horizontal").child(div().w_full().h(px(300.)).border_1().border_color(t.border)
-                    .child(resizable("workspace-panes", gpui::Axis::Horizontal, cx)
-                        .child(resizable_panel().size(px(220.)).size_range(px(140.)..px(420.))
-                            .child(div().size_full().p(px(14.)).flex().flex_col().gap(px(10.))
-                                .child("Documents").child("Project brief.md").child("Meeting notes.md")))
-                        .child(resizable_panel().size_range(px(180.)..px(1600.))
-                            .child(div().size_full().p(px(14.)).flex().flex_col().gap(px(14.))
-                                .child(div().font_weight(FontWeight::BOLD).child("Project brief"))
-                                .child("A focused desktop workspace for files, notes and project activity.")
-                                .child(div().text_color(t.secondary).child("Drag the divider to give this preview more room."))))));
-                content = content.child("Vertical").child(
-                    div()
-                        .w_full()
-                        .h(px(240.))
-                        .border_1()
-                        .border_color(t.border)
-                        .child(
-                            resizable("preview-console", gpui::Axis::Vertical, cx)
-                                .child(
-                                    resizable_panel()
-                                        .size(px(140.))
-                                        .size_range(px(80.)..px(180.))
-                                        .child(
-                                            div()
-                                                .size_full()
-                                                .p(px(14.))
-                                                .flex()
-                                                .flex_col()
-                                                .gap(px(10.))
-                                                .child("Preview")
-                                                .child("The workspace is ready for review."),
-                                        ),
-                                )
-                                .child(
-                                    resizable_panel().size_range(px(60.)..px(160.)).child(
-                                        div()
-                                            .size_full()
-                                            .p(px(14.))
-                                            .flex()
-                                            .flex_col()
-                                            .gap(px(10.))
-                                            .child("Activity")
-                                            .child(
-                                                div()
-                                                    .text_color(t.secondary)
-                                                    .child("All changes saved · No pending tasks"),
-                                            ),
-                                    ),
-                                ),
-                        ),
-                );
-            }
-            "date_picker" => {
-                content = content
-                    .child("Review date")
-                    .child(date_picker("review-date", &self.date_picker_state, cx))
-                    .child(
-                        div()
-                            .text_color(t.secondary)
-                            .child("Select a day to confirm. Escape cancels the calendar."),
-                    );
-            }
-            "calendar" => {
-                content = content
-                    .child("Schedule a workspace review")
-                    .child(calendar("review-calendar", &self.calendar_state, cx))
-                    .child(
-                        div()
-                            .text_color(t.secondary)
-                            .child("Choose a weekday. Weekends are unavailable."),
-                    )
-                    .child(
-                        self.calendar_state
-                            .read(cx)
-                            .date()
-                            .format("%A, %B %e, %Y")
-                            .unwrap_or_else(|| "No date selected".into()),
-                    )
-                    .child(
-                        button("clear-date", "Clear date", ButtonVariant::Outline, cx).on_click(
-                            cx.listener(|this, _, window, cx| {
-                                this.calendar_state.update(cx, |state, cx| {
-                                    state.set_date(gpui_base::Date::Single(None), window, cx)
-                                });
-                            }),
-                        ),
-                    );
-            }
-            "avatar" => {
-                content = content.child(
-                    div()
-                        .font_weight(FontWeight::BOLD)
-                        .child("Workspace members"),
-                );
-                for (initials, name, role) in [
-                    ("HL", "huacnlee", "Owner"),
-                    ("MK", "Morgan Kim", "Editor"),
-                    ("SR", "Sam Rivera", "Viewer"),
-                ] {
-                    content = content.child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(10.))
-                            .pb(px(10.))
-                            .border_b_1()
-                            .border_color(t.divider())
-                            .child(avatar(initials, cx).when(initials == "HL", |avatar| {
-                                avatar.image(avatar_image(gallery_avatar()))
-                            }))
-                            .child(div().flex_1().child(name))
-                            .child(div().text_color(t.secondary).child(role)),
-                    );
-                }
-                content = content
-                    .child(div().text_color(t.secondary).child("Sizes"))
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(14.))
-                            .child(
-                                avatar("HL", cx)
-                                    .image(avatar_image(gallery_avatar()))
-                                    .size(px(24.))
-                                    .text_size(px(10.)),
-                            )
-                            .child(avatar("HL", cx).image(avatar_image(gallery_avatar())))
-                            .child(
-                                avatar("HL", cx)
-                                    .image(avatar_image(gallery_avatar()))
-                                    .size(px(48.))
-                                    .text_size(px(16.)),
-                            ),
-                    );
-            }
-            "panel" => {
-                content = content.child(
-                    panel("Workspace", cx)
-                        .child("Theme-aware surface with a title and composable children")
-                        .child(badge("Ready", Status::Success, cx)),
-                )
-            }
-            "separator" => {
-                content = content
-                    .child(div().text_color(t.secondary).child("Horizontal"))
-                    .child("Appearance")
-                    .child(separator(cx))
-                    .child("Keyboard")
-                    .child(div().mt(px(14.)).text_color(t.secondary).child("Vertical"))
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(10.))
-                            .child(
-                                button("separator-add", "Add", ButtonVariant::Secondary, cx)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.count += 1;
-                                        cx.notify();
-                                    })),
-                            )
-                            .child(vertical_separator(cx))
-                            .child(
-                                button("separator-reset", "Reset", ButtonVariant::Secondary, cx)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.count = 0;
-                                        cx.notify();
-                                    })),
-                            )
-                            .child(vertical_separator(cx))
-                            .child(format!("{} items", self.count)),
-                    )
-            }
-            "keycap" => {
-                content = content.child(
+        content
+    }
+    fn render_hover_card_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content = content
+            .child("Workspace owner")
+            .child(hover_card(
+                "member-preview",
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.))
+                    .child(avatar("AL", cx))
+                    .child("Alex Lee"),
+                |_, _, cx| {
                     div()
                         .flex()
-                        .items_center()
-                        .gap(px(8.))
-                        .child(keycap("Tab", cx))
-                        .child("Next control")
-                        .child(keycap("Return", cx))
-                        .child("Activate"),
-                )
-            }
-            "badge" => {
-                for (label, status) in [
-                    ("Idle", Status::Neutral),
-                    ("Applied", Status::Success),
-                    ("Needs attention", Status::Warning),
-                    ("Failed", Status::Error),
-                ] {
-                    content = content.child(badge(label, status, cx));
-                }
-            }
-            "empty_state" => {
-                content = if self.count == 0 {
-                    content.child(
-                        empty_state(
-                            "No workspaces",
-                            "Create a workspace to collect your projects.",
-                            cx,
-                        )
+                        .flex_col()
+                        .gap(px(10.))
+                        .child(div().font_weight(FontWeight::BOLD).child("Alex Lee"))
+                        .child("Design engineer · Workspace owner")
                         .child(
-                            button("create", "Create workspace", ButtonVariant::Primary, cx)
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.count = 1;
-                                    cx.notify();
-                                })),
+                            div()
+                                .text_color(cx.omarchy().secondary)
+                                .child("Maintains the design system and reviews desktop releases."),
+                        )
+                },
+            ))
+            .child(
+                div()
+                    .text_color(t.secondary)
+                    .child("Hover over the member to preview their profile."),
+            );
+        content
+    }
+    fn render_otp_input_page(
+        &mut self,
+        mut content: gpui::Div,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content =
+            content
+                .child("Verification code")
+                .child(otp_input(&self.otp_state, window, cx))
+                .child(div().text_color(t.secondary).child(
+                    "Demo only — no code is sent. Type six digits; Backspace removes a digit.",
+                ))
+                .child(if self.otp_state.read(cx).value().len() == 6 {
+                    "Code complete"
+                } else {
+                    "Waiting for six digits"
+                })
+                .child(
+                    button("reset-otp", "Reset code", ButtonVariant::Outline, cx).on_click(
+                        cx.listener(|this, _, window, cx| {
+                            this.otp_state.update(cx, |state, cx| {
+                                state.set_value("", window, cx);
+                                state.focus(window, cx);
+                            })
+                        }),
+                    ),
+                );
+        content
+    }
+    fn render_editor_page(
+        &mut self,
+        mut content: gpui::Div,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content = content
+            .child("main.rs")
+            .child(editor("source-editor", &self.editor_state, window, cx))
+            .child(
+                div()
+                    .text_color(t.secondary)
+                    .child("Tab indents · Use the system undo and clipboard shortcuts"),
+            )
+            .child(
+                button("reset-editor", "Reset example", ButtonVariant::Outline, cx)
+                    .debug_selector(|| "reset-editor".into())
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.editor_state.update(cx, |state, cx| {
+                            state.set_value(EDITOR_EXAMPLE, window, cx);
+                            state.focus(window, cx);
+                        })
+                    })),
+            );
+        content
+    }
+    fn render_button_group_page(
+        &mut self,
+        mut content: gpui::Div,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        let labels = ["Top", "Right", "Bottom", "Left"];
+        let target = cx.entity();
+        let group = button_group(
+            "toolbar-position",
+            labels
+                .iter()
+                .map(|&label| ChoiceItem::new(label, label))
+                .collect(),
+            Some(self.toolbar_position),
+            move |index, _, cx| {
+                target.update(cx, |this, cx| {
+                    this.toolbar_position = index;
+                    cx.notify();
+                })
+            },
+            window,
+            cx,
+        );
+        content = content
+            .child("Toolbar position")
+            .child(group.aria_label("Toolbar position"))
+            .child(div().text_color(t.secondary).child(format!(
+                "Toolbar is placed at the {}.",
+                labels[self.toolbar_position].to_lowercase()
+            )))
+            .child(
+                div()
+                    .text_color(t.secondary)
+                    .child("Left / Right move the cursor · Return / Space choose"),
+            );
+        content
+    }
+    fn render_link_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        content = content
+            .child(link(
+                "manual",
+                "Open Omarchy manual",
+                "https://omarchy.org/manual",
+                cx,
+            ))
+            .child(
+                link(
+                    "disabled-link",
+                    "Unavailable link",
+                    "https://omarchy.org",
+                    cx,
+                )
+                .disabled(true),
+            );
+        content
+    }
+    fn render_toggle_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        content = content.child(
+            toggle("toggle", "Favorite panel", self.pressed, cx)
+                .child(icon(IconName::Star))
+                .on_change(change(cx.listener(|this, next, _, cx| {
+                    this.pressed = *next;
+                    cx.notify();
+                }))),
+        );
+        content
+    }
+    fn render_radio_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        for (index, label) in ["Compact", "Comfortable", "Spacious"]
+            .into_iter()
+            .enumerate()
+        {
+            content = content.child(radio(index, label, self.choice == index, cx).on_change(
+                change(cx.listener(move |this, _, _, cx| {
+                    this.choice = index;
+                    cx.notify();
+                })),
+            ));
+        }
+        content
+    }
+    fn render_switch_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        content = content
+            .child(
+                switch("switch", "Show metadata", self.enabled, cx).on_change(change(cx.listener(
+                    |this, next, _, cx| {
+                        this.enabled = *next;
+                        cx.notify();
+                    },
+                ))),
+            )
+            .child(if self.enabled {
+                "Metadata visible"
+            } else {
+                "Metadata hidden"
+            });
+        content
+    }
+    fn render_checkbox_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let state = if self.mixed {
+            CheckboxState::Indeterminate
+        } else if self.checked {
+            CheckboxState::Checked
+        } else {
+            CheckboxState::Unchecked
+        };
+        content = content
+            .child(
+                checkbox("check", "Include hidden files", state, cx).on_change(change(
+                    cx.listener(|this, next, _, cx| {
+                        this.checked = *next == CheckboxState::Checked;
+                        this.mixed = false;
+                        cx.notify();
+                    }),
+                )),
+            )
+            .child(
+                checkbox(
+                    "check-disabled",
+                    "Managed by policy",
+                    CheckboxState::Checked,
+                    cx,
+                )
+                .disabled(true),
+            )
+            .child(
+                button("mixed", "Set mixed state", ButtonVariant::Secondary, cx).on_click(
+                    cx.listener(|this, _, _, cx| {
+                        this.mixed = true;
+                        cx.notify();
+                    }),
+                ),
+            );
+        content
+    }
+    fn render_textarea_page(
+        &mut self,
+        mut content: gpui::Div,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        content = content
+            .child("Workspace notes")
+            .child(textarea("notes", &self.textarea, window, cx).max_w(px(520.)))
+            .child("Supports multiple lines, selection, clipboard and IME");
+        content
+    }
+    fn render_input_page(
+        &mut self,
+        mut content: gpui::Div,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        content = content
+            .child("Workspace name")
+            .child(input("workspace-name", &self.input, window, cx).max_w(px(380.)))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.))
+                    .child(
+                        button("submit-input", "Read value", ButtonVariant::Primary, cx).on_click(
+                            cx.listener(|this, _, _, cx| {
+                                this.count = this.input.read(cx).value().chars().count();
+                                cx.notify();
+                            }),
                         ),
                     )
-                } else {
-                    content.child("Workspace created").child(
-                        button("reset-empty", "Reset example", ButtonVariant::Secondary, cx)
-                            .on_click(cx.listener(|this, _, _, cx| {
+                    .child(
+                        button("reset-input", "Reset value", ButtonVariant::Outline, cx)
+                            .debug_selector(|| "reset-input".into())
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.input.update(cx, |state, cx| {
+                                    state.set_value("", window, cx);
+                                    state.focus(window, cx);
+                                });
                                 this.count = 0;
                                 cx.notify();
                             })),
-                    )
+                    ),
+            )
+            .child(format!("Submitted length: {} characters", self.count));
+        content
+    }
+    fn render_number_input_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        content = content
+            .child("Quantity")
+            .child(number_input(&self.number, cx))
+            .child("Arrow Up / Arrow Down  adjust by 1");
+        content
+    }
+    fn render_pagination_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let listener = cx.listener(|this, page, _, cx| {
+            this.current_page = *page;
+            cx.notify();
+        });
+        let state = gpui_base::PaginationState::new(self.current_page, 12)
+            .on_change(move |page, window, cx| listener(&page, window, cx));
+        content = content
+            .child(format!("Page {} of 12", self.current_page))
+            .child(pagination("pages", state, cx));
+        content
+    }
+    fn render_accordion_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let mut sections = accordion("sections", cx);
+        for (index, (title, description)) in [
+                    ("Appearance", "Uses the current Omarchy system theme, with Tokyo Night as the fallback. Change the theme from the application menu."),
+                    ("Keyboard navigation", "Tab moves between controls. Return or Space activates the focused control. Escape closes an open menu or dialog."),
+                    ("Workspace data", "Changes in this gallery stay in memory for this session. Resetting an example does not remove files on disk."),
+                ].into_iter().enumerate() {
+                    sections = sections.child(gpui_base::AccordionItem::new().open(self.expanded[index])
+                        .header(gpui_base::AccordionHeader::new(accordion_trigger(("section", index), title, self.expanded[index], cx)
+                            .debug_selector(move || format!("accordion-trigger-{index}"))
+                            .on_change(change(cx.listener(move |this, next, _, cx| { this.expanded[index] = *next; cx.notify(); })))))
+                        .panel(accordion_panel(cx).child(div().debug_selector(move || format!("accordion-panel-{index}")).child(description))));
+                }
+        content = content.child(sections);
+        content
+    }
+    fn advance_toast(&mut self, now: std::time::Instant, cx: &mut Context<Self>) {
+        let change = self
+            .toast_lifecycle
+            .advance(now, self.toast_hovered || self.toast_focused);
+        if change.changed {
+            self.toast_message = self.toast_lifecycle.get(&0).copied();
+            cx.notify();
+        }
+    }
+
+    fn show_toast(&mut self, message: &'static str, cx: &mut Context<Self>) {
+        let now = std::time::Instant::now();
+        self.toast_lifecycle.push(
+            0,
+            message,
+            gpui_base::ToastOptions {
+                timeout: (message != "Could not sync workspace")
+                    .then_some(std::time::Duration::from_secs(6)),
+            },
+            now,
+        );
+        self.toast_lifecycle.advance(now, false);
+        self.toast_message = Some(message);
+        if message == "Could not sync workspace" {
+            self.toast_timer = None;
+            cx.notify();
+            return;
+        }
+        self.toast_timer = Some(cx.spawn(async move |view, cx| {
+            loop {
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(100))
+                    .await;
+                let Ok(keep_running) = view.update(cx, |this, cx| {
+                    if this.toast_message.is_none() {
+                        return false;
+                    }
+                    this.advance_toast(std::time::Instant::now(), cx);
+                    this.toast_message.is_some()
+                }) else {
+                    break;
                 };
+                if !keep_running {
+                    break;
+                }
             }
-            "progress" => {
-                content = content
-                    .child(format!("Progress: {:.0}%", self.progress))
-                    .child(progress("progress", self.progress, cx))
+        }));
+        cx.notify();
+    }
+
+    fn render_toast_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content = content
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .gap(px(8.))
                     .child(
+                        button("show-toast", "Save workspace", ButtonVariant::Outline, cx)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.toast_saved = true;
+                                this.show_toast("Workspace saved", cx);
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        button(
+                            "show-error-toast",
+                            "Show error",
+                            ButtonVariant::Secondary,
+                            cx,
+                        )
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.show_toast("Could not sync workspace", cx);
+                            cx.notify();
+                        })),
+                    ),
+            )
+            .child(if self.toast_saved {
+                "Example workspace: saved"
+            } else {
+                "Example workspace: unsaved"
+            })
+            .child(div().text_color(t.secondary).child(
+                "Saved notifications close after six seconds. Hover or focus pauses the timer; errors remain until dismissed.",
+            ));
+        content
+    }
+    fn render_collapsible_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        content =
+            content.child(
+                collapsible(self.collapse_open, cx)
+                    .child(
+                        button("collapse-trigger", "", ButtonVariant::Outline, cx)
+                            .debug_selector(|| "collapse-trigger".into())
+                            .accessibility_label("Advanced settings")
+                            .aria_expanded(self.collapse_open)
+                            .child(
+                                icon(if self.collapse_open {
+                                    IconName::ChevronDown
+                                } else {
+                                    IconName::ChevronRight
+                                })
+                                .size(px(14.)),
+                            )
+                            .child("Advanced settings")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.collapse_open = !this.collapse_open;
+                                cx.notify();
+                            })),
+                    )
+                    .content(
                         div()
                             .flex()
-                            .items_center()
-                            .gap(px(8.))
+                            .flex_col()
+                            .gap(px(14.))
+                            .p(px(14.))
+                            .bg(t.normal_fill())
+                            .child("Workspace synchronization")
                             .child(
-                                button("advance", "Advance 10%", ButtonVariant::Primary, cx)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.progress = (this.progress + 10.).min(100.);
+                                switch("collapse-sync", "Sync workspace", self.enabled, cx)
+                                    .debug_selector(|| "collapse-sync".into())
+                                    .on_change(change(cx.listener(|this, next, _, cx| {
+                                        this.enabled = *next;
                                         cx.notify();
-                                    })),
+                                    }))),
                             )
+                            .child(div().text_color(t.secondary).child(
+                                "Your selection is preserved when this section is collapsed.",
+                            )),
+                    ),
+            );
+        content
+    }
+    fn render_icon_page(
+        &mut self,
+        mut content: gpui::Div,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        for (name, glyph) in [
+            ("Check", IconName::Check),
+            ("Minus", IconName::Minus),
+            ("Plus", IconName::Plus),
+            ("Chevron down", IconName::ChevronDown),
+            ("Chevron right", IconName::ChevronRight),
+            ("Star", IconName::Star),
+            ("External link", IconName::ExternalLink),
+            ("Close", IconName::Close),
+            ("Search", IconName::Search),
+            ("Menu", IconName::Menu),
+            ("Settings", IconName::Settings),
+            ("Alert", IconName::TriangleAlert),
+        ] {
+            content = content.child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.))
+                    .child(icon(glyph))
+                    .child(name),
+            );
+        }
+        content
+    }
+    fn render_slider_page(
+        &mut self,
+        mut content: gpui::Div,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        content = content
+            .child(format!("Volume: {}", self.slider_value.read(cx).value()))
+            .child(slider(&self.slider_value, false, window, cx))
+            .child(format!("Range: {}", self.slider_range.read(cx).value()))
+            .child(slider(&self.slider_range, false, window, cx))
+            .child("Disabled")
+            .child(slider(&self.slider_disabled, true, window, cx))
+            .child("Arrow keys / h l  adjust · Home / End  bounds · Tab  next thumb");
+        content
+    }
+    fn render_dialog_page(
+        &mut self,
+        mut content: gpui::Div,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        let alert = self.page == "alert_dialog";
+        let specimen = if alert {
+            self.reset_form(false, cx)
+        } else {
+            self.workspace_form(false, window, cx)
+        };
+        content = content
+            .child(
+                div()
+                    .text_size(px(13.))
+                    .font_weight(FontWeight::BOLD)
+                    .child(if alert {
+                        "Destructive confirmation"
+                    } else {
+                        "Form dialog"
+                    }),
+            )
+            .child(div().text_color(t.secondary).child(if alert {
+                "A named consequence, a clear way back, and a distinct destructive action."
+            } else {
+                "A short task with visible labels and outline actions."
+            }))
+            .child(dialog_popup(cx).w(px(460.)).child(specimen))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(12.))
+                    .mt(px(6.))
+                    .child(
+                        dialog_button(
+                            "open-modal",
+                            if alert {
+                                "Open alert dialog…"
+                            } else {
+                                "Open dialog…"
+                            },
+                            ButtonVariant::Secondary,
+                            cx,
+                        )
+                        .track_focus(&self.modal_trigger)
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            let value = this.saved_workspace.clone();
+                            this.workspace_draft
+                                .update(cx, |state, cx| state.set_value(value, window, cx));
+                            this.modal_open = true;
+                            this.modal_focus.focus(window, cx);
+                            cx.notify();
+                        })),
+                    )
+                    .child(div().text_color(t.secondary).child(if alert {
+                        "Escape cancels · Backdrop keeps the dialog open"
+                    } else {
+                        "Escape cancels · Tab moves between controls"
+                    })),
+            )
+            .when(!self.modal_result.is_empty(), |content| {
+                content.child(
+                    div()
+                        .text_color(t.secondary)
+                        .child(self.modal_result.clone()),
+                )
+            });
+        if self.modal_open {
+            let body = if alert {
+                self.reset_form(true, cx)
+            } else {
+                self.workspace_form(true, window, cx)
+            };
+            let popup = div()
+                .id("modal-surface")
+                .occlude()
+                .max_w(gpui::relative(0.9))
+                .child(dialog_popup(cx).w(px(460.)).child(body));
+            let close = cx.listener(|this, confirmed: &bool, window, cx| {
+                this.modal_open = false;
+                if *confirmed {
+                    if this.page == "alert_dialog" {
+                        this.reset_workspace(window, cx);
+                    } else {
+                        this.save_workspace(true, window, cx);
+                    }
+                } else {
+                    this.modal_result = "Changes discarded".into();
+                }
+                this.modal_trigger.focus(window, cx);
+                cx.notify();
+            });
+            if alert {
+                content = content.child(
+                    alert_dialog(&self.modal_focus, cx)
+                        .popup(
+                            div()
+                                .size_full()
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(popup),
+                        )
+                        .request_close(move |confirmed, window, cx| close(&confirmed, window, cx)),
+                );
+            } else {
+                content = content.child(
+                    dialog(&self.modal_focus, cx)
+                        .on_ok({
+                            let draft = self.workspace_draft.clone();
+                            move |_, _, cx| !draft.read(cx).value().trim().is_empty()
+                        })
+                        .popup(popup)
+                        .request_close(move |confirmed, window, cx| close(&confirmed, window, cx)),
+                );
+            }
+        };
+        content
+    }
+    fn render_select_page(
+        &mut self,
+        mut content: gpui::Div,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let t = cx.omarchy().clone();
+        let searchable = self.page == "combobox";
+        let state = if searchable {
+            &self.combo_choice
+        } else {
+            &self.select_choice
+        };
+        let selected = state
+            .read(cx)
+            .selected()
+            .map(|item| item.label.to_string())
+            .unwrap_or_else(|| "None".into());
+        let control = if searchable {
+            combobox("workspace-choice", state, window, cx).into_any_element()
+        } else {
+            select("workspace-choice", state, window, cx).into_any_element()
+        };
+        let disabled = if searchable {
+            combobox("managed-choice", &self.disabled_choice, window, cx).into_any_element()
+        } else {
+            select("managed-choice", &self.disabled_choice, window, cx).into_any_element()
+        };
+        content = content
+            .child(
+                div()
+                    .w(px(360.))
+                    .max_w(gpui::relative(1.))
+                    .flex()
+                    .flex_col()
+                    .gap(px(8.))
+                    .child(if searchable {
+                        "Find a workspace"
+                    } else {
+                        "Default workspace"
+                    })
+                    .child(control)
+                    .child(
+                        div()
+                            .text_color(t.secondary)
+                            .child("Archived workspaces cannot be selected."),
+                    )
+                    .child(div().mt(px(12.)).child(format!("Selected: {selected}"))),
+            )
+            .child(div().mt(px(18.)).w_full().child(separator(cx)))
+            .child(
+                div()
+                    .w(px(360.))
+                    .max_w(gpui::relative(1.))
+                    .flex()
+                    .flex_col()
+                    .gap(px(8.))
+                    .child("Managed workspace")
+                    .child(disabled)
+                    .child(
+                        div()
+                            .text_color(t.secondary)
+                            .child("This setting is managed by your organization."),
+                    ),
+            );
+        content
+    }
+}
+
+impl Gallery {
+    fn close_sheet(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.sheet_open = false;
+        self.sheet_trigger.focus(window, cx);
+        cx.notify();
+    }
+
+    fn render_project_sheet(&self, cx: &mut Context<Self>) -> gpui_base::Sheet {
+        let surface = sheet_surface(cx)
+            .debug_selector(|| "project-sheet".into())
+            .child(dialog_title("Website refresh", cx))
+            .child(dialog_description("Project details", cx))
+            .child(separator(cx))
+            .child("In review · Due Friday")
+            .child("Owner: Alex Lee")
+            .child("Review the homepage layout, navigation and images before the autumn release.")
+            .child(separator(cx))
+            .child("Next steps")
+            .child("Check narrow windows")
+            .child("Review keyboard navigation")
+            .child("Approve release notes")
+            .child(div().flex_1())
+            .child(
+                button("close-sheet", "Close", ButtonVariant::Outline, cx)
+                    .debug_selector(|| "close-sheet".into())
+                    .on_click(cx.listener(|this, _, window, cx| this.close_sheet(window, cx))),
+            );
+        let target = cx.entity();
+        sheet(&self.sheet_focus, cx)
+            .surface(surface)
+            .request_close(move |window, cx| {
+                target.update(cx, |this, cx| this.close_sheet(window, cx))
+            })
+    }
+}
+
+impl Gallery {
+    fn render_text_view(&self, content: gpui::Div, cx: &App) -> gpui::Div {
+        content.child(markdown("project-brief", "## Website refresh\n\nA clearer home for our **project documentation**. Keep navigation simple and preserve the reading experience.\n\n### Before launch\n\n- Review the introduction and installation steps.\n- Verify keyboard navigation in both themes.\n- Publish the release notes.\n\n> Changes should make the next step easier to understand.\n\nRun the gallery locally:\n\n```sh\ncargo run --example gallery\n```\n\nRead the [project source](https://github.com/huacnlee/gpui-omarchy) for usage examples.", cx))
+            .child(separator(cx))
+            .child(html("release-summary", "<h3>Release summary</h3><p><strong>Ready for review.</strong> The documentation is complete; launch follows the final keyboard check.</p><p><em>Updated by Alex Lee</em></p>", cx))
+    }
+
+    fn render_horizontal_scrollbar(&self, content: gpui::Div, cx: &App) -> gpui::Div {
+        let t = cx.omarchy();
+        content
+            .child("Project timeline · Scroll horizontally")
+            .child(
+                div()
+                    .relative()
+                    .w_full()
+                    .border_1()
+                    .border_color(t.border)
+                    .debug_selector(|| "timeline-viewport".into())
+                    .child(
+                        div()
+                            .id("timeline-scroll")
+                            .w_full()
+                            .h(px(76.))
+                            .overflow_x_scroll()
+                            .track_scroll(&self.timeline_scroll)
                             .child(
-                                button("reset", "Reset", ButtonVariant::Secondary, cx).on_click(
-                                    cx.listener(|this, _, _, cx| {
-                                        this.progress = 0.;
-                                        cx.notify();
+                                div().flex().w(px(1440.)).h(px(64.)).children(
+                                    [
+                                        "Brief",
+                                        "Research",
+                                        "Design",
+                                        "Prototype",
+                                        "Review",
+                                        "Build",
+                                        "Test",
+                                        "Launch",
+                                    ]
+                                    .into_iter()
+                                    .enumerate()
+                                    .map(|(index, name)| {
+                                        div()
+                                            .w(px(180.))
+                                            .flex_shrink_0()
+                                            .h_full()
+                                            .p(px(10.))
+                                            .border_r_1()
+                                            .border_color(t.divider())
+                                            .flex()
+                                            .flex_col()
+                                            .gap(px(4.))
+                                            .child(name)
+                                            .child(
+                                                div()
+                                                    .text_color(t.secondary)
+                                                    .child(format!("Week {}", index + 1)),
+                                            )
                                     }),
                                 ),
                             ),
-                    );
+                    )
+                    .child(scrollbar(
+                        "timeline-scrollbar",
+                        gpui_base::ScrollbarAxis::Horizontal,
+                        &self.timeline_scroll,
+                        cx,
+                    )),
+            )
+    }
+
+    fn render_activity_list(
+        &mut self,
+        mut content: gpui::Div,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        content = content.child("Sample activity · 1,000 events").child(
+            div().flex().gap(px(8.)).children(
+                [
+                    ("activity-first", "First event", 0),
+                    ("activity-last", "Last event", 999),
+                ]
+                .into_iter()
+                .map(|(id, label, index)| {
+                    button(id, label, ButtonVariant::Outline, cx)
+                        .debug_selector(move || id.into())
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.activity_scroll
+                                .scroll_to_item(index, gpui::ScrollStrategy::Top);
+                            cx.notify();
+                        }))
+                }),
+            ),
+        );
+        let list = virtual_list(
+            cx.entity(),
+            "activity-list",
+            self.activity_sizes.clone(),
+            |this, range, _, cx| {
+                this.activity_rendered = range.len();
+                let t = cx.omarchy();
+                range
+                    .map(|index| {
+                        div()
+                            .debug_selector(move || format!("activity-row-{index}"))
+                            .h(this.activity_sizes[index].height)
+                            .w_full()
+                            .px(px(10.))
+                            .flex()
+                            .flex_col()
+                            .justify_center()
+                            .child(format!("Event {:04} · Updated project notes", index + 1))
+                            .when(index % 5 == 0, |row| {
+                                row.child(
+                                    div()
+                                        .text_color(t.secondary)
+                                        .child("Review requested by Alex Lee"),
+                                )
+                            })
+                    })
+                    .collect::<Vec<_>>()
+            },
+            cx,
+        )
+        .track_scroll(&self.activity_scroll);
+        content.child(div().relative().w_full().border_1().border_color(cx.omarchy().border)
+            .debug_selector(|| "activity-viewport".into()).child(list)
+            .child(scrollbar("activity-scrollbar", gpui_base::ScrollbarAxis::Vertical, &self.activity_scroll, cx)))
+            .child(div().text_color(cx.omarchy().secondary).child("Scroll through the log or jump to either end. Longer events keep their full description."))
+    }
+}
+
+impl Render for Gallery {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.toast_focused = self.toast_focus.contains_focused(window, cx);
+        let t = cx.omarchy().clone();
+        let mut content = div()
+            .flex()
+            .flex_col()
+            .items_start()
+            .w_full()
+            .gap(px(14.))
+            .min_w_0();
+        match self.page {
+            "overview" => {
+                content = self.render_overview_example(content, window, cx);
+            }
+            "popover" => {
+                content = self.render_popover_example(content, window, cx);
+            }
+            "tooltip" => {
+                content = self.render_tooltip_example(content, window, cx);
+            }
+            "select" | "combobox" => {
+                content = self.render_select_page(content, window, cx);
+            }
+            "menu" => {
+                content = self.render_menu_example(content, window, cx);
+            }
+            "dialog" | "alert_dialog" => {
+                content = self.render_dialog_page(content, window, cx);
+            }
+            "slider" => {
+                content = self.render_slider_page(content, window, cx);
+            }
+            "icon" => {
+                content = self.render_icon_page(content, window, cx);
+            }
+            "collapsible" => {
+                content = self.render_collapsible_page(content, window, cx);
+            }
+            "toast" => {
+                content = self.render_toast_page(content, window, cx);
+            }
+            "accordion" => {
+                content = self.render_accordion_page(content, window, cx);
+            }
+            "pagination" => {
+                content = self.render_pagination_page(content, window, cx);
+            }
+            "table" => {
+                content = self.render_table_example(content, window, cx);
+            }
+            "number_input" => {
+                content = self.render_number_input_page(content, window, cx);
+            }
+            "input" => {
+                content = self.render_input_page(content, window, cx);
+            }
+            "textarea" => {
+                content = self.render_textarea_page(content, window, cx);
+            }
+            "button" => {
+                content = self.render_button_example(content, window, cx);
+            }
+            "checkbox" => {
+                content = self.render_checkbox_page(content, window, cx);
+            }
+            "switch" => {
+                content = self.render_switch_page(content, window, cx);
+            }
+            "radio" => {
+                content = self.render_radio_page(content, window, cx);
+            }
+            "toggle_group" => {
+                content = self.render_toggle_group(content, cx);
+            }
+            "toggle" => {
+                content = self.render_toggle_page(content, window, cx);
+            }
+            "link" => {
+                content = self.render_link_page(content, window, cx);
+            }
+            "button_group" => {
+                content = self.render_button_group_page(content, window, cx);
+            }
+            "tabs" => {
+                content = self.render_tabs_example(content, window, cx);
+            }
+            "editor" => {
+                content = self.render_editor_page(content, window, cx);
+            }
+            "nav_stack" => {
+                content = self.render_nav_stack_example(content, window, cx);
+            }
+            "otp_input" => {
+                content = self.render_otp_input_page(content, window, cx);
+            }
+            "hover_card" => {
+                content = self.render_hover_card_page(content, window, cx);
+            }
+            "dock" => {
+                content = self.render_dock_page(content, window, cx);
+            }
+            "tree" => {
+                content = self.render_tree_page(content, window, cx);
+            }
+            "resizable" => {
+                content = self.render_resizable_example(content, window, cx);
+            }
+            "color_picker" => {
+                content = self.render_color_picker_page(content, window, cx);
+            }
+            "date_picker" => {
+                content = self.render_date_picker_page(content, window, cx);
+            }
+            "calendar" => {
+                content = self.render_calendar_page(content, window, cx);
+            }
+            "avatar" => {
+                content = self.render_avatar_example(content, window, cx);
+            }
+            "panel" => {
+                content = self.render_panel_page(content, window, cx);
+            }
+            "separator" => {
+                content = self.render_separator_page(content, window, cx);
+            }
+            "keycap" => {
+                content = self.render_keycap_page(content, window, cx);
+            }
+            "badge" => {
+                content = self.render_badge_page(content, window, cx);
+            }
+            "empty_state" => {
+                content = self.render_empty_state_page(content, window, cx);
+            }
+            "sheet" => {
+                content = content.child("Website refresh · In review")
+                    .child(button("open-project-sheet", "Project details…", ButtonVariant::Outline, cx)
+                        .track_focus(&self.sheet_trigger)
+                        .debug_selector(|| "open-project-sheet".into())
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.sheet_open = true;
+                            this.sheet_focus.focus(window, cx);
+                            cx.notify();
+                        })))
+                    .child(div().text_color(t.secondary).child("Inspect the project without leaving this page. Close the panel or press Escape to return."));
+            }
+            "text_view" => {
+                content = self.render_text_view(content, cx);
+            }
+            "virtual_list" | "scrollbar" => {
+                content = self.render_activity_list(content, cx);
+                if self.page == "scrollbar" {
+                    content = self.render_horizontal_scrollbar(content, cx);
+                }
+            }
+            "selectable_text" => {
+                content = content.child("Project brief")
+                    .child(div().w_full().max_w(px(480.)).debug_selector(|| "selectable-brief".into())
+                        .child(selectable_text("project-brief", "Website refresh\nReview the homepage layout and keyboard navigation before Friday.\nOwner: Alex Lee", cx)))
+                    .child(div().text_color(t.secondary).child("Drag to select text, then use your system Copy shortcut. This text is read-only."));
+            }
+            "progress" => {
+                content = self.render_progress_page(content, window, cx);
             }
             _ => unreachable!(),
         }
@@ -2049,43 +2872,46 @@ impl Render for Gallery {
                             })
                             .child("GPUI Omarchy"),
                     )
-                    .child(menu(
-                        "application-menu",
-                        with_tooltip(
-                            button(
-                                "application-menu-trigger",
-                                "Menu",
-                                ButtonVariant::Secondary,
-                                cx,
-                            )
-                            .child(icon(IconName::ChevronDown).size(px(14.))),
-                            "Appearance and application commands",
-                        ),
-                        vec![
-                            MenuItem::new("System theme").checked(self.theme_mode == 0),
-                            MenuItem::new("Tokyo Night").checked(self.theme_mode == 1),
-                            MenuItem::new("Flexoki Light").checked(self.theme_mode == 2),
-                            MenuItem::new("Exit").separator_before(),
-                        ],
-                        {
-                            let target = cx.entity();
-                            move |index, _, cx| {
-                                target.update(cx, |this, cx| {
-                                    match index {
-                                        0 => Theme::system_or_default().apply(cx),
-                                        1 => Theme::tokyo_night().apply(cx),
-                                        2 => Theme::flexoki_light().apply(cx),
-                                        _ => {
-                                            cx.quit();
-                                            return;
+                    .child(
+                        menu(
+                            "application-menu",
+                            with_tooltip(
+                                button(
+                                    "application-menu-trigger",
+                                    "Menu",
+                                    ButtonVariant::Secondary,
+                                    cx,
+                                )
+                                .child(icon(IconName::ChevronDown).size(px(14.))),
+                                "Appearance and application commands",
+                            ),
+                            vec![
+                                MenuItem::new("System theme").checked(self.theme_mode == 0),
+                                MenuItem::new("Tokyo Night").checked(self.theme_mode == 1),
+                                MenuItem::new("Flexoki Light").checked(self.theme_mode == 2),
+                                MenuItem::new("Exit").separator_before(),
+                            ],
+                            {
+                                let target = cx.entity();
+                                move |index, _, cx| {
+                                    target.update(cx, |this, cx| {
+                                        match index {
+                                            0 => Theme::system_or_default().apply(cx),
+                                            1 => Theme::tokyo_night().apply(cx),
+                                            2 => Theme::flexoki_light().apply(cx),
+                                            _ => {
+                                                cx.quit();
+                                                return;
+                                            }
                                         }
-                                    }
-                                    this.theme_mode = index;
-                                    cx.notify();
-                                })
-                            }
-                        },
-                    )),
+                                        this.theme_mode = index;
+                                        cx.notify();
+                                    })
+                                }
+                            },
+                        )
+                        .anchor(gpui::Anchor::TopRight),
+                    ),
             )
             .child(
                 div().flex().flex_1().min_h_0().child(navigation).child(
@@ -2147,6 +2973,10 @@ impl Render for Gallery {
                         ),
                     ),
             )
+            .child(gpui_base::TextSelectionLayer)
+            .when(self.sheet_open, |root| {
+                root.child(self.render_project_sheet(cx))
+            })
             .when_some(self.toast_message, |root, message| {
                 root.child(
                     div()
@@ -2158,6 +2988,12 @@ impl Render for Gallery {
                         .child(
                             toast("gallery-toast", cx)
                                 .debug_selector(|| "gallery-toast".into())
+                                .track_focus(&self.toast_focus)
+                                .on_hover(
+                                    cx.listener(|this, hovered, _, _| {
+                                        this.toast_hovered = *hovered
+                                    }),
+                                )
                                 .child(
                                     div()
                                         .flex()
@@ -2211,11 +3047,11 @@ impl Render for Gallery {
                                             match this.toast_message {
                                                 Some("Workspace saved") => {
                                                     this.toast_saved = false;
-                                                    this.toast_message = Some("Save undone");
+                                                    this.show_toast("Save undone", cx);
                                                 }
                                                 Some("Could not sync workspace") => {
                                                     this.toast_saved = true;
-                                                    this.toast_message = Some("Workspace saved");
+                                                    this.show_toast("Workspace saved", cx);
                                                 }
                                                 _ => this.toast_message = None,
                                             }
@@ -2400,7 +3236,33 @@ impl gpui::Render for NavigationPage {
     }
 }
 
+fn install_panic_report() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        use std::io::Write;
+        let path = std::env::temp_dir().join(format!(
+            "gpui-omarchy-gallery-{}.panic.log",
+            std::process::id(),
+        ));
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+        {
+            let _ = writeln!(
+                file,
+                "{info}\n{}",
+                std::backtrace::Backtrace::force_capture()
+            );
+            let _ = file.flush();
+            eprintln!("Gallery panic report: {}", path.display());
+        }
+        previous(info);
+    }));
+}
+
 pub fn run() {
+    install_panic_report();
     gpui_platform::application().run(move |cx| {
         gpui_omarchy::init(cx);
         cx.open_window(
@@ -2519,12 +3381,52 @@ mod tests {
     }
 
     #[gpui::test]
+    fn toast_timeout_pauses_and_replacement_restarts_the_deadline(cx: &mut TestAppContext) {
+        use std::time::{Duration, Instant};
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        view.update(cx, |this, cx| {
+            this.show_toast("Workspace saved", cx);
+            this.toast_timer = None;
+            let now = Instant::now();
+            this.toast_hovered = true;
+            this.advance_toast(now + Duration::from_secs(20), cx);
+            assert_eq!(this.toast_message, Some("Workspace saved"));
+            this.toast_hovered = false;
+            this.toast_focused = true;
+            this.advance_toast(now + Duration::from_secs(40), cx);
+            assert!(this.toast_message.is_some());
+            this.toast_focused = false;
+            this.advance_toast(now + Duration::from_secs(47), cx);
+            assert_eq!(this.toast_message, None);
+
+            this.show_toast("Workspace saved", cx);
+            this.toast_timer = None;
+            this.advance_toast(Instant::now() + Duration::from_secs(5), cx);
+            assert!(this.toast_message.is_some());
+            this.show_toast("Save undone", cx);
+            this.toast_timer = None;
+            assert_eq!(this.toast_lifecycle.len(), 1);
+            let replaced = Instant::now();
+            this.advance_toast(replaced + Duration::from_secs(2), cx);
+            assert_eq!(this.toast_message, Some("Save undone"));
+            this.advance_toast(replaced + Duration::from_secs(7), cx);
+            assert_eq!(this.toast_message, None);
+
+            this.show_toast("Could not sync workspace", cx);
+            assert!(this.toast_timer.is_none());
+            this.advance_toast(Instant::now() + Duration::from_secs(600), cx);
+            assert_eq!(this.toast_message, Some("Could not sync workspace"));
+        });
+    }
+
+    #[gpui::test]
     fn toast_is_bottom_right_and_dismissible_over_page_content(cx: &mut TestAppContext) {
         cx.update(gpui_omarchy::init);
         let (view, cx) = cx.add_window_view(Gallery::new);
         view.update(cx, |this, cx| {
             this.page = "toast";
-            this.toast_message = Some("Workspace saved");
+            this.show_toast("Workspace saved", cx);
             this.toast_saved = true;
             cx.notify();
         });
@@ -2822,6 +3724,295 @@ mod tests {
                 notes
             );
             assert_eq!(notes.read(cx).value().as_ref(), "Ready for review");
+        });
+    }
+
+    #[gpui::test]
+    fn editor_reset_restores_initial_source_and_editing_focus(cx: &mut TestAppContext) {
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        let initial = cx.update(|_, cx| view.read(cx).editor_state.read(cx).value().to_string());
+        cx.update(|window, cx| {
+            view.update(cx, |this, cx| {
+                this.page = "editor";
+                this.editor_state.update(cx, |state, cx| {
+                    state.set_value("", window, cx);
+                    state.focus(window, cx);
+                });
+                cx.notify();
+            });
+            window.draw(cx).clear(cx);
+        });
+        cx.simulate_input("// edited source");
+        cx.update(|_, cx| {
+            assert_eq!(
+                view.read(cx).editor_state.read(cx).value().as_ref(),
+                "// edited source"
+            )
+        });
+        let reset = cx.debug_bounds("reset-editor").unwrap().center();
+        cx.simulate_click(reset, Default::default());
+        cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+            let editor = view.read(cx).editor_state.read(cx);
+            assert_eq!(editor.value().as_ref(), initial);
+            assert!(gpui::Focusable::focus_handle(editor, cx).is_focused(window));
+        });
+        cx.simulate_input("// continued");
+        cx.update(|_, cx| {
+            assert!(
+                view.read(cx)
+                    .editor_state
+                    .read(cx)
+                    .value()
+                    .contains("// continued")
+            )
+        });
+    }
+
+    #[gpui::test]
+    fn color_picker_cancels_preview_and_commits_hex(cx: &mut TestAppContext) {
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        view.update(cx, |this, cx| {
+            this.page = "color_picker";
+            cx.notify();
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        let original = cx.update(|_, cx| view.read(cx).color_state.read(cx).value());
+        for commit in [false, true] {
+            let trigger = cx.debug_bounds("color-picker-trigger").unwrap().center();
+            cx.simulate_click(trigger, Default::default());
+            cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                let state = view.read(cx).color_state.clone();
+                assert!(state.read(cx).is_open());
+                let hex = state.read(cx).hex_input().clone();
+                hex.update(cx, |input, cx| {
+                    input.set_value("", window, cx);
+                    input.focus(window, cx);
+                });
+            });
+            cx.simulate_input("#FF0000");
+            cx.simulate_keystrokes(if commit { "enter" } else { "escape" });
+            cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                let state = view.read(cx).color_state.read(cx);
+                assert!(!state.is_open());
+                assert!(gpui::Focusable::focus_handle(state, cx).is_focused(window));
+                if commit {
+                    assert_eq!(state.value(), Some(gpui::hsla(0., 1., 0.5, 1.)));
+                } else {
+                    assert_eq!(state.value(), original);
+                }
+            });
+        }
+    }
+
+    #[gpui::test]
+    fn toggle_group_combines_filters_and_recovers_from_empty(cx: &mut TestAppContext) {
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        view.update(cx, |this, cx| {
+            this.page = "toggle_group";
+            cx.notify();
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        assert!(cx.debug_bounds("filtered-article-0").is_some());
+        assert!(cx.debug_bounds("filtered-article-1").is_some());
+        assert!(cx.debug_bounds("filtered-article-2").is_none());
+        for index in 0..2 {
+            let target = cx
+                .debug_bounds(["article-filter-0", "article-filter-1"][index])
+                .unwrap()
+                .center();
+            cx.simulate_click(target, Default::default());
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+        }
+        for index in 0..4 {
+            assert!(
+                cx.debug_bounds(
+                    [
+                        "filtered-article-0",
+                        "filtered-article-1",
+                        "filtered-article-2",
+                        "filtered-article-3"
+                    ][index]
+                )
+                .is_none()
+            );
+        }
+        let reset = cx.debug_bounds("show-all-articles").unwrap().center();
+        cx.simulate_click(reset, Default::default());
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        for index in 0..4 {
+            assert!(
+                cx.debug_bounds(
+                    [
+                        "filtered-article-0",
+                        "filtered-article-1",
+                        "filtered-article-2",
+                        "filtered-article-3"
+                    ][index]
+                )
+                .is_some()
+            );
+        }
+    }
+
+    #[gpui::test]
+    fn read_only_text_drag_selection_copies_exact_text(cx: &mut TestAppContext) {
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        cx.update(|window, cx| {
+            view.update(cx, |this, cx| {
+                this.page = "selectable_text";
+                this.navigation_focus.focus(window, cx);
+                cx.notify();
+            });
+            window.draw(cx).clear(cx);
+        });
+        let bounds = cx.debug_bounds("selectable-brief").unwrap();
+        let start = gpui::point(bounds.left(), bounds.top() + px(5.));
+        let end = gpui::point(bounds.left() + px(100.), start.y);
+        cx.simulate_mouse_down(start, gpui::MouseButton::Left, Default::default());
+        cx.simulate_mouse_move(end, Some(gpui::MouseButton::Left), Default::default());
+        cx.simulate_mouse_up(end, gpui::MouseButton::Left, Default::default());
+        let selected = cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+            gpui_base::TextSelection::selected_text(window, cx)
+        });
+        assert!(!selected.is_empty());
+        assert!("Website refresh".starts_with(&selected));
+        cx.simulate_keystrokes(if cfg!(target_os = "macos") {
+            "cmd-c"
+        } else {
+            "ctrl-c"
+        });
+        cx.update(|_, cx| assert_eq!(cx.read_from_clipboard().unwrap().text().unwrap(), selected));
+    }
+
+    #[gpui::test]
+    fn sheet_geometry_and_dismissal_restore_focus(cx: &mut TestAppContext) {
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        view.update(cx, |this, cx| {
+            this.page = "sheet";
+            cx.notify();
+        });
+        for dismissal in ["escape", "close", "backdrop"] {
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+            let trigger = cx.debug_bounds("open-project-sheet").unwrap().center();
+            cx.simulate_click(trigger, Default::default());
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+            let root = cx.debug_bounds("gallery-root").unwrap();
+            let panel = cx.debug_bounds("project-sheet").unwrap();
+            assert_eq!(panel.right(), root.right());
+            assert_eq!(panel.top(), root.top());
+            assert_eq!(panel.bottom(), root.bottom());
+            cx.simulate_click(panel.center(), Default::default());
+            cx.update(|_, cx| assert!(view.read(cx).sheet_open));
+            match dismissal {
+                "escape" => cx.simulate_keystrokes("escape"),
+                "close" => {
+                    let close = cx.debug_bounds("close-sheet").unwrap().center();
+                    cx.simulate_click(close, Default::default());
+                }
+                _ => cx.simulate_click(
+                    root.origin + gpui::point(px(10.), px(10.)),
+                    Default::default(),
+                ),
+            }
+            cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                assert!(!view.read(cx).sheet_open, "{dismissal}");
+                assert!(view.read(cx).sheet_trigger.is_focused(window));
+            });
+        }
+    }
+
+    #[gpui::test]
+    fn virtual_list_jumps_to_ends_without_building_all_rows(cx: &mut TestAppContext) {
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        view.update(cx, |this, cx| {
+            this.page = "virtual_list";
+            cx.notify();
+        });
+        for _ in 0..2 {
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+        }
+        assert!(cx.debug_bounds("activity-row-0").is_some());
+        assert!(cx.debug_bounds("activity-row-999").is_none());
+        for (button, row, hidden) in [
+            ("activity-last", "activity-row-999", "activity-row-0"),
+            ("activity-first", "activity-row-0", "activity-row-999"),
+        ] {
+            let target = cx.debug_bounds(button).unwrap().center();
+            cx.simulate_click(target, Default::default());
+            for _ in 0..2 {
+                cx.update(|window, cx| window.draw(cx).clear(cx));
+            }
+            assert!(cx.debug_bounds(row).is_some());
+            assert!(cx.debug_bounds(hidden).is_none());
+            cx.update(|_, cx| {
+                let rendered = view.read(cx).activity_rendered;
+                assert!(rendered > 0 && rendered < 30, "rendered {rendered} rows");
+            });
+        }
+    }
+
+    #[gpui::test]
+    fn scrollbar_drag_changes_the_virtual_list_viewport(cx: &mut TestAppContext) {
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        view.update(cx, |this, cx| {
+            this.page = "scrollbar";
+            cx.notify();
+        });
+        for _ in 0..2 {
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+        }
+        let bounds = cx.debug_bounds("activity-viewport").unwrap();
+        let start = gpui::point(bounds.right() - px(5.), bounds.top() + px(6.));
+        let end = gpui::point(start.x, bounds.bottom() - px(12.));
+        cx.simulate_mouse_down(start, gpui::MouseButton::Left, Default::default());
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.simulate_mouse_move(end, Some(gpui::MouseButton::Left), Default::default());
+        cx.simulate_mouse_up(end, gpui::MouseButton::Left, Default::default());
+        for _ in 0..2 {
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+        }
+        cx.update(|_, cx| {
+            assert!(view.read(cx).activity_scroll.offset().y < -px(1000.));
+            assert!(view.read(cx).activity_rendered < 30);
+        });
+        assert!(cx.debug_bounds("activity-row-0").is_none());
+    }
+
+    #[gpui::test]
+    fn horizontal_scrollbar_drag_moves_the_timeline(cx: &mut TestAppContext) {
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        view.update(cx, |this, cx| {
+            this.page = "scrollbar";
+            cx.notify();
+        });
+        for _ in 0..2 {
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+        }
+        let bounds = cx.debug_bounds("timeline-viewport").unwrap();
+        let start = gpui::point(bounds.left() + px(20.), bounds.bottom() - px(5.));
+        let end = gpui::point(bounds.right() - px(12.), start.y);
+        cx.simulate_mouse_down(start, gpui::MouseButton::Left, Default::default());
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.simulate_mouse_move(end, Some(gpui::MouseButton::Left), Default::default());
+        cx.simulate_mouse_up(end, gpui::MouseButton::Left, Default::default());
+        for _ in 0..2 {
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+        }
+        cx.update(|_, cx| {
+            assert!(view.read(cx).timeline_scroll.offset().x < -px(200.));
         });
     }
 

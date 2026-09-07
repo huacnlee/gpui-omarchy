@@ -87,7 +87,6 @@ pub fn date_picker(
         .date()
         .format("%b %e, %Y")
         .unwrap_or_else(|| "Choose a date".into());
-    let target = state.clone();
     let trigger = button("date-trigger", "", ButtonVariant::Outline, cx)
         .track_focus(&focus)
         .accessibility_label("Choose a date")
@@ -97,7 +96,16 @@ pub fn date_picker(
         .child(div().flex_1().child(label))
         .child(icon(IconName::Calendar).size(px(14.)))
         .on_click(move |_, window, cx| {
-            target.update(cx, |state, cx| state.set_open(!open, window, cx))
+            // Route pointer activation through the base root so builder refinements
+            // such as `.disabled(true)` govern both keyboard and mouse behavior.
+            if open {
+                window.dispatch_action(Box::new(gpui_base::actions::Cancel), cx);
+            } else {
+                window.dispatch_action(
+                    Box::new(gpui_base::actions::Confirm { secondary: false }),
+                    cx,
+                );
+            }
         });
     let mut popup = Popup::new((id.clone(), "popup"), trigger);
     if open {
@@ -124,4 +132,91 @@ pub fn date_picker(
             target.update(cx, |state, cx| state.set_open(open, window, cx))
         })
         .child(popup)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gpui::{Render, TestAppContext};
+
+    struct Harness {
+        state: Entity<DatePickerState>,
+        disabled: bool,
+    }
+    impl Render for Harness {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            crate::focus_scope("date-picker-test")
+                .size_full()
+                .child(date_picker("date", &self.state, cx).disabled(self.disabled))
+        }
+    }
+
+    #[gpui::test]
+    fn disabled_picker_rejects_pointer_and_keyboard(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (view, cx) = cx.add_window_view(|window, cx| Harness {
+            state: cx.new(|cx| DatePickerState::new(window, cx)),
+            disabled: true,
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        let trigger = cx.debug_bounds("date-picker-trigger").unwrap().center();
+        cx.simulate_click(trigger, Default::default());
+        cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+            assert!(!view.read(cx).state.read(cx).is_open());
+        });
+        cx.simulate_keystrokes("enter space");
+        cx.update(|_, cx| assert!(!view.read(cx).state.read(cx).is_open()));
+        view.update(cx, |this, cx| {
+            this.disabled = false;
+            cx.notify();
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.simulate_click(trigger, Default::default());
+        cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+            assert!(view.read(cx).state.read(cx).is_open());
+        });
+        cx.simulate_keystrokes("escape");
+        cx.update(|_, cx| assert!(!view.read(cx).state.read(cx).is_open()));
+    }
+    #[gpui::test]
+    fn pointer_selection_reopen_and_outside_dismissal(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (view, cx) = cx.add_window_view(|window, cx| {
+            let state = cx.new(|cx| DatePickerState::new(window, cx));
+            cx.observe(&state, |_, _, cx| cx.notify()).detach();
+            Harness {
+                state,
+                disabled: false,
+            }
+        });
+        for _ in 0..3 {
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+            let trigger = cx.debug_bounds("date-picker-trigger").unwrap().center();
+            cx.simulate_click(trigger, Default::default());
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+            let next = cx.debug_bounds("calendar-next").unwrap().center();
+            cx.simulate_click(next, Default::default());
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+            // Header center + header half-height + section gap + weekday row
+            // + one complete week + day half-height: select the second Saturday.
+            let day = next + gpui::point(px(0.), px(14. + 8. + 28. + 28. + 14.));
+            cx.simulate_click(day, Default::default());
+            cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                let state = view.read(cx).state.read(cx);
+                assert!(!state.is_open(), "selecting a day closes the popup");
+                assert!(state.calendar.read(cx).date().is_some());
+                assert!(state.focus.is_focused(window));
+            });
+            cx.simulate_click(trigger, Default::default());
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+            cx.simulate_click(gpui::point(px(500.), px(400.)), Default::default());
+            cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                assert!(!view.read(cx).state.read(cx).is_open());
+            });
+        }
+    }
 }

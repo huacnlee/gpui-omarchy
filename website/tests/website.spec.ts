@@ -1,7 +1,8 @@
 import {test,expect} from '@playwright/test';
 
 test('workspace preferences can be reviewed, cancelled and saved',async({page})=>{
-  await page.goto('/');
+  await page.goto('./');
+  await expect(page.locator('astro-island[ssr]')).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Review changes'})).toBeDisabled();
   await page.getByRole('combobox').click();
   await page.getByRole('option',{name:'Team workspace'}).click();
@@ -19,7 +20,8 @@ test('workspace preferences can be reviewed, cancelled and saved',async({page})=
 });
 
 test('themes persist and all layouts fit narrow screens',async({page})=>{
-  await page.goto('/');
+  await page.goto('./');
+  await expect(page.locator('astro-island[ssr]')).toHaveCount(0);
   for(const [name,id] of [['Flexoki Light','flexoki-light'],['Catppuccin','catppuccin'],['Tokyo Night','tokyo-night']]) {
     await page.getByRole('button',{name:/Theme:/}).click();
     await page.getByRole('menuitemradio',{name}).click();
@@ -36,7 +38,8 @@ test('themes persist and all layouts fit narrow screens',async({page})=>{
 test('page assets load and copy command works',async({page,context})=>{
   await context.grantPermissions(['clipboard-read','clipboard-write']);
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('/');
+  await page.goto('./');
+  await expect(page.locator('astro-island[ssr]')).toHaveCount(0);
   await expect(page.getByRole('heading',{level:1})).toContainText('GPUI Kit');
   await page.getByRole('button',{name:'Copy'}).click();
   await expect(page.getByRole('button',{name:'Copy to clipboard'})).toHaveText('Copied');

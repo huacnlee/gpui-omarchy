@@ -40,7 +40,7 @@ a { color:inherit; } button,input,select { font:inherit; } button { cursor:point
 .hero { padding:64px 0 48px; text-align:center; container-type:inline-size; --pxc:calc(min((100cqw - 48px) * .88,896px) / 81); }
 .hero-brand { display:flex; align-items:center; justify-content:center; gap:24px; margin-bottom:28px; color:var(--accent); }
 .hero-gpui { font-size:16px; letter-spacing:.18em; }
-.wordmark { display:block; width:calc(var(--pxc) * 29); max-width:324px; min-width:180px; aspect-ratio:4131/950; background:currentColor; mask:url('/brand/omarchy-wordmark.svg') no-repeat center/contain; }
+.wordmark { display:block; width:calc(var(--pxc) * 29); max-width:324px; min-width:180px; aspect-ratio:4131/950; background:currentColor; mask:var(--wordmark-url) no-repeat center/contain; }
 .hero h1 { margin:0 0 20px; } .hero .lead { max-width:680px; margin:0 auto; color:var(--muted); line-height:1.8; }
 .actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
 .hero .actions { justify-content:center; margin-top:28px; }

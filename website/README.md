@@ -25,6 +25,8 @@ The static site builds into `dist/`. It has no backend or deployment-specific ad
 
 ## Design
 
+The favicon is the official compact Omarchy mark from https://omarchy.org/brand/omarchy-logo.svg. The dark website theme uses omarchy.org's green brand accent (`#9ece6a`) and dark button ink (`#0c0e10`); the native Tokyo Night theme retains its blue accent.
+
 The page follows Omarchy Style's web-specific rules: the Omarchy display font, Geist headings, JetBrains Mono body text, square geometry and semantic theme colors. Tokyo Night is the default; Flexoki Light provides the light theme. The primary website action uses the web brand fill, while the native library uses outlined actions.
 
 The Omarchy display font comes from https://github.com/markcuda/Omarchy-Font and its MIT license is retained in `public/fonts/OMARCHY-LICENSE`. Fonts are self-hosted through Fontsource packages. This is an independent community project, not the official Omarchy website.

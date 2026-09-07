@@ -6,7 +6,8 @@
   color-scheme: dark;
   /* Omarchy's semantic Tokyo Night palette (quattro/themes/tokyo-night/colors.toml). */
   --background:#1a1b26; --deep:#13141c; --surface:#24283b; --foreground:#a9b1d6; --muted:#a9b1d6; --bright:#c0caf5;
-  --accent:#7aa2f7; --brand-ink:#13141c; --border:#414868; --subtle:#292e42;
+  /* Website brand colors follow omarchy.org; the native theme uses blue. */
+  --accent:#9ece6a; --brand-ink:#0c0e10; --border:#414868; --subtle:#292e42;
   --hover:#292e42; --selected:#414868; --selection:#292e42;
 }
 [data-theme='flexoki-light'] {

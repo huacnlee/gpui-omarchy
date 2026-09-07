@@ -2,31 +2,13 @@
 
 **gpui-omarchy is a [gpui-kit](https://gpui-kit.com/) component library designed specifically for the Omarchy system.** It follows Omarchy’s UI and UX conventions, helping developers build desktop applications that feel at home in Omarchy.
 
+<img width="1172" height="872" alt="image" src="https://github.com/user-attachments/assets/0cde83ae-77d3-4e25-ba3e-252ca40303c9" />
+
 The library brings Omarchy’s system themes, restrained visual style and keyboard-first interactions to reusable GPUI components. Built on **[gpui-base](https://gpui-kit.com/base/)**, it combines Omarchy presentation with shared focus, input, accessibility and composition primitives.
 
 It also serves as a practical proving ground for **[gpui-base’s customization capabilities](https://gpui-kit.com/base/)**: building a complete Omarchy design system tests how freely applications can define their own visual identity and interaction patterns on top of base primitives. The project demonstrates that a shared behavioral foundation can support a fully custom design language, while exposing gaps to improve in gpui-base.
 
 The project is under development, with 46 component previews in one gallery. Form, navigation, overlay and data components are still being expanded; the framework is not yet complete.
-
-## Gallery
-
-<img width="1172" height="872" alt="GPUI Omarchy Gallery screenshot 1" src="https://github.com/user-attachments/assets/5ba0ed24-21e6-4397-83f9-e0cf10d8e329" />
-
-<img width="1172" height="872" alt="GPUI Omarchy Gallery screenshot 2" src="https://github.com/user-attachments/assets/75f9fece-a4fa-4531-81fa-b686808c6b12" />
-
-<img width="1172" height="872" alt="GPUI Omarchy Gallery screenshot 3" src="https://github.com/user-attachments/assets/bbb68b32-a259-405a-a1c2-09b8795e2870" />
-
-<img width="1172" height="872" alt="GPUI Omarchy Gallery screenshot 4" src="https://github.com/user-attachments/assets/ba9ee7ff-7852-4c2d-9541-1ddd0e61c388" />
-
-<img width="1172" height="872" alt="GPUI Omarchy Gallery screenshot 5" src="https://github.com/user-attachments/assets/225a1a69-054c-4fcb-ba3d-ee554286be5a" />
-
-<img width="1172" height="872" alt="GPUI Omarchy Gallery screenshot 6" src="https://github.com/user-attachments/assets/ccf7e25e-130e-4b52-a0a2-7b69e945f56d" />
-
-<img width="1172" height="872" alt="GPUI Omarchy Gallery screenshot 7" src="https://github.com/user-attachments/assets/7876c0d5-6bb8-401f-a608-f0d0a95178a8" />
-
-<img width="1172" height="872" alt="GPUI Omarchy Gallery screenshot 8" src="https://github.com/user-attachments/assets/2bf47cc4-cd8f-48eb-bb8f-d63a0d567001" />
-
-<img width="1172" height="872" alt="GPUI Omarchy Gallery screenshot 9" src="https://github.com/user-attachments/assets/59eb5be5-d7cb-433a-a73d-ecb918e76d32" />
 
 ## Running the gallery
 

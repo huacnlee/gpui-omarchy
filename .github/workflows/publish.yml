@@ -1,0 +1,68 @@
+name: Publish crate
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-crates-io
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Validate and publish
+    runs-on: macos-14
+    timeout-minutes: 45
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check tag matches crate version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cargo metadata --locked --no-deps --format-version 1 > "$RUNNER_TEMP/metadata.json"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          metadata = json.loads((Path(os.environ["RUNNER_TEMP"]) / "metadata.json").read_text())
+          package = next(p for p in metadata["packages"] if p["name"] == "gpui-omarchy")
+          expected = "v" + package["version"]
+          actual = os.environ["RELEASE_TAG"]
+          if actual != expected:
+              raise SystemExit(f"Tag {actual!r} must match Cargo.toml version: {expected!r}")
+          print(f"Publishing {package['name']} {package['version']}")
+          PY
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Test
+        run: cargo test --locked --all-targets
+
+      - name: Verify crate package
+        run: cargo publish --locked --dry-run --registry crates-io
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "::error::Set the repository secret CARGO_REGISTRY_TOKEN to a crates.io publish token."
+            exit 1
+          fi
+          cargo publish --locked --registry crates-io

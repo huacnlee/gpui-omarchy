@@ -45,7 +45,9 @@ Dialog and AlertDialog use base modal hosts with focus recovery and outline acti
 Icons come from gpui-kit-assets with explicit inherited-color resolution.
 Tests cover these interactions and rendering every current page in both themes.
 Select and Combobox share application-owned ChoiceState and styled option rows,
-with filtering, disabled-item skipping and focus recovery.
+with filtering, disabled-item skipping and focus recovery. Open Select menus
+support j/k; both controls support Ctrl-j/k/n/p without consuming Combobox
+search text. Radio previews demonstrate density changes on an actual list.
 ButtonGroup and Tabs have separate setting/page semantics with shared keyboard
 navigation. Tooltip uses the base tooltip surface and GPUI hover lifecycle.
 The focus_scope helper connects Tab traversal for forms and the gallery.
@@ -73,9 +75,10 @@ gap, not a styling concern. Digit filtering, length limits and backspace are
 covered by facade keyboard tests. Tree pointer-to-keyboard navigation and
 folder collapse/expand are covered by an integration test.
 
-Native AX review found unnamed Calendar day/month/year buttons. Base's item
-slot does not expose its label/date, so this needs a sound labeling interface
-rather than assuming visual text becomes an accessible name. Native screenshots
+Native AX review found unnamed Calendar day/month/year buttons. [gpui-kit PR #2996](https://github.com/longbridge/gpui-kit/pull/2996)
+assigns names when items are created and uses full ISO dates for day cells.
+The regression test inspects all three views and fails on the old implementation.
+This remains a dependency gap until a version containing the fix is integrated. Native screenshots
 can remain stale while AX updates; do not treat these as final visual validation.
 Gallery footer now has explicit width and cannot shrink away its wrapped rows;
 repository visibility is checked at narrow, default and wide viewport sizes.
@@ -107,5 +110,7 @@ The native DatePicker report from September 7 identified an accessibility panic:
 `set_focus called more than once in a single frame`. The picker root and its
 trigger registered the same focus handle. DatePicker and ColorPicker now leave
 focus ownership with the root and make the inner trigger non-focusable. Headless
-interaction tests pass; native verification with accessibility enabled remains
-pending because the automation session reported conflicting window changes.
+interaction tests pass. A current native build opened the DatePicker popup with
+its accessibility tree active without the duplicate-focus panic. Further native
+month navigation and selection checks remain pending after conflicting window
+changes interrupted the automation session.

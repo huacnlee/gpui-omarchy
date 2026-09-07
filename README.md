@@ -124,6 +124,25 @@ Implementation boundaries and remaining work are recorded in the [design notes](
 
 If the gallery panics, it writes the error location and full backtrace to `gpui-omarchy-gallery-<PID>.panic.log` in the system temporary directory. The terminal also prints the report path. This diagnostic logging is limited to the example application.
 
+## Publishing
+
+The [Publish crate workflow](.github/workflows/publish.yml) publishes to crates.io when a `v*` tag is pushed. It checks that the tag exactly matches `v` followed by the version in `Cargo.toml`, runs formatting and tests, and verifies the package with `cargo publish --dry-run` before uploading.
+
+Set the repository Actions secret `CARGO_REGISTRY_TOKEN` to a crates.io API token with permission to publish `gpui-omarchy`. The token is only passed to the final publish step.
+
+To release:
+
+1. Update `version` in `Cargo.toml` and regenerate `Cargo.lock` with `cargo check`.
+2. Commit and push the release changes, including the workflow.
+3. Create and push the matching tag, for example:
+
+   ```sh
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+Use a new version for each release; crates.io does not allow replacing an existing version. A tag/version mismatch or failed check stops publication.
+
 ## License
 
 [MIT](LICENSE) © 2026 Jason Lee (huacnlee).

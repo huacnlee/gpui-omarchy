@@ -47,7 +47,7 @@ pub use input::{input, number_input, textarea};
 pub use list::{scrollbar, virtual_list};
 pub use menu::{MenuItem, menu};
 pub use navigation::*;
-pub use otp_input::otp_input;
+pub use otp_input::{OtpInput, otp_input};
 pub use popover::{popover, popover_surface};
 pub use resizable::{resizable, resizable_panel};
 pub use select::{ChoiceItem, ChoiceState, combobox, select};

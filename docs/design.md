@@ -70,11 +70,10 @@ native visual review still need broader validation. Dock's tabbed split layout
 is wired to base drag/drop; side-dock controls, title
 metadata and persistence examples remain. Calendar currently uses base item
 activation; grid arrow-key navigation still needs review before claiming full
-keyboard coverage. OTP Input retains base's digit entry/backspace behavior;
-paste and disabled-state interaction need an explicit integration audit.
-Base OtpInput currently has no clipboard paste handler; this is a functional
-gap, not a styling concern. Digit filtering, length limits and backspace are
-covered by facade keyboard tests. Tree pointer-to-keyboard navigation and
+keyboard coverage. OTP Input retains base's state and ordinary digit/backspace editing. An Omarchy
+wrapper adds system clipboard paste, numeric normalization and length limits,
+and omits the interactive root and cell focus handlers when disabled. Tests
+cover completion events, modified digit shortcuts and disabled input. Tree pointer-to-keyboard navigation and
 folder collapse/expand are covered by an integration test.
 
 Native AX review found unnamed Calendar day/month/year buttons. [gpui-kit PR #2996](https://github.com/longbridge/gpui-kit/pull/2996)
@@ -98,8 +97,7 @@ Interaction audit: Omarchy Button now owns disabled presentation. Its wrapper
 withholds hover, pressed and focus-visible refinements when disabled, regardless
 of builder order. Pointer, Return and Space activation remain guarded by base.
 The fix works with the published gpui-base 0.6.0 and does not require an upstream
-release. OtpInput still retains its tracked focus when disabled and has no
-clipboard paste handler; those remain separate integration gaps.
+release. OTP Input also handles clipboard paste and disabled composition locally.
 
 TextView now has Markdown and HTML constructors with shared Omarchy typography,
 selection, code and link colors. Both formats have destination-opening tests;

@@ -5,7 +5,6 @@ import './ThemeMenu.css';
 const themes = [
   { id: 'tokyo-night', name: 'Tokyo Night' },
   { id: 'flexoki-light', name: 'Flexoki Light' },
-  { id: 'catppuccin', name: 'Catppuccin' },
 ] as const;
 type ThemeId = (typeof themes)[number]['id'];
 const storageKey = 'gpui-omarchy-theme';

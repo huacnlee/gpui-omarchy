@@ -2,8 +2,11 @@ import {test,expect} from '@playwright/test';
 
 test('themes persist and all layouts fit narrow screens',async({page})=>{
   await page.goto('./');
+  await page.evaluate(() => localStorage.setItem('gpui-omarchy-theme', 'catppuccin'));
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'tokyo-night');
   await expect(page.locator('astro-island[ssr]')).toHaveCount(0);
-  for(const [name,id] of [['Flexoki Light','flexoki-light'],['Catppuccin','catppuccin'],['Tokyo Night','tokyo-night']]) {
+  for(const [name,id] of [['Flexoki Light','flexoki-light'],['Tokyo Night','tokyo-night']]) {
     await page.getByRole('button',{name:/Theme:/}).click();
     await page.getByRole('menuitemradio',{name}).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme',id);
@@ -13,6 +16,15 @@ test('themes persist and all layouts fit narrow screens',async({page})=>{
   for(const width of [1440,768,390,320]) {
     await page.setViewportSize({width,height:900});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  await page.emulateMedia({reducedMotion:'reduce'});
+  for(const [width,height] of [[1280,720],[1440,800],[1512,850]]) {
+    await page.setViewportSize({width,height});
+    await page.locator('#components').evaluate(element=>element.scrollIntoView());
+    const bounds = await page.locator('#components iframe').boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.y).toBeGreaterThanOrEqual(68);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(height);
   }
 });
 
@@ -87,7 +99,6 @@ test('gallery follows the page theme at startup and without reloading', async ({
   const frame = page.frames().find(frame=>frame.url().includes('/gallery/index.html'))!;
   await frame.evaluate(()=>{document.documentElement.dataset.sessionMarker='same-app';});
   for(const [name,id,color] of [
-    ['Catppuccin','catppuccin',[30,30,46]],
     ['Tokyo Night','tokyo-night',[26,27,38]],
     ['Flexoki Light','flexoki-light',[255,252,240]],
   ] as const) {

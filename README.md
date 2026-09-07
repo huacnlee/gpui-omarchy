@@ -123,6 +123,16 @@ Implementation boundaries and remaining work are recorded in the [design notes](
 
 If the gallery panics, it writes the error location and full backtrace to `gpui-omarchy-gallery-<PID>.panic.log` in the system temporary directory. The terminal also prints the report path. This diagnostic logging is limited to the example application.
 
+## Website
+
+The [website](website/README.md) presents GPUI Kit, gpui-base, and Omarchy Style through an interactive component preview. Built with Bun, Astro, Tailwind CSS, and Base UI.
+
+```sh
+cd website
+bun install
+bun run dev
+```
+
 ## Publishing
 
 The [Publish crate workflow](.github/workflows/publish.yml) publishes to crates.io when a `v*` tag is pushed. It checks that the tag exactly matches `v` followed by the version in `Cargo.toml`, runs formatting and tests, and verifies the package with `cargo publish --dry-run` before uploading.

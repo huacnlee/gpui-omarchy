@@ -72,7 +72,9 @@ pre { padding:24px; margin:0; overflow:auto; font-size:13px; line-height:1.85; }
 .principles dt a { text-decoration-color:var(--border); text-underline-offset:4px; }
 
 .live-gallery { padding-bottom:48px; }
-.gallery-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 16px; border:1px solid var(--border); font-size:13px; }
-.live-gallery iframe { display:block; width:100%; height:760px; border:1px solid var(--border); border-top:0; background:var(--background); }
+.live-gallery iframe { display:block; width:100%; height:760px; border:1px solid var(--border); background:var(--background); }
 .gallery-caption { font-size:12px; color:var(--muted); margin:12px 0 0; }
 @media(max-width:760px) { .live-gallery iframe { height:620px; } }
+
+.hero h1.hero-brand { display:block; font-family:"Omarchy Display",monospace; font-size:clamp(30px,6.3vw,76px); font-weight:400; letter-spacing:0; line-height:1.2; margin:0 0 28px; white-space:nowrap; }
+.hero .lead { max-width:860px; }

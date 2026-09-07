@@ -62,6 +62,12 @@ jobs:
         run: bun --bun x playwright test
         env:
           PLAYWRIGHT_PRODUCTION: '1'
+      - name: Upload browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-test-results
+          path: website/test-results
       - uses: actions/upload-pages-artifact@v3
         with:
           path: website/dist

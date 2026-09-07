@@ -129,8 +129,16 @@ impl ChoiceState {
         }
         self.open = open;
         if open {
-            self.query
-                .update(cx, |query, cx| query.set_value("", window, cx));
+            if self.searchable {
+                let style = cx.omarchy().input_style();
+                self.query.update(cx, |query, cx| {
+                    // Opening happens before the search input's first render.
+                    // Set its font before edits measure text (system fonts are
+                    // unavailable in the browser).
+                    query.set_editor_style(style);
+                    query.set_value("", window, cx);
+                });
+            }
             self.cursor = self
                 .selected
                 .or_else(|| self.items.iter().position(|item| !item.disabled));

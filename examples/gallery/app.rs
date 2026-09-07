@@ -3409,9 +3409,9 @@ fn apply_gallery_theme(theme: Theme, cx: &mut App) {
 }
 
 #[cfg(target_family = "wasm")]
-pub fn open_web_gallery(cx: &mut App) {
+pub fn open_web_gallery(theme: Theme, cx: &mut App) {
     gpui_omarchy::init(cx);
-    apply_gallery_theme(Theme::tokyo_night(), cx);
+    apply_gallery_theme(theme, cx);
     cx.open_window(WindowOptions::default(), |window, cx| {
         cx.new(|cx| Gallery::new(window, cx))
     })

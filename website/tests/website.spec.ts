@@ -21,13 +21,10 @@ test('page assets load and copy command works',async({page,context})=>{
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('./');
   await expect(page.locator('astro-island[ssr]')).toHaveCount(0);
-  await expect(page.getByRole('heading',{level:1})).toContainText('GPUI Omarchy');
+  await expect(page.getByRole('heading',{level:1})).toContainText('GPUI / OMARCHY');
   await page.getByRole('button',{name:'Copy'}).click();
   await expect(page.getByRole('button',{name:'Copy to clipboard'})).toHaveText('Copied');
-  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe('cargo run --example gallery');
-  await page.locator('.gallery-shot').scrollIntoViewIfNeeded();
-  await expect(page.locator('.gallery-shot')).toBeVisible();
-  await expect.poll(()=>page.locator('.gallery-shot').evaluate((img:HTMLImageElement)=>img.naturalWidth)).toBeGreaterThan(0);
+  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe('cargo add gpui-omarchy');
   expect(errors).toEqual([]);
 });
 
@@ -57,8 +54,75 @@ test('the homepage runs the real WebAssembly gallery', async ({page}) => {
     }, [...png]);
   }, {timeout:30_000}).toBeGreaterThan(30);
   const overview = await canvas.screenshot();
-  await canvas.click({position:{x:40,y:164}});
+  await canvas.click({position:{x:40,y:164}, delay:100});
   await page.mouse.move(0,0);
   await expect.poll(async()=>!(await canvas.screenshot()).equals(overview)).toBe(true);
   await expect(gallery.locator('#loading')).toHaveCount(0);
+});
+
+
+test('gallery follows the page theme at startup and without reloading', async ({page}) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(() => localStorage.setItem('gpui-omarchy-theme', 'flexoki-light'));
+  await page.goto('./');
+  await page.locator('iframe').scrollIntoViewIfNeeded();
+  const gallery = page.frameLocator('iframe');
+  await expect(gallery.locator('html')).toHaveAttribute('data-gallery-theme','flexoki-light', {timeout:90_000});
+  await expect(gallery.locator('html')).toHaveAttribute('data-gallery-ready','true');
+  const canvas = gallery.locator('canvas');
+  // Read an unoccupied pixel from the actual Rust canvas, not the iframe background.
+  const background = async () => {
+    const png = await canvas.screenshot();
+    return page.evaluate(async bytes => {
+      const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], {type:'image/png'}));
+      const surface = new OffscreenCanvas(bitmap.width,bitmap.height);
+      const ctx = surface.getContext('2d')!;
+      ctx.drawImage(bitmap,0,0);
+      const color = [...ctx.getImageData(bitmap.width-10,100,1,1).data].slice(0,3);
+      bitmap.close();
+      return color;
+    },[...png]);
+  };
+  await expect.poll(background).toEqual([255,252,240]);
+  const frame = page.frames().find(frame=>frame.url().includes('/gallery/index.html'))!;
+  await frame.evaluate(()=>{document.documentElement.dataset.sessionMarker='same-app';});
+  for(const [name,id,color] of [
+    ['Catppuccin','catppuccin',[30,30,46]],
+    ['Tokyo Night','tokyo-night',[26,27,38]],
+    ['Flexoki Light','flexoki-light',[255,252,240]],
+  ] as const) {
+    await page.getByRole('button',{name:/Theme:/}).click();
+    await page.getByRole('menuitemradio',{name}).click();
+    await expect(gallery.locator('html')).toHaveAttribute('data-gallery-theme',id);
+    await expect.poll(background).toEqual([...color]);
+    await expect(gallery.locator('html')).toHaveAttribute('data-session-marker','same-app');
+  }
+});
+
+
+test('Select and Combobox stay interactive and scrolling survives', async ({page, baseURL}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({width:1060,height:760});
+  const errors:string[]=[];
+  page.on('pageerror', error=>errors.push(error.message));
+  page.on('console', message=>{if(message.type()==='error') errors.push(message.text());});
+  await page.goto(new URL('gallery/index.html',baseURL).href);
+  await expect(page.locator('html')).toHaveAttribute('data-gallery-ready','true',{timeout:90_000});
+  const canvas = page.locator('canvas');
+  await canvas.click({position:{x:35,y:412},delay:100});
+  const select = await canvas.screenshot();
+  await canvas.click({position:{x:400,y:204},delay:100});
+  await page.mouse.move(1000,700);
+  await expect.poll(async()=>!(await canvas.screenshot()).equals(select)).toBe(true);
+  await canvas.click({position:{x:340,y:271},delay:100});
+  await canvas.click({position:{x:35,y:438},delay:100});
+  await canvas.click({position:{x:400,y:204},delay:100});
+  await page.keyboard.type('sandbox',{delay:100});
+  await page.keyboard.press('Enter');
+  const beforeScroll = await canvas.screenshot();
+  await page.mouse.move(80,550);
+  await page.mouse.wheel(0,700);
+  await page.mouse.move(1000,700);
+  await expect.poll(async()=>!(await canvas.screenshot()).equals(beforeScroll)).toBe(true);
+  expect(errors).toEqual([]);
 });

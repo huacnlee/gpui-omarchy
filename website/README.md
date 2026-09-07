@@ -25,9 +25,9 @@ The static site builds into `dist/`. It has no backend or deployment-specific ad
 
 ## Design
 
-The page follows Omarchy Style's web-specific rules: the official masked wordmark, Geist headings, JetBrains Mono body text, square geometry and semantic theme colors. Tokyo Night is the default; Flexoki Light and Catppuccin demonstrate light and non-green themes. The primary website action uses the web brand fill, while the native library uses outlined actions.
+The page follows Omarchy Style's web-specific rules: the Omarchy display font, Geist headings, JetBrains Mono body text, square geometry and semantic theme colors. Tokyo Night is the default; Flexoki Light and Catppuccin demonstrate light and non-green themes. The primary website action uses the web brand fill, while the native library uses outlined actions.
 
-The Omarchy wordmark is the original asset from https://omarchy.org/brand/omarchy-wordmark.svg. The gallery image is a user-provided native screenshot from the repository README. Fonts are self-hosted through Fontsource packages. This is an independent community project, not the official Omarchy website.
+The Omarchy display font comes from https://github.com/markcuda/Omarchy-Font and its MIT license is retained in `public/fonts/OMARCHY-LICENSE`. Fonts are self-hosted through Fontsource packages. This is an independent community project, not the official Omarchy website.
 
 ## Deployment
 

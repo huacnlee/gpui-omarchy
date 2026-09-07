@@ -13,6 +13,22 @@ if (window.parent !== window) {
 try {
   const gallery = await import('./wasm/gpui_omarchy_gallery_wasm.js');
   await gallery.default();
+  const allowedThemes = new Set(['tokyo-night', 'flexoki-light', 'catppuccin']);
+  let themeRoot = document.documentElement;
+  try { if (parent !== window) themeRoot = parent.document.documentElement; } catch {}
+  function syncTheme() {
+    let name = themeRoot.dataset.theme;
+    if (!allowedThemes.has(name)) {
+      try { name = localStorage.getItem('gpui-omarchy-theme'); } catch {}
+    }
+    if (!allowedThemes.has(name)) name = 'tokyo-night';
+    gallery.set_theme(name);
+    document.documentElement.dataset.galleryTheme = name;
+    document.body.style.background = name === 'flexoki-light' ? '#fffcf0' : name === 'catppuccin' ? '#1e1e2e' : '#1a1b26';
+  }
+  syncTheme();
+  new MutationObserver(syncTheme).observe(themeRoot, {attributes:true, attributeFilter:['data-theme']});
+  window.addEventListener('storage', syncTheme);
   gallery.run();
   loadingPanel.remove();
   document.documentElement.dataset.galleryReady = 'true';

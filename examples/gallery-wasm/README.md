@@ -18,6 +18,12 @@ cross-origin isolation headers or `SharedArrayBuffer`. The application handle
 is retained for the lifetime of the page.
 
 The browser cannot access native system fonts. The included Inter font is
-used for this target only; native builds retain `.SystemUIFont`. The font is
-distributed under the SIL Open Font License in `fonts/OFL.txt` and comes from
+used for this target only; native builds retain `.SystemUIFont`. IBM Plex Sans is also bundled to resolve GPUI Web's `.SystemUIFont` alias
+when text is measured before a control inherits its theme. Both fonts are
+distributed under the SIL Open Font License in `fonts/OFL.txt` and come from
 GPUI Kit's web gallery font bundle.
+
+The exported `set_theme` function updates the running gallery without replacing
+its state. The homepage observes its theme attribute and synchronizes Tokyo
+Night, Flexoki Light, or Catppuccin both before startup and on changes. The
+Catppuccin palette is copied from Omarchy's `themes/catppuccin/colors.toml`.

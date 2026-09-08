@@ -43,7 +43,7 @@ pub use dialog::*;
 pub use dock::dock_area;
 pub use focus::focus_scope;
 pub use hover_card::hover_card;
-pub use icon::{ICON_NAMES, IconName, icon};
+pub use icon::{Icon, IconName, icon};
 pub use input::{Input, input, number_input, textarea};
 pub use link::Link;
 pub use list::{scrollbar, virtual_list};

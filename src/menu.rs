@@ -7,6 +7,9 @@ use gpui_kit::{
 };
 use std::rc::Rc;
 
+/// What a row does when chosen, shared by both panels and every handler.
+type Select = Rc<dyn Fn(usize, &mut Window, &mut App)>;
+
 /// Row height, and the gap that follows it, in rems.
 const ROW_HEIGHT: f32 = 1.75;
 const ROW_GAP: f32 = 0.125;
@@ -103,37 +106,36 @@ pub fn menu(
             let select_page = page.clone();
             let select_child = child_cursor.clone();
             let select_close = cx.entity();
-            let on_select: Rc<dyn Fn(usize, &mut Window, &mut App)> =
-                Rc::new(move |index, window, cx| {
-                    if let Some(parent) = *select_page.read(cx)
-                        && let Some(child) = *select_child.read(cx)
+            let on_select: Select = Rc::new(move |index, window, cx| {
+                if let Some(parent) = *select_page.read(cx)
+                    && let Some(child) = *select_child.read(cx)
+                {
+                    if let Some((action, item)) = displayed[parent].children.get(child)
+                        && !item.disabled
                     {
-                        if let Some((action, item)) = displayed[parent].children.get(child)
-                            && !item.disabled
-                        {
-                            select_close.update(cx, |state, cx| state.dismiss(window, cx));
-                            leaf_select(*action, window, cx);
-                        }
-                        return;
-                    }
-                    let Some(item) = displayed.get(index) else {
-                        return;
-                    };
-                    if !item.children.is_empty() {
-                        select_page.update(cx, |page, cx| {
-                            *page = Some(index);
-                            cx.notify();
-                        });
-                        select_child.update(cx, |child, cx| {
-                            *child = Some(0);
-                            cx.notify();
-                        });
-                        window.refresh();
-                    } else if !item.disabled {
                         select_close.update(cx, |state, cx| state.dismiss(window, cx));
-                        leaf_select(index, window, cx);
+                        leaf_select(*action, window, cx);
                     }
-                });
+                    return;
+                }
+                let Some(item) = displayed.get(index) else {
+                    return;
+                };
+                if !item.children.is_empty() {
+                    select_page.update(cx, |page, cx| {
+                        *page = Some(index);
+                        cx.notify();
+                    });
+                    select_child.update(cx, |child, cx| {
+                        *child = Some(0);
+                        cx.notify();
+                    });
+                    window.refresh();
+                } else if !item.disabled {
+                    select_close.update(cx, |state, cx| state.dismiss(window, cx));
+                    leaf_select(index, window, cx);
+                }
+            });
 
             let has_icons = items.iter().any(|item| item.icon.is_some());
             let open_page = *page.read(cx);

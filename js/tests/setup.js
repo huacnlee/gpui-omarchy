@@ -10,7 +10,7 @@ const nativeNames = nativeSource.match(/export\s*\{([^}]+)\}/)[1].split(",").map
 Bun.plugin({
   name: "local-gpui-stub",
   setup(build) {
-    build.module("gpui-component", () => ({
+    build.module("gpui-omarchy-native", () => ({
       contents: `import { element } from ${JSON.stringify(stubUrl)};\n` + nativeNames.map(name =>
         `export function ${name}(...args) { return element(${JSON.stringify(`Native${name}`)}, args); }`
       ).join("\n"),

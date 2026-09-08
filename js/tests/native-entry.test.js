@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import * as ui from "../src/index.js";
-import * as native from "gpui-component";
+import * as native from "gpui-omarchy-native";
 
 test("the package entry exposes native controls separately from composition helpers", () => {
   for (const [name, constructor] of Object.entries(native)) {

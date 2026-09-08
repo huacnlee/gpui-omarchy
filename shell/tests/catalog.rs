@@ -5,7 +5,14 @@ fn javascript_catalog_exposes_native_buttons() {
     )
     .unwrap();
     let declarations = runtime.type_declarations();
-    assert!(declarations.contains("declare module \"gpui-component\""));
+    // The catalog must not claim the JavaScript package's own name: the
+    // component module resolves ahead of Git dependencies, so it would hide
+    // the package it belongs to rather than complete it.
+    assert_ne!(gpui_omarchy_shell::COMPONENT_MODULE, "gpui-omarchy");
+    assert_ne!(
+        gpui_omarchy_shell::COMPONENT_MODULE,
+        gpui_shell::DEFAULT_COMPONENT_MODULE
+    );
     assert!(declarations.contains("new(id: string): ButtonElement"));
     assert!(declarations.contains("primary(): ButtonElement"));
 }
@@ -127,4 +134,31 @@ fn javascript_editors_accept_the_shells_existing_state_types() {
     // The adapter must not replace the built-in editing states with opaque
     // component states that lack value/focus/event methods.
     assert_eq!(gpui_omarchy_shell::components().unwrap().states().len(), 0);
+}
+
+/// The runtime resolves this catalog under [`COMPONENT_MODULE`], but the
+/// declarations it generates still name the block `gpui-component`: the shell
+/// writes that specifier literally in `typings.rs` instead of asking the
+/// registry it was handed. So an editor cannot type `gpui-omarchy-native`, and
+/// the JavaScript package's re-export of it has no declarations behind it.
+///
+/// The shell fix is one line — the literal becomes
+/// `components.module_specifier()`. This test states today's behavior so the
+/// gap is visible rather than assumed, and fails the moment the shell is fixed,
+/// which is the reminder to assert on [`COMPONENT_MODULE`] here instead.
+#[test]
+fn the_shell_still_declares_the_catalog_under_its_own_default_name() {
+    let runtime = gpui_shell::ShellRuntime::new_isolated_with_components(
+        gpui_omarchy_shell::components().unwrap(),
+    )
+    .unwrap();
+    let declarations = runtime.type_declarations();
+    assert!(declarations.contains(&format!(
+        "declare module {:?}",
+        gpui_shell::DEFAULT_COMPONENT_MODULE
+    )));
+    assert!(!declarations.contains(&format!(
+        "declare module {:?}",
+        gpui_omarchy_shell::COMPONENT_MODULE
+    )));
 }

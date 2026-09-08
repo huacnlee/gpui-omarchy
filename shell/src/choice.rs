@@ -197,8 +197,7 @@ pub(super) fn register(registry: &mut ComponentRegistry) -> Result<(), RegistryE
                         Ok(ComponentPayload::new(gpui_omarchy::ChoiceItem::new(
                             value.clone(),
                             label.clone(),
-                        ))
-                        .with_debug_label(format!("{value}: {label}")))
+                        )))
                     }
                     _ => Err("ChoiceItem requires a nonempty value and a label".into()),
                 },
@@ -225,7 +224,7 @@ pub(super) fn register(registry: &mut ComponentRegistry) -> Result<(), RegistryE
                         None => None,
                         _ => return Err("selected expects a string".into()),
                     };
-                    Ok(ComponentPayload::new(Group { id: id.clone(), selected }).with_debug_label(id.clone()))
+                    Ok(ComponentPayload::new(Group { id: id.clone(), selected }))
                 }
                 _ => Err("choice group requires a nonempty id and optional selected value".into()),
             })])

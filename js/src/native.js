@@ -43,7 +43,7 @@ export {
   Icon,
   Markdown,
   Html,
-} from "gpui-component";
+} from "gpui-omarchy-native";
 
 // Retain the shell's editing state API, including value, focus and events.
 export { InputState, TextareaState, CalendarState, SliderState, OtpState } from "gpui-base";

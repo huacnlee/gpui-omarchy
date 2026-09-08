@@ -1,7 +1,16 @@
 //! Optional native component adapter. Enable the `gpui-shell` feature to use it.
+//!
+//! The catalog registers under [`COMPONENT_MODULE`]. The `gpui-omarchy`
+//! JavaScript package re-exports it from there, so an application declares that
+//! package as a gpui-shell dependency and imports one specifier.
 
-mod javascript;
-pub use javascript::{JAVASCRIPT_FILES, write_javascript};
+/// The specifier this catalog's components resolve under.
+///
+/// A registry names its own module, and a catalog may not claim a name the
+/// runtime already answers to. It also may not be `gpui-omarchy`: the component
+/// module resolves before application files and Git dependencies, so taking the
+/// JavaScript package's name would hide the package rather than complete it.
+pub const COMPONENT_MODULE: &str = "gpui-omarchy-native";
 
 /// Initialize the runtime and the native Omarchy presentation layer.
 #[cfg(feature = "gpui-shell")]
@@ -72,7 +81,7 @@ mod surface;
 pub fn components() -> Result<gpui_shell::FrozenComponentRegistry, gpui_shell::RegistryError> {
     let mut registry = gpui_shell::ComponentRegistry::new(
         gpui_shell::COMPONENT_REGISTRY_API_VERSION,
-        gpui_shell::DEFAULT_COMPONENT_MODULE,
+        COMPONENT_MODULE,
     )?
     .with_initializer(initialize_catalog);
     button::register(&mut registry)?;

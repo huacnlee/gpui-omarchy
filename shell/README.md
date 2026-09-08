@@ -1,8 +1,9 @@
 # gpui-omarchy-shell
 
 This unpublished adapter lives beside the publishable `gpui-omarchy` crate.
-Its `gpui-shell` feature is off by default. Enabling it installs native Omarchy
-components in gpui-shell's `gpui-component` catalog slot. The runtime owns
+Its `gpui-shell` feature is off by default, so the Git-only shell dependency
+stays out of the native crate's release path. Enabling it registers the native
+Omarchy catalog under its own module, `gpui-omarchy-native`. The runtime owns
 JavaScript handles and callbacks; the existing Rust components own rendering,
 focus, activation and disabled behavior.
 
@@ -15,19 +16,35 @@ Initialize with `gpui_omarchy_shell::init(cx)` and create the runtime with
 `gpui_omarchy_shell::new_runtime(cx)`. Embedding applications must use the same
 GPUI checkout and the `[patch.crates-io]` entries in this crate's Cargo.toml.
 The native crate's crates.io dependencies are deliberately unchanged.
+
+## Why the shell revision is pinned
+
 The adapter pins the shell revision that introduces
-`MaterializeRequest::native_state`, allowing components to reuse existing
-editing entities. No sibling gpui-kit checkout is required.
+`MaterializeRequest::native_state`. That is the whole of what it needs from the
+shell beyond the released surface, and it is not optional: `Input`, `Textarea`,
+`NumberInput`, `Calendar`, `Slider` and `OtpInput` render Omarchy components
+over the very `InputState`, `TextareaState`, `CalendarState`, `SliderState` and
+`OtpState` entities the script created, so the script keeps the value, focus
+and subscription methods it already has. Without it those six components would
+need adapter-owned opaque state and would lose that API. No sibling gpui-kit
+checkout is required.
 
-The feature-free `write_javascript(directory)` function copies embedded JS
-package sources into an application's resource directory. Call it from
-the application's build script; ship the resulting directory with its other
-application resources. Longbridge Lite demonstrates this integration.
+## How an application takes the dependency
 
-The default JS entry exports the native catalog:
+The JavaScript package is loaded the way gpui-shell loads any package: the
+application declares it in `gpui-shell.json` and imports the bare specifier.
+Nothing is copied into the application's tree, and no build script participates.
+
+```json
+{
+  "id": "com.example.viewer",
+  "entry": "main.js",
+  "dependencies": { "gpui-omarchy": "huacnlee/gpui-omarchy" }
+}
+```
 
 ```js
-import { Button } from "./gpui-omarchy/index.js";
+import { Button, style, composition } from "gpui-omarchy";
 
 new Button("save")
   .label("Save")
@@ -37,7 +54,27 @@ new Button("save")
 ```
 
 Explicit children replace the label's implicit text content; the label still
-supplies the accessible name.
+supplies the accessible name. `js/examples/hello-world` is that arrangement end
+to end.
+
+## The two module names
+
+`gpui-omarchy` is the JavaScript package an application depends on and imports.
+`gpui-omarchy-native` is the module this adapter registers, and only the
+package's own `src/native.js` names it. They must stay distinct: the component
+module resolves ahead of application files and Git dependencies, so a catalog
+registered as `gpui-omarchy` would hide the package it belongs to instead of
+completing it. `COMPONENT_MODULE` is the constant, and `shell/tests/catalog.rs`
+holds it to that.
+
+One consequence is open on the shell's side. The runtime resolves this catalog
+under `COMPONENT_MODULE`, but the declarations it generates still name the block
+`gpui-component`: `typings.rs` writes that specifier literally instead of asking
+the registry it was handed. Until that literal becomes
+`components.module_specifier()`, an editor cannot type `gpui-omarchy-native`,
+and the package's re-export of it has no declarations behind it. Run time is
+unaffected. `the_shell_still_declares_the_catalog_under_its_own_default_name`
+states the current behavior and fails once the shell is fixed.
 
 Current native exports include Button, Checkbox, Switch, Radio, Toggle, ChoiceItem, ButtonGroup, TabList, Tabs,
 Tab, ToggleGroup, FocusScope, Tooltip, Panel, Separator, VerticalSeparator,
@@ -82,8 +119,24 @@ new TabList("interval", this.interval)
 ```
 
 The older composition helpers are available through `js/src/composition.js`
-or the default entry's `composition` namespace. Exporting the remaining Rust
-components, including retained state and compound widgets, is still in progress.
+or the default entry's `composition` namespace.
+
+## What is not exported yet
+
+43 of the crate's 67 public constructors have a native export. This catalog is
+therefore not yet a replacement for `omarchy-ui`, and should not be described as
+one until the list below is empty and each entry's state and interaction
+contract has been exercised from JavaScript:
+
+`accordion`, `accordion_trigger`, `collapsible`, `alert_dialog`, `dialog`,
+`dialog_button`, `sheet`, `popover`, `hover_card`, `menu`, `select`,
+`combobox`, `date_picker`, `color_picker`, `pagination`, `nav_stack`, `link`,
+`tree`, `virtual_list`, `scrollbar`, `resizable`, `resizable_panel`,
+`dock_area`.
+
+The compound overlays (`dialog`, `sheet`, `popover`, `hover_card`, `menu`) are
+the ones to weigh first: only their content primitives are exported today, so a
+script still assembles placement and lifecycle itself.
 
 Validation:
 

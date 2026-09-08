@@ -6,7 +6,7 @@ declare module "gpui-base" {
   export const SliderState: unknown;
   export const OtpState: unknown;
 }
-declare module "gpui-component" {
+declare module "gpui-omarchy-native" {
   export const Button: unknown;
   export const ChoiceItem: unknown;
   export const ButtonGroup: unknown;

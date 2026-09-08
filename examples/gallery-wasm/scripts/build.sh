@@ -21,20 +21,28 @@ wasm-bindgen "$crate_dir/target/wasm32-unknown-unknown/$profile/gpui_omarchy_gal
   --out-dir "$repo_dir/website/public/gallery/wasm" \
   --target web --no-typescript
 
-# The web build downloads icons instead of embedding them. Serve the set from
-# gpui-kit-assets itself, so no SVG is copied into this repository.
-icons_src="$(cargo metadata --format-version 1 --manifest-path "$crate_dir/Cargo.toml" \
+# The web build downloads icons instead of embedding them. Serve them from the
+# gpui-kit-assets package itself, so no SVG is copied into this repository. Only
+# the default bundle: that is what the components here draw, and the full Lucide
+# catalog is some seventy times the size.
+assets_dir="$(cargo metadata --format-version 1 --manifest-path "$crate_dir/Cargo.toml" \
   | python3 -c 'import json,sys,pathlib
 meta = json.load(sys.stdin)
 for package in meta["packages"]:
     if package["name"] == "gpui-kit-assets":
-        print(pathlib.Path(package["manifest_path"]).parent / "assets" / "icons")
+        print(pathlib.Path(package["manifest_path"]).parent / "assets")
         break')"
-if [[ ! -d "$icons_src" ]]; then
-  echo "Could not locate the gpui-kit-assets icons at: $icons_src" >&2
+if [[ ! -d "$assets_dir/icons" ]]; then
+  echo "Could not locate the gpui-kit-assets icons at: $assets_dir/icons" >&2
   exit 1
 fi
 icons_out="$repo_dir/website/public/gallery/assets/icons"
 rm -rf "$icons_out"
 mkdir -p "$icons_out"
-cp "$icons_src"/*.svg "$icons_out/"
+if [[ -f "$assets_dir/../default-icons.txt" ]]; then
+  while read -r icon; do
+    [[ -n "$icon" ]] && cp "$assets_dir/$icon" "$icons_out/"
+  done < "$assets_dir/../default-icons.txt"
+else
+  cp "$assets_dir"/icons/*.svg "$icons_out/"
+fi

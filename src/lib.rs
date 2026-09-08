@@ -43,7 +43,7 @@ pub use dialog::*;
 pub use dock::dock_area;
 pub use focus::focus_scope;
 pub use hover_card::hover_card;
-pub use icon::{IconName, icon};
+pub use icon::{ICON_NAMES, IconName, icon};
 pub use input::{Input, input, number_input, textarea};
 pub use link::Link;
 pub use list::{scrollbar, virtual_list};
@@ -56,6 +56,9 @@ pub use select::{ChoiceItem, ChoiceState, combobox, select};
 pub use sheet::{sheet, sheet_surface};
 pub use slider::slider;
 pub use surface::*;
+
+/// Create an application using the current desktop platform.
+pub use gpui_kit::application;
 pub use system_theme::ThemeLoadError;
 pub use table::*;
 pub use text::{html, markdown, text_view_style};

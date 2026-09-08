@@ -1,7 +1,10 @@
 use gpui_kit::base::CheckboxState;
+#[cfg(any(test, not(target_family = "wasm")))]
+use gpui_kit::px;
+use gpui_kit::rems;
 use gpui_kit::{
     App, ClickEvent, Context, Entity, FocusHandle, FontWeight, KeyDownEvent, Window, WindowOptions,
-    div, prelude::*, px, size,
+    div, prelude::*, size,
 };
 #[cfg(not(target_family = "wasm"))]
 use gpui_kit::{Bounds, WindowBounds};
@@ -146,6 +149,7 @@ fn description(page: &str) -> &'static str {
 }
 
 struct Gallery {
+    zoom_base_rem: gpui_kit::Pixels,
     workspace_name: Entity<gpui_kit::base::input::InputState>,
     workspace_draft: Entity<gpui_kit::base::input::InputState>,
     saved_workspace: String,
@@ -191,6 +195,7 @@ struct Gallery {
     activity_scroll: gpui_kit::base::VirtualListScrollHandle,
     timeline_scroll: gpui_kit::ScrollHandle,
     activity_sizes: std::rc::Rc<Vec<gpui_kit::Size<gpui_kit::Pixels>>>,
+    activity_rem_size: gpui_kit::Pixels,
     activity_rendered: usize,
     pressed: bool,
     article_filters: [bool; 3],
@@ -207,6 +212,62 @@ struct Gallery {
 }
 
 impl Gallery {
+    fn zoom_percent(&self, window: &Window) -> u16 {
+        (f32::from(window.rem_size()) / f32::from(self.zoom_base_rem) * 100.).round() as u16
+    }
+
+    fn set_zoom(&mut self, percent: u16, window: &mut Window, cx: &mut Context<Self>) {
+        let rem_size = self.zoom_base_rem * (percent.clamp(50, 200) as f32 / 100.);
+        if window.rem_size() == rem_size {
+            return;
+        }
+        window.set_rem_size(rem_size);
+        self.navigation_list.remeasure();
+        window.refresh();
+        cx.notify();
+    }
+
+    fn render_zoom_controls(&self, window: &Window, cx: &Context<Self>) -> gpui_kit::Div {
+        let percent = self.zoom_percent(window);
+        div()
+            .flex()
+            .items_center()
+            .gap_1()
+            .child(with_tooltip(
+                button("zoom-out", "−", ButtonVariant::Secondary, cx)
+                    .debug_selector(|| "zoom-out".into())
+                    .accessibility_label("Zoom out")
+                    .disabled(percent <= 50)
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.set_zoom(this.zoom_percent(window).saturating_sub(25), window, cx);
+                    })),
+                "Zoom out (Cmd/Ctrl −)",
+            ))
+            .child(with_tooltip(
+                button(
+                    "zoom-reset",
+                    format!("{percent}%"),
+                    ButtonVariant::Secondary,
+                    cx,
+                )
+                .debug_selector(|| "zoom-reset".into())
+                .accessibility_label(format!("Zoom {percent}%, reset to 100%"))
+                .min_w(rems(3.5))
+                .on_click(cx.listener(|this, _, window, cx| this.set_zoom(100, window, cx))),
+                "Reset zoom (Cmd/Ctrl 0)",
+            ))
+            .child(with_tooltip(
+                button("zoom-in", "+", ButtonVariant::Secondary, cx)
+                    .debug_selector(|| "zoom-in".into())
+                    .accessibility_label("Zoom in")
+                    .disabled(percent >= 200)
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.set_zoom(this.zoom_percent(window).saturating_add(25), window, cx);
+                    })),
+                "Zoom in (Cmd/Ctrl +)",
+            ))
+    }
+
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let number =
             cx.new(|cx| gpui_kit::base::input::InputState::new(window, cx).default_value("1"));
@@ -325,7 +386,7 @@ impl Gallery {
         cx.observe(&date_picker_state, |_, _, cx| cx.notify())
             .detach();
         let dock_state = cx.new(|cx| dock_area("gallery-workspace", window, cx));
-        let layout = demo_dock_layout(cx);
+        let layout = demo_dock_layout(window, cx);
         dock_state.update(cx, |state, cx| state.set_center(layout, window, cx));
         Self {
             dock_state,
@@ -342,6 +403,7 @@ impl Gallery {
             workspace_name,
             workspace_draft,
             saved_workspace: "Personal workspace".into(),
+            zoom_base_rem: window.rem_size(),
             theme_mode: 0,
             toolbar_position: 0,
             modal_open: false,
@@ -356,7 +418,7 @@ impl Gallery {
             navigation_list: gpui_kit::ListState::new(
                 GROUPS.len() + components().count(),
                 gpui_kit::ListAlignment::Top,
-                px(100.),
+                rems(6.25).to_pixels(window.rem_size()),
             ),
             navigation_rows: GROUPS
                 .iter()
@@ -393,11 +455,8 @@ impl Gallery {
             sheet_trigger: cx.focus_handle(),
             activity_scroll: gpui_kit::base::VirtualListScrollHandle::new(),
             timeline_scroll: gpui_kit::ScrollHandle::new(),
-            activity_sizes: std::rc::Rc::new(
-                (0..1000)
-                    .map(|index| size(px(400.), px(if index % 5 == 0 { 44. } else { 28. })))
-                    .collect(),
-            ),
+            activity_rem_size: window.rem_size(),
+            activity_sizes: activity_sizes(window),
             activity_rendered: 0,
             pressed: false,
             article_filters: [true, true, false],
@@ -452,12 +511,12 @@ impl Gallery {
         div()
             .flex()
             .flex_col()
-            .gap(px(18.))
+            .gap(rems(1.125))
             .child(
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(6.))
+                    .gap(rems(0.375))
                     .child(dialog_title("Workspace settings", cx))
                     .child(dialog_description(
                         "Give this workspace a name you can recognize.",
@@ -468,7 +527,7 @@ impl Gallery {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(6.))
+                    .gap(rems(0.375))
                     .child("Name")
                     .child(input(
                         if modal { "modal-name" } else { "specimen-name" },
@@ -478,7 +537,7 @@ impl Gallery {
                     ))
                     .child(
                         div()
-                            .text_size(px(11.))
+                            .text_size(rems(0.6875))
                             .text_color(t.secondary)
                             .child(if valid {
                                 "Shown in the workspace switcher."
@@ -492,8 +551,8 @@ impl Gallery {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(8.))
-                    .py(px(8.))
+                    .gap(rems(0.5))
+                    .py(rems(0.5))
                     .child(icon(IconName::Settings).text_color(t.secondary))
                     .child(
                         div()
@@ -506,7 +565,7 @@ impl Gallery {
                 div()
                     .flex()
                     .justify_end()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child(
                         dialog_button(
                             if modal {
@@ -567,12 +626,12 @@ impl Gallery {
 
     fn reset_form(&self, modal: bool, cx: &mut Context<Self>) -> gpui_kit::Div {
         let t = cx.omarchy();
-        div().flex().flex_col().gap(px(18.))
-            .child(div().flex().items_center().gap(px(10.))
-                .child(icon(IconName::TriangleAlert).size(px(20.)).text_color(t.danger))
+        div().flex().flex_col().gap(rems(1.125))
+            .child(div().flex().items_center().gap(rems(0.625))
+                .child(icon(IconName::TriangleAlert).size(rems(1.25)).text_color(t.danger))
                 .child(dialog_title("Reset workspace settings?", cx)))
             .child(dialog_description(format!("The custom name “{}” will be replaced with “Personal workspace”. Your files will stay in place.", self.saved_workspace), cx))
-            .child(div().flex().justify_end().gap(px(8.))
+            .child(div().flex().justify_end().gap(rems(0.5))
                 .child(dialog_button(if modal { "modal-cancel" } else { "specimen-cancel" }, "Cancel", ButtonVariant::Secondary, cx)
                     .on_click(cx.listener(move |this, _, window, cx| {
                         if modal { window.dispatch_action(Box::new(gpui_kit::base::actions::Cancel), cx); }
@@ -633,8 +692,8 @@ impl Gallery {
                     .flex()
                     .flex_wrap()
                     .justify_between()
-                    .gap(px(8.))
-                    .py(px(10.))
+                    .gap(rems(0.5))
+                    .py(rems(0.625))
                     .border_b_1()
                     .border_color(t.divider())
                     .child(title)
@@ -682,17 +741,22 @@ impl Gallery {
                     .flex()
                     .flex_wrap()
                     .items_start()
-                    .gap(px(24.))
-                    .child(div().w(px(420.)).max_w(gpui_kit::relative(1.)).child(form))
+                    .gap(rems(1.5))
                     .child(
                         div()
-                            .w(px(220.))
+                            .w(rems(26.25))
+                            .max_w(gpui_kit::relative(1.))
+                            .child(form),
+                    )
+                    .child(
+                        div()
+                            .w(rems(13.75))
                             .flex()
                             .flex_col()
-                            .gap(px(18.))
+                            .gap(rems(1.125))
                             .child(
                                 div()
-                                    .text_size(px(13.))
+                                    .text_size(rems(0.8125))
                                     .font_weight(FontWeight::BOLD)
                                     .child("Preferences"),
                             )
@@ -724,7 +788,7 @@ impl Gallery {
                             .child(separator(cx))
                             .child(
                                 div()
-                                    .text_size(px(13.))
+                                    .text_size(rems(0.8125))
                                     .font_weight(FontWeight::BOLD)
                                     .child("Theme"),
                             )
@@ -736,15 +800,15 @@ impl Gallery {
                             ),
                     ),
             )
-            .child(div().mt(px(18.)).w_full().child(separator(cx)))
+            .child(div().mt(rems(1.125)).w_full().child(separator(cx)))
             .child(
                 div()
-                    .text_size(px(13.))
+                    .text_size(rems(0.8125))
                     .font_weight(FontWeight::BOLD)
                     .child("Explore components"),
             )
             .child(
-                div().flex().flex_wrap().gap(px(8.)).children(
+                div().flex().flex_wrap().gap(rems(0.5)).children(
                     [
                         ("button", "Buttons"),
                         ("input", "Text fields"),
@@ -779,13 +843,13 @@ impl Gallery {
         content = content
             .child(
                 div()
-                    .w(px(360.))
+                    .w(rems(22.5))
                     .max_w(gpui_kit::relative(1.))
-                    .p(px(14.))
+                    .p(rems(0.875))
                     .bg(t.normal_fill())
                     .flex()
                     .flex_col()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child(self.saved_workspace.clone())
                     .child("Documents")
                     .child("Projects")
@@ -801,7 +865,7 @@ impl Gallery {
                     ButtonVariant::Secondary,
                     cx,
                 )
-                .child(icon(IconName::ChevronDown).size(px(14.))),
+                .child(icon(IconName::ChevronDown).size(rems(0.875))),
                 move |_, _, cx| {
                     let checked = target.read(cx).checked;
                     let enabled = target.read(cx).enabled;
@@ -810,7 +874,7 @@ impl Gallery {
                     div()
                         .flex()
                         .flex_col()
-                        .gap(px(14.))
+                        .gap(rems(0.875))
                         .child(div().font_weight(FontWeight::BOLD).child("Display options"))
                         .child(
                             checkbox(
@@ -864,19 +928,19 @@ impl Gallery {
         content = content
             .child(
                 div()
-                    .w(px(360.))
+                    .w(rems(22.5))
                     .max_w(gpui_kit::relative(1.))
-                    .p(px(14.))
+                    .p(rems(0.875))
                     .bg(t.normal_fill())
                     .flex()
                     .items_center()
-                    .gap(px(14.))
+                    .gap(rems(0.875))
                     .child(
                         div()
                             .flex_1()
                             .flex()
                             .flex_col()
-                            .gap(px(6.))
+                            .gap(rems(0.375))
                             .child(self.saved_workspace.clone())
                             .child(div().text_color(t.secondary).child(if self.pressed {
                                 "In favorites"
@@ -901,7 +965,7 @@ impl Gallery {
                     .text_color(t.secondary)
                     .child("Hover the star for its action. Tab and Return also activate it."),
             )
-            .child(div().mt(px(14.)).child("Tooltip appearance"))
+            .child(div().mt(rems(0.875)).child("Tooltip appearance"))
             .child(tooltip("Add to favorites", cx));
         content
     }
@@ -1040,7 +1104,7 @@ impl Gallery {
                     .overflow_x_scroll()
                     .child(
                         table("projects", cx)
-                            .min_w(px(640.))
+                            .min_w(rems(40.))
                             .child(gpui_kit::base::TableHeader::new("head").child(heading))
                             .child(gpui_kit::base::TableBody::new("body").children(
                                 records.into_iter().enumerate().map(
@@ -1091,8 +1155,8 @@ impl Gallery {
                     .flex()
                     .flex_wrap()
                     .items_center()
-                    .gap(px(8.))
-                    .child(div().w(px(90.)).text_color(t.secondary).child(label))
+                    .gap(rems(0.5))
+                    .child(div().w(rems(5.625)).text_color(t.secondary).child(label))
                     .child(button(key, "Apply", variant, cx).on_click(cx.listener(
                         |this, _, _, cx| {
                             this.count += 1;
@@ -1117,11 +1181,11 @@ impl Gallery {
                     .flex()
                     .flex_wrap()
                     .items_center()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child(
                         button("icon-action", "", ButtonVariant::Outline, cx)
                             .accessibility_label("Add workspace")
-                            .child(icon(IconName::Plus).size(px(14.)))
+                            .child(icon(IconName::Plus).size(rems(0.875)))
                             .child("Add workspace")
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.count += 1;
@@ -1131,7 +1195,7 @@ impl Gallery {
                     .child(with_tooltip(
                         button("icon-only", "", ButtonVariant::Outline, cx)
                             .accessibility_label("Add workspace")
-                            .child(icon(IconName::Plus).size(px(14.)))
+                            .child(icon(IconName::Plus).size(rems(0.875)))
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.count += 1;
                                 cx.notify();
@@ -1141,7 +1205,7 @@ impl Gallery {
                     .child(
                         button("icon-disabled", "", ButtonVariant::Outline, cx)
                             .accessibility_label("Add workspace unavailable")
-                            .child(icon(IconName::Plus).size(px(14.)))
+                            .child(icon(IconName::Plus).size(rems(0.875)))
                             .disabled(true),
                     )
                     .child(
@@ -1176,6 +1240,7 @@ impl Gallery {
                 .map(|&label| ChoiceItem::new(label, label))
                 .collect(),
             Some(self.tab),
+            false,
             move |index, _, cx| {
                 target.update(cx, |this, cx| {
                     this.tab = index;
@@ -1190,10 +1255,10 @@ impl Gallery {
             .role(gpui_kit::Role::TabPanel)
             .flex()
             .flex_col()
-            .gap(px(14.))
-            .p(px(14.))
+            .gap(rems(0.875))
+            .p(rems(0.875))
             .w_full()
-            .min_h(px(240.))
+            .min_h(rems(15.))
             .bg(t.normal_fill());
         match self.tab {
             0 => {
@@ -1217,10 +1282,10 @@ impl Gallery {
                         div()
                             .flex()
                             .justify_between()
-                            .gap(px(14.))
+                            .gap(rems(0.875))
                             .border_b_1()
                             .border_color(t.divider())
-                            .pb(px(10.))
+                            .pb(rems(0.625))
                             .child(name)
                             .child(div().text_color(t.secondary).child(detail)),
                     );
@@ -1247,10 +1312,10 @@ impl Gallery {
                         div()
                             .flex()
                             .justify_between()
-                            .gap(px(14.))
+                            .gap(rems(0.875))
                             .border_b_1()
                             .border_color(t.divider())
-                            .pb(px(10.))
+                            .pb(rems(0.625))
                             .child(event)
                             .child(div().text_color(t.secondary).child(time)),
                     );
@@ -1261,7 +1326,7 @@ impl Gallery {
                     .child("Workspace name")
                     .child(
                         input("tab-workspace-name", &self.workspace_name, window, cx)
-                            .max_w(px(360.)),
+                            .max_w(rems(22.5)),
                     )
                     .child(
                         switch("tab-sync", "Sync workspace", self.enabled, cx)
@@ -1284,58 +1349,66 @@ impl Gallery {
     fn render_resizable_example(
         &mut self,
         mut content: gpui_kit::Div,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> gpui_kit::Div {
         let t = cx.omarchy().clone();
-        content = content.child("Horizontal").child(div().w_full().h(px(300.)).border_1().border_color(t.border)
+        content = content.child("Horizontal").child(div().w_full().h(rems(18.75)).border_1().border_color(t.border)
                     .child(resizable("workspace-panes", gpui_kit::Axis::Horizontal, cx)
-                        .child(resizable_panel().size(px(220.)).size_range(px(140.)..px(420.))
-                            .child(div().size_full().p(px(14.)).flex().flex_col().gap(px(10.))
+                        .child(resizable_panel().size(rems(13.75).to_pixels(window.rem_size())).size_range(rems(8.75).to_pixels(window.rem_size())..rems(26.25).to_pixels(window.rem_size()))
+                            .child(div().size_full().p(rems(0.875)).flex().flex_col().gap(rems(0.625))
                                 .child("Documents").child("Project brief.md").child("Meeting notes.md")))
-                        .child(resizable_panel().size_range(px(180.)..px(1600.))
-                            .child(div().size_full().p(px(14.)).flex().flex_col().gap(px(14.))
+                        .child(resizable_panel().size_range(rems(11.25).to_pixels(window.rem_size())..rems(100.0).to_pixels(window.rem_size()))
+                            .child(div().size_full().p(rems(0.875)).flex().flex_col().gap(rems(0.875))
                                 .child(div().font_weight(FontWeight::BOLD).child("Project brief"))
                                 .child("A focused desktop workspace for files, notes and project activity.")
                                 .child(div().text_color(t.secondary).child("Drag the divider to give this preview more room."))))));
         content = content.child("Vertical").child(
             div()
                 .w_full()
-                .h(px(240.))
+                .h(rems(15.))
                 .border_1()
                 .border_color(t.border)
                 .child(
                     resizable("preview-console", gpui_kit::Axis::Vertical, cx)
                         .child(
                             resizable_panel()
-                                .size(px(140.))
-                                .size_range(px(80.)..px(180.))
+                                .size(rems(8.75).to_pixels(window.rem_size()))
+                                .size_range(
+                                    rems(5.0).to_pixels(window.rem_size())
+                                        ..rems(11.25).to_pixels(window.rem_size()),
+                                )
                                 .child(
                                     div()
                                         .size_full()
-                                        .p(px(14.))
+                                        .p(rems(0.875))
                                         .flex()
                                         .flex_col()
-                                        .gap(px(10.))
+                                        .gap(rems(0.625))
                                         .child("Preview")
                                         .child("The workspace is ready for review."),
                                 ),
                         )
                         .child(
-                            resizable_panel().size_range(px(60.)..px(160.)).child(
-                                div()
-                                    .size_full()
-                                    .p(px(14.))
-                                    .flex()
-                                    .flex_col()
-                                    .gap(px(10.))
-                                    .child("Activity")
-                                    .child(
-                                        div()
-                                            .text_color(t.secondary)
-                                            .child("All changes saved · No pending tasks"),
-                                    ),
-                            ),
+                            resizable_panel()
+                                .size_range(
+                                    rems(3.75).to_pixels(window.rem_size())
+                                        ..rems(10.0).to_pixels(window.rem_size()),
+                                )
+                                .child(
+                                    div()
+                                        .size_full()
+                                        .p(rems(0.875))
+                                        .flex()
+                                        .flex_col()
+                                        .gap(rems(0.625))
+                                        .child("Activity")
+                                        .child(
+                                            div()
+                                                .text_color(t.secondary)
+                                                .child("All changes saved · No pending tasks"),
+                                        ),
+                                ),
                         ),
                 ),
         );
@@ -1362,8 +1435,8 @@ impl Gallery {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(10.))
-                    .pb(px(10.))
+                    .gap(rems(0.625))
+                    .pb(rems(0.625))
                     .border_b_1()
                     .border_color(t.divider())
                     .child(avatar(initials, cx).when(initials == "HL", |avatar| {
@@ -1379,19 +1452,19 @@ impl Gallery {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(14.))
+                    .gap(rems(0.875))
                     .child(
                         avatar("HL", cx)
                             .image(avatar_image(gallery_avatar()))
-                            .size(px(24.))
-                            .text_size(px(10.)),
+                            .size(rems(1.5))
+                            .text_size(rems(0.625)),
                     )
                     .child(avatar("HL", cx).image(avatar_image(gallery_avatar())))
                     .child(
                         avatar("HL", cx)
                             .image(avatar_image(gallery_avatar()))
-                            .size(px(48.))
-                            .text_size(px(16.)),
+                            .size(rems(3.))
+                            .text_size(rems(1.)),
                     ),
             );
         content
@@ -1408,7 +1481,7 @@ impl Gallery {
                         div()
                             .flex()
                             .items_center()
-                            .gap(px(8.))
+                            .gap(rems(0.5))
                             .child(
                                 button("nav-back", "Back", ButtonVariant::Outline, cx)
                                     .debug_selector(|| "nav-back".into())
@@ -1437,7 +1510,7 @@ impl Gallery {
                                 },
                             )),
                     )
-                    .child(nav_stack(&self.nav_state, cx).h(px(340.)))
+                    .child(nav_stack(&self.nav_state, cx).h(rems(21.25)))
                     .child(div().text_color(t.secondary).child(
                         "Try it: open Website refresh, open its task, edit the note, then go Back and Forward. Your note stays on the task page.",
                     ));
@@ -1459,7 +1532,7 @@ impl Gallery {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child(
                         button("advance", "Advance 10%", ButtonVariant::Primary, cx).on_click(
                             cx.listener(|this, _, _, cx| {
@@ -1539,7 +1612,7 @@ impl Gallery {
             div()
                 .flex()
                 .items_center()
-                .gap(px(8.))
+                .gap(rems(0.5))
                 .child(keycap("Tab", cx))
                 .child("Next control")
                 .child(keycap("Return", cx))
@@ -1559,12 +1632,17 @@ impl Gallery {
             .child("Appearance")
             .child(separator(cx))
             .child("Keyboard")
-            .child(div().mt(px(14.)).text_color(t.secondary).child("Vertical"))
+            .child(
+                div()
+                    .mt(rems(0.875))
+                    .text_color(t.secondary)
+                    .child("Vertical"),
+            )
             .child(
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(10.))
+                    .gap(rems(0.625))
                     .child(
                         button("separator-add", "Add", ButtonVariant::Secondary, cx).on_click(
                             cx.listener(|this, _, _, cx| {
@@ -1660,8 +1738,8 @@ impl Gallery {
         let color = self.color_state.read(cx).value().unwrap_or(t.accent);
         content = content.child("Project label color")
                     .child(color_picker("project-color", &self.color_state, window, cx))
-                    .child(div().flex().items_center().gap(px(10.))
-                        .child(div().size(px(20.)).bg(color))
+                    .child(div().flex().items_center().gap(rems(0.625))
+                        .child(div().size(rems(1.25)).bg(color))
                         .child("Website refresh"))
                     .child(div().text_color(t.secondary).child("The swatch shows the committed label color. Escape discards an unconfirmed Hex edit."));
         content
@@ -1675,7 +1753,7 @@ impl Gallery {
         let t = cx.omarchy().clone();
         content = content
             .child("Workspace files")
-            .child(tree(&self.tree_state, cx).max_w(px(440.)))
+            .child(tree(&self.tree_state, cx).max_w(rems(27.5)))
             .child(
                 div().text_color(t.secondary).child(
                     self.tree_state
@@ -1702,10 +1780,10 @@ impl Gallery {
         content = content
                     .child(button("reset-dock", "Reset layout", ButtonVariant::Outline, cx)
                         .on_click(cx.listener(|this, _, window, cx| {
-                            let layout = demo_dock_layout(cx);
+                            let layout = demo_dock_layout(window, cx);
                             this.dock_state.update(cx, |state, cx| state.set_center(layout, window, cx));
                         })))
-                    .child(div().w_full().h(px(360.)).child(self.dock_state.clone()))
+                    .child(div().w_full().h(rems(22.5)).child(self.dock_state.clone()))
                     .child(div().text_color(t.secondary).child("Drag tabs to merge or split panes. Drag a divider to resize. Reset layout restores all three panels."));
         content
     }
@@ -1723,14 +1801,14 @@ impl Gallery {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child(avatar("AL", cx))
                     .child("Alex Lee"),
                 |_, _, cx| {
                     div()
                         .flex()
                         .flex_col()
-                        .gap(px(10.))
+                        .gap(rems(0.625))
                         .child(div().font_weight(FontWeight::BOLD).child("Alex Lee"))
                         .child("Design engineer · Workspace owner")
                         .child(
@@ -1769,7 +1847,7 @@ impl Gallery {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child(
                         button("reset-otp", "Reset code", ButtonVariant::Outline, cx)
                             .disabled(self.otp_disabled)
@@ -1902,7 +1980,7 @@ impl Gallery {
             }))
             .flex()
             .flex_col()
-            .gap(px(4.));
+            .gap(rems(0.25));
         for (index, label) in ["Compact", "Comfortable", "Spacious"]
             .into_iter()
             .enumerate()
@@ -1927,10 +2005,10 @@ impl Gallery {
                     }))),
             );
         }
-        let row_height = [28., 36., 44.][self.choice];
+        let row_height = [1.75, 2.25, 2.75][self.choice];
         let mut preview = div()
             .w_full()
-            .max_w(px(420.))
+            .max_w(rems(26.25))
             .border_1()
             .border_color(theme.border)
             .flex()
@@ -1946,8 +2024,8 @@ impl Gallery {
             preview = preview.child(
                 div()
                     .debug_selector(move || format!("density-preview-{index}"))
-                    .h(px(row_height))
-                    .px(px(10.))
+                    .h(rems(row_height))
+                    .px(rems(0.625))
                     .flex()
                     .items_center()
                     .justify_between()
@@ -1961,7 +2039,7 @@ impl Gallery {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child("List density")
                     .child(options),
             )
@@ -1969,7 +2047,7 @@ impl Gallery {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child("Preview")
                     .child(preview),
             )
@@ -2046,7 +2124,7 @@ impl Gallery {
     ) -> gpui_kit::Div {
         content = content
             .child("Workspace notes")
-            .child(textarea("notes", &self.textarea, window, cx).max_w(px(520.)))
+            .child(textarea("notes", &self.textarea, window, cx).max_w(rems(32.5)))
             .child("Supports multiple lines, selection, clipboard and IME");
         content
     }
@@ -2058,12 +2136,22 @@ impl Gallery {
     ) -> gpui_kit::Div {
         content = content
             .child("Workspace name")
-            .child(input("workspace-name", &self.input, window, cx).max_w(px(380.)))
+            .child(
+                input("workspace-name", &self.input, window, cx)
+                    .prefix(icon(IconName::Settings).size(rems(0.875)))
+                    .max_w(rems(23.75)),
+            )
+            .child("Quantity")
+            .child(
+                input("quantity-with-unit", &self.number, window, cx)
+                    .suffix("shares")
+                    .max_w(rems(23.75)),
+            )
             .child(
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child(
                         button("submit-input", "Read value", ButtonVariant::Primary, cx).on_click(
                             cx.listener(|this, _, _, cx| {
@@ -2222,14 +2310,14 @@ impl Gallery {
     fn render_notifications(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         div()
             .absolute()
-            .right(px(14.))
-            .bottom(px(48.))
-            .w(px(320.))
+            .right(rems(0.875))
+            .bottom(rems(3.))
+            .w(rems(20.))
             .id("notification-stack")
             .track_focus(&self.toast_focus)
             .flex()
             .flex_col()
-            .gap(px(8.))
+            .gap(rems(0.5))
             .occlude()
             .on_hover(cx.listener(|this, hovered, _, _| this.toast_hovered = *hovered))
             .children(
@@ -2251,14 +2339,14 @@ impl Gallery {
                                 div()
                                     .flex()
                                     .items_center()
-                                    .gap(px(10.))
+                                    .gap(rems(0.625))
                                     .child(
                                         icon(if id == 1 {
                                             IconName::TriangleAlert
                                         } else {
                                             IconName::Check
                                         })
-                                        .size(px(16.)),
+                                        .size(rems(1.)),
                                     )
                                     .child(div().flex_1().child(message))
                                     .child(
@@ -2268,12 +2356,12 @@ impl Gallery {
                                             ButtonVariant::Secondary,
                                             cx,
                                         )
-                                        .size(px(18.))
-                                        .p(px(0.))
+                                        .size(rems(1.125))
+                                        .p(rems(0.))
                                         .flex_shrink_0()
                                         .debug_selector(|| "dismiss-toast".into())
                                         .accessibility_label("Dismiss notification")
-                                        .child(icon(IconName::Close).size(px(14.)))
+                                        .child(icon(IconName::Close).size(rems(0.875)))
                                         .on_click(
                                             cx.listener(move |this, _, _, cx| {
                                                 this.dismiss_toast_id(id, cx)
@@ -2327,7 +2415,7 @@ impl Gallery {
                 div()
                     .flex()
                     .flex_wrap()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child(
                         button("show-toast", "Save workspace", ButtonVariant::Outline, cx)
                             .on_click(cx.listener(|this, _, _, cx| {
@@ -2380,7 +2468,7 @@ impl Gallery {
                                 } else {
                                     IconName::ChevronRight
                                 })
-                                .size(px(14.)),
+                                .size(rems(0.875)),
                             )
                             .child("Advanced settings")
                             .on_click(cx.listener(|this, _, _, cx| {
@@ -2392,8 +2480,8 @@ impl Gallery {
                         div()
                             .flex()
                             .flex_col()
-                            .gap(px(14.))
-                            .p(px(14.))
+                            .gap(rems(0.875))
+                            .p(rems(0.875))
                             .bg(t.normal_fill())
                             .child("Workspace synchronization")
                             .child(
@@ -2435,7 +2523,7 @@ impl Gallery {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child(icon(glyph))
                     .child(name),
             );
@@ -2474,7 +2562,7 @@ impl Gallery {
         content = content
             .child(
                 div()
-                    .text_size(px(13.))
+                    .text_size(rems(0.8125))
                     .font_weight(FontWeight::BOLD)
                     .child(if alert {
                         "Destructive confirmation"
@@ -2487,13 +2575,13 @@ impl Gallery {
             } else {
                 "A short task with visible labels and outline actions."
             }))
-            .child(dialog_popup(cx).w(px(460.)).child(specimen))
+            .child(dialog_popup(cx).w(rems(28.75)).child(specimen))
             .child(
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(12.))
-                    .mt(px(6.))
+                    .gap(rems(0.75))
+                    .mt(rems(0.375))
                     .child(
                         dialog_button(
                             "open-modal",
@@ -2538,7 +2626,7 @@ impl Gallery {
                 .id("modal-surface")
                 .occlude()
                 .max_w(gpui_kit::relative(0.9))
-                .child(dialog_popup(cx).w(px(460.)).child(body));
+                .child(dialog_popup(cx).w(rems(28.75)).child(body));
             let close = cx.listener(|this, confirmed: &bool, window, cx| {
                 this.modal_open = false;
                 if *confirmed {
@@ -2611,11 +2699,11 @@ impl Gallery {
         content = content
             .child(
                 div()
-                    .w(px(360.))
+                    .w(rems(22.5))
                     .max_w(gpui_kit::relative(1.))
                     .flex()
                     .flex_col()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child(if searchable {
                         "Find a workspace"
                     } else {
@@ -2627,16 +2715,16 @@ impl Gallery {
                             .text_color(t.secondary)
                             .child("Archived workspaces cannot be selected."),
                     )
-                    .child(div().mt(px(12.)).child(format!("Selected: {selected}"))),
+                    .child(div().mt(rems(0.75)).child(format!("Selected: {selected}"))),
             )
-            .child(div().mt(px(18.)).w_full().child(separator(cx)))
+            .child(div().mt(rems(1.125)).w_full().child(separator(cx)))
             .child(
                 div()
-                    .w(px(360.))
+                    .w(rems(22.5))
                     .max_w(gpui_kit::relative(1.))
                     .flex()
                     .flex_col()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child("Managed workspace")
                     .child(disabled)
                     .child(
@@ -2686,13 +2774,18 @@ impl Gallery {
 }
 
 impl Gallery {
-    fn render_text_view(&self, content: gpui_kit::Div, cx: &App) -> gpui_kit::Div {
-        content.child(markdown("project-brief", "## Website refresh\n\nA clearer home for our **project documentation**. Keep navigation simple and preserve the reading experience.\n\n### Before launch\n\n- Review the introduction and installation steps.\n- Verify keyboard navigation in both themes.\n- Publish the release notes.\n\n> Changes should make the next step easier to understand.\n\nRun the gallery locally:\n\n```sh\ncargo run --example gallery\n```\n\nRead the [project source](https://github.com/huacnlee/gpui-omarchy) for usage examples.", cx))
+    fn render_text_view(&self, content: gpui_kit::Div, window: &Window, cx: &App) -> gpui_kit::Div {
+        content.child(markdown("project-brief", "## Website refresh\n\nA clearer home for our **project documentation**. Keep navigation simple and preserve the reading experience.\n\n### Before launch\n\n- Review the introduction and installation steps.\n- Verify keyboard navigation in both themes.\n- Publish the release notes.\n\n> Changes should make the next step easier to understand.\n\nRun the gallery locally:\n\n```sh\ncargo run --example gallery\n```\n\nRead the [project source](https://github.com/huacnlee/gpui-omarchy) for usage examples.", window, cx))
             .child(separator(cx))
-            .child(html("release-summary", "<h3>Release summary</h3><p><strong>Ready for review.</strong> The documentation is complete; launch follows the final keyboard check.</p><p><em>Updated by Alex Lee</em></p>", cx))
+            .child(html("release-summary", "<h3>Release summary</h3><p><strong>Ready for review.</strong> The documentation is complete; launch follows the final keyboard check.</p><p><em>Updated by Alex Lee</em></p>", window, cx))
     }
 
-    fn render_horizontal_scrollbar(&self, content: gpui_kit::Div, cx: &App) -> gpui_kit::Div {
+    fn render_horizontal_scrollbar(
+        &self,
+        content: gpui_kit::Div,
+        window: &Window,
+        cx: &App,
+    ) -> gpui_kit::Div {
         let t = cx.omarchy();
         content
             .child("Project timeline · Scroll horizontally")
@@ -2707,11 +2800,11 @@ impl Gallery {
                         div()
                             .id("timeline-scroll")
                             .w_full()
-                            .h(px(76.))
+                            .h(rems(4.75))
                             .overflow_x_scroll()
                             .track_scroll(&self.timeline_scroll)
                             .child(
-                                div().flex().w(px(1440.)).h(px(64.)).children(
+                                div().flex().w(rems(90.)).h(rems(4.)).children(
                                     [
                                         "Brief",
                                         "Research",
@@ -2726,15 +2819,15 @@ impl Gallery {
                                     .enumerate()
                                     .map(|(index, name)| {
                                         div()
-                                            .w(px(180.))
+                                            .w(rems(11.25))
                                             .flex_shrink_0()
                                             .h_full()
-                                            .p(px(10.))
+                                            .p(rems(0.625))
                                             .border_r_1()
                                             .border_color(t.divider())
                                             .flex()
                                             .flex_col()
-                                            .gap(px(4.))
+                                            .gap(rems(0.25))
                                             .child(name)
                                             .child(
                                                 div()
@@ -2749,6 +2842,7 @@ impl Gallery {
                         "timeline-scrollbar",
                         gpui_kit::base::ScrollbarAxis::Horizontal,
                         &self.timeline_scroll,
+                        window,
                         cx,
                     )),
             )
@@ -2757,10 +2851,15 @@ impl Gallery {
     fn render_activity_list(
         &mut self,
         mut content: gpui_kit::Div,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> gpui_kit::Div {
+        if self.activity_rem_size != window.rem_size() {
+            self.activity_rem_size = window.rem_size();
+            self.activity_sizes = activity_sizes(window);
+        }
         content = content.child("Sample activity · 1,000 events").child(
-            div().flex().gap(px(8.)).children(
+            div().flex().gap(rems(0.5)).children(
                 [
                     ("activity-first", "First event", 0),
                     ("activity-last", "Last event", 999),
@@ -2790,7 +2889,7 @@ impl Gallery {
                             .debug_selector(move || format!("activity-row-{index}"))
                             .h(this.activity_sizes[index].height)
                             .w_full()
-                            .px(px(10.))
+                            .px(rems(0.625))
                             .flex()
                             .flex_col()
                             .justify_center()
@@ -2810,7 +2909,7 @@ impl Gallery {
         .track_scroll(&self.activity_scroll);
         content.child(div().relative().w_full().border_1().border_color(cx.omarchy().border)
             .debug_selector(|| "activity-viewport".into()).child(list)
-            .child(scrollbar("activity-scrollbar", gpui_kit::base::ScrollbarAxis::Vertical, &self.activity_scroll, cx)))
+            .child(scrollbar("activity-scrollbar", gpui_kit::base::ScrollbarAxis::Vertical, &self.activity_scroll, window, cx)))
             .child(div().text_color(cx.omarchy().secondary).child("Scroll through the log or jump to either end. Longer events keep their full description."))
     }
 }
@@ -2824,7 +2923,7 @@ impl Render for Gallery {
             .flex_col()
             .items_start()
             .w_full()
-            .gap(px(14.))
+            .gap(rems(0.875))
             .min_w_0();
         match self.page {
             "overview" => {
@@ -2960,12 +3059,12 @@ impl Render for Gallery {
                     .child(div().text_color(t.secondary).child("Inspect the project without leaving this page. Close the panel or press Escape to return."));
             }
             "text_view" => {
-                content = self.render_text_view(content, cx);
+                content = self.render_text_view(content, window, cx);
             }
             "virtual_list" | "scrollbar" => {
-                content = self.render_activity_list(content, cx);
+                content = self.render_activity_list(content, window, cx);
                 if self.page == "scrollbar" {
-                    content = self.render_horizontal_scrollbar(content, cx);
+                    content = self.render_horizontal_scrollbar(content, window, cx);
                 }
             }
             "progress" => {
@@ -2973,22 +3072,23 @@ impl Render for Gallery {
             }
             _ => unreachable!(),
         }
-        let sidebar_width = if window.viewport_size().width < px(700.) {
-            148.
-        } else {
-            196.
-        };
+        let sidebar_width =
+            if window.viewport_size().width < rems(43.75).to_pixels(window.rem_size()) {
+                9.25
+            } else {
+                12.25
+            };
         let navigation = div()
             .id("component-sidebar")
             .track_focus(&self.navigation_focus)
-            .w(px(sidebar_width))
+            .w(rems(sidebar_width))
             .h_full()
             .flex_shrink_0()
             .overflow_hidden()
             .border_r_1()
             .border_color(t.divider())
             .bg(t.background)
-            .p(px(8.))
+            .p(rems(0.5))
             .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
                 if event.keystroke.modifiers.modified() {
                     return;
@@ -3025,24 +3125,24 @@ impl Render for Gallery {
                             let t = cx.omarchy().clone();
                             if header {
                                 return div()
-                                    .mt(px(if index == 0 { 0. } else { 12. }))
-                                    .mb(px(2.))
-                                    .px(px(8.))
-                                    .py(px(6.))
-                                    .text_size(px(10.))
+                                    .mt(rems(if index == 0 { 0. } else { 0.75 }))
+                                    .mb(rems(0.125))
+                                    .px(rems(0.5))
+                                    .py(rems(0.375))
+                                    .text_size(rems(0.625))
                                     .font_weight(FontWeight::BOLD)
                                     .text_color(t.secondary)
                                     .child(name)
                                     .into_any_element();
                             }
                             div()
-                                .pb(px(2.))
+                                .pb(rems(0.125))
                                 .child(
                                     button(name, display_name(name), ButtonVariant::Secondary, cx)
                                         .w_full()
                                         .justify_start()
-                                        .px(px(8.))
-                                        .py(px(5.))
+                                        .px(rems(0.5))
+                                        .py(rems(0.3125))
                                         .border_color(t.foreground.opacity(0.))
                                         .selected(this.page == name)
                                         .focusable(false)
@@ -3067,6 +3167,21 @@ impl Render for Gallery {
                 .size_full(),
             );
         focus_scope("gallery")
+            .capture_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                let modifiers = event.keystroke.modifiers;
+                if !(modifiers.platform || modifiers.control) || modifiers.alt {
+                    return;
+                }
+                let current = this.zoom_percent(window);
+                let next = match event.keystroke.key.as_str() {
+                    "+" | "=" => current.saturating_add(25),
+                    "-" => current.saturating_sub(25),
+                    "0" => 100,
+                    _ => return,
+                };
+                this.set_zoom(next, window, cx);
+                cx.stop_propagation();
+            }))
             .relative()
             .debug_selector(|| "gallery-root".into())
             .size_full()
@@ -3075,21 +3190,21 @@ impl Render for Gallery {
             .bg(t.background)
             .text_color(t.foreground)
             .font_family(t.font.clone())
-            .text_size(px(12.))
+            .text_size(rems(0.75))
             .child(
                 div()
                     .flex()
                     .flex_wrap()
                     .items_center()
                     .justify_between()
-                    .gap(px(8.))
-                    .px(px(14.))
-                    .py(px(10.))
+                    .gap(rems(0.5))
+                    .px(rems(0.875))
+                    .py(rems(0.625))
                     .border_b_1()
                     .border_color(t.divider())
                     .child(
                         div()
-                            .text_size(px(14.))
+                            .text_size(rems(0.875))
                             .font_weight(FontWeight::BOLD)
                             .flex_1()
                             .on_mouse_down(gpui_kit::MouseButton::Left, |_, window, _| {
@@ -3097,6 +3212,7 @@ impl Render for Gallery {
                             })
                             .child("GPUI Omarchy"),
                     )
+                    .child(self.render_zoom_controls(window, cx))
                     .child(
                         menu(
                             "application-menu",
@@ -3108,7 +3224,7 @@ impl Render for Gallery {
                                     cx,
                                 )
                                 .styles(|styles| styles.selected(|style| style.bg(t.border)))
-                                .child(icon(IconName::ChevronDown).size(px(14.))),
+                                .child(icon(IconName::ChevronDown).size(rems(0.875))),
                                 "Appearance and application commands",
                             ),
                             vec![
@@ -3154,21 +3270,21 @@ impl Render for Gallery {
                         .min_w_0()
                         .h_full()
                         .overflow_y_scroll()
-                        .p(px(28.))
+                        .p(rems(1.75))
                         .child(
                             div()
                                 .flex()
                                 .flex_col()
-                                .gap(px(14.))
-                                .max_w(px(760.))
+                                .gap(rems(0.875))
+                                .max_w(rems(47.5))
                                 .child(
                                     div()
-                                        .text_size(px(16.))
+                                        .text_size(rems(1.))
                                         .font_weight(FontWeight::BOLD)
                                         .child(display_name(self.page)),
                                 )
                                 .child(div().text_color(t.secondary).child(description(self.page)))
-                                .child(div().mt(px(14.)).child(content)),
+                                .child(div().mt(rems(0.875)).child(content)),
                         ),
                 ),
             )
@@ -3177,8 +3293,8 @@ impl Render for Gallery {
                     .w_full()
                     .min_w_0()
                     .flex_shrink_0()
-                    .px(px(14.))
-                    .py(px(8.))
+                    .px(rems(0.875))
+                    .py(rems(0.5))
                     .border_t_1()
                     .border_color(t.divider())
                     .text_color(t.secondary)
@@ -3186,20 +3302,20 @@ impl Render for Gallery {
                     .flex_wrap()
                     .items_center()
                     .justify_between()
-                    .gap(px(8.))
+                    .gap(rems(0.5))
                     .child(div().child(
                         "↑↓ / j k  component · Tab / Shift + Tab  focus · Return / Space  activate",
                     ))
                     .child(
-                        div().flex().flex_1().min_w(px(320.)).justify_end().child(
+                        div().flex().flex_1().min_w(rems(20.)).justify_end().child(
                             link(
                                 "repository",
                                 "https://github.com/huacnlee/gpui-omarchy",
                                 "https://github.com/huacnlee/gpui-omarchy",
                                 cx,
                             )
-                            .py(px(0.))
-                            .px(px(0.))
+                            .py(rems(0.))
+                            .px(rems(0.))
                             .flex_shrink_0()
                             .debug_selector(|| "gallery-repository".into())
                             .text_color(t.secondary),
@@ -3216,7 +3332,7 @@ impl Render for Gallery {
     }
 }
 
-fn demo_dock_layout(cx: &mut App) -> gpui_kit::base::dock::DockLayout {
+fn demo_dock_layout(window: &Window, cx: &mut App) -> gpui_kit::base::dock::DockLayout {
     use gpui_kit::base::dock::DockLayout;
     let files = cx.new(|cx| DemoDockPanel {
         title: "Files",
@@ -3231,7 +3347,10 @@ fn demo_dock_layout(cx: &mut App) -> gpui_kit::base::dock::DockLayout {
         focus: cx.focus_handle(),
     });
     DockLayout::h_split()
-        .child(DockLayout::tabs().panel(files).panel(notes), Some(px(280.)))
+        .child(
+            DockLayout::tabs().panel(files).panel(notes),
+            Some(rems(17.5).to_pixels(window.rem_size())),
+        )
         .child(DockLayout::tabs().panel(preview), None)
 }
 
@@ -3254,10 +3373,10 @@ impl gpui_kit::Render for DemoDockPanel {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .size_full()
-            .p(px(14.))
+            .p(rems(0.875))
             .flex()
             .flex_col()
-            .gap(px(10.))
+            .gap(rems(0.625))
             .track_focus(&self.focus)
             .child(div().font_weight(FontWeight::BOLD).child(self.title))
             .children(
@@ -3316,13 +3435,13 @@ impl gpui_kit::Render for NavigationPage {
             .id("navigation-page")
             .size_full()
             .overflow_y_scroll()
-            .p(px(18.))
+            .p(rems(1.125))
             .flex()
             .flex_col()
-            .gap(px(14.))
+            .gap(rems(0.875))
             .child(
                 div()
-                    .text_size(px(16.))
+                    .text_size(rems(1.))
                     .font_weight(FontWeight::BOLD)
                     .child(title),
             )
@@ -3341,13 +3460,13 @@ impl gpui_kit::Render for NavigationPage {
                     .debug_selector(|| "nav-open".to_string())
                     .w_full()
                     .justify_between()
-                    .py(px(12.))
+                    .py(rems(0.75))
                     .child(
                         div()
                             .flex()
                             .flex_col()
                             .items_start()
-                            .gap(px(4.))
+                            .gap(rems(0.25))
                             .child(name)
                             .child(div().text_color(t.secondary).child(detail)),
                     )
@@ -3469,6 +3588,19 @@ fn change<T>(
     listener: impl Fn(&T, &mut Window, &mut App) + 'static,
 ) -> impl Fn(T, &ClickEvent, &mut Window, &mut App) {
     move |value, _, window, cx| listener(&value, window, cx)
+}
+
+fn activity_sizes(window: &Window) -> std::rc::Rc<Vec<gpui_kit::Size<gpui_kit::Pixels>>> {
+    std::rc::Rc::new(
+        (0..1000)
+            .map(|index| {
+                size(
+                    rems(25.).to_pixels(window.rem_size()),
+                    rems(if index % 5 == 0 { 2.75 } else { 1.75 }).to_pixels(window.rem_size()),
+                )
+            })
+            .collect(),
+    )
 }
 
 #[cfg(test)]
@@ -4236,19 +4368,118 @@ mod tests {
     }
 
     #[gpui_kit::test]
-    fn every_component_renders_in_both_themes(cx: &mut TestAppContext) {
+    fn zoom_controls_resize_rem_layout_and_reset(cx: &mut TestAppContext) {
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        view.update(cx, |this, cx| {
+            this.page = "virtual_list";
+            cx.notify();
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        for expected in [125, 150, 175, 200, 200] {
+            let point = cx.debug_bounds("zoom-in").unwrap().center();
+            cx.simulate_click(point, Default::default());
+            cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                assert_eq!(view.read(cx).zoom_percent(window), expected);
+            });
+            let row = cx.debug_bounds("activity-row-0").unwrap();
+            assert_eq!(row.size.height, px(44. * expected as f32 / 100.));
+        }
+        let reset = cx.debug_bounds("zoom-reset").unwrap().center();
+        cx.simulate_click(reset, Default::default());
+        cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+            assert_eq!(view.read(cx).zoom_percent(window), 100);
+        });
+        for expected in [75, 50, 50] {
+            let point = cx.debug_bounds("zoom-out").unwrap().center();
+            cx.simulate_click(point, Default::default());
+            cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                assert_eq!(view.read(cx).zoom_percent(window), expected);
+            });
+        }
+    }
+
+    #[gpui_kit::test]
+    fn zoom_shortcuts_work_while_editing_and_preserve_text(cx: &mut TestAppContext) {
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        cx.update(|window, cx| {
+            view.update(cx, |this, cx| {
+                this.page = "input";
+                this.input.update(cx, |state, cx| {
+                    state.set_value("Draft", window, cx);
+                    state.focus(window, cx);
+                });
+                cx.notify();
+            });
+            window.draw(cx).clear(cx);
+        });
+        let shortcuts = if cfg!(target_os = "macos") {
+            [
+                ("cmd-=", 125),
+                ("cmd--", 100),
+                ("cmd-=", 125),
+                ("cmd-0", 100),
+            ]
+        } else {
+            [
+                ("ctrl-=", 125),
+                ("ctrl--", 100),
+                ("ctrl-=", 125),
+                ("ctrl-0", 100),
+            ]
+        };
+        for (key, expected) in shortcuts {
+            cx.simulate_keystrokes(key);
+            cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                assert_eq!(view.read(cx).zoom_percent(window), expected);
+                assert_eq!(view.read(cx).input.read(cx).value().as_ref(), "Draft");
+            });
+        }
+    }
+
+    #[gpui_kit::test]
+    fn virtual_rows_are_remeasured_after_rem_changes(cx: &mut TestAppContext) {
+        cx.update(gpui_omarchy::init);
+        let (view, cx) = cx.add_window_view(Gallery::new);
+        for rem_size in [16., 24., 20.] {
+            cx.update(|window, cx| {
+                window.set_rem_size(px(rem_size));
+                view.update(cx, |this, cx| {
+                    this.page = "virtual_list";
+                    cx.notify();
+                });
+                window.draw(cx).clear(cx);
+            });
+            let first = cx.debug_bounds("activity-row-0").unwrap();
+            let second = cx.debug_bounds("activity-row-1").unwrap();
+            assert_eq!(first.size.height, px(2.75 * rem_size));
+            assert_eq!(second.size.height, px(1.75 * rem_size));
+            assert_eq!(first.bottom(), second.top());
+        }
+    }
+
+    #[gpui_kit::test]
+    fn every_component_renders_in_both_themes_and_at_multiple_rem_sizes(cx: &mut TestAppContext) {
         cx.update(gpui_omarchy::init);
         let (view, cx) = cx.add_window_view(Gallery::new);
         for theme in [Theme::tokyo_night(), Theme::flexoki_light()] {
             cx.update(|_, cx| theme.apply(cx));
-            for page in components() {
-                cx.update(|window, cx| {
-                    view.update(cx, |this, cx| {
-                        this.page = page;
-                        cx.notify();
+            for rem_size in [16., 20., 24.] {
+                for page in components() {
+                    cx.update(|window, cx| {
+                        window.set_rem_size(px(rem_size));
+                        view.update(cx, |this, cx| {
+                            this.page = page;
+                            cx.notify();
+                        });
+                        window.draw(cx).clear(cx);
                     });
-                    window.draw(cx).clear(cx);
-                });
+                }
             }
         }
     }

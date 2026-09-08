@@ -1,3 +1,4 @@
+use gpui_kit::rems;
 use gpui_kit::{
     Context, IntoElement, Modifiers, Render, TestAppContext, Window, div, point, prelude::*, px,
 };
@@ -11,9 +12,9 @@ struct Harness {
 impl Render for Harness {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let clicks = self.clicks.clone();
-        div().id("root").tab_group().size(px(200.)).child(
+        div().id("root").tab_group().size(rems(12.5)).child(
             button("apply", "Apply", ButtonVariant::Primary, cx)
-                .w(px(120.))
+                .w(rems(7.5))
                 .disabled(self.disabled)
                 .on_click(move |_, _, _| clicks.set(clicks.get() + 1)),
         )
@@ -113,7 +114,7 @@ struct MenuHarness(Rc<Cell<usize>>);
 impl Render for MenuHarness {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let selected = self.0.clone();
-        div().size(px(300.)).child(menu(
+        div().size(rems(18.75)).child(menu(
             "actions",
             button("trigger", "Actions", ButtonVariant::Secondary, cx),
             vec![

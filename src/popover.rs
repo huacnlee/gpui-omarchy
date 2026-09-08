@@ -1,7 +1,8 @@
 //! Contextual controls in an anchored, non-modal surface.
 use crate::ActiveTheme;
 use gpui_kit::base::{Popover, PopoverState};
-use gpui_kit::{App, Context, Div, ElementId, Window, div, prelude::*, px};
+use gpui_kit::rems;
+use gpui_kit::{App, Context, Div, ElementId, Window, div, prelude::*};
 
 pub(crate) fn init(cx: &mut App) {
     // Suppress the outer Popover toggle bindings inside its content. Deeper
@@ -38,17 +39,17 @@ pub fn popover_surface(cx: &App) -> Div {
     div()
         .flex()
         .flex_col()
-        .gap(px(14.))
-        .w(px(280.))
+        .gap(rems(0.875))
+        .w(rems(17.5))
         .max_w(gpui_kit::relative(1.))
-        .p(px(14.))
+        .p(rems(0.875))
         .border_1()
-        .rounded(px(0.))
+        .rounded_none()
         .border_color(t.border)
         .bg(t.background)
         .text_color(t.foreground)
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
 }
 
 #[cfg(test)]

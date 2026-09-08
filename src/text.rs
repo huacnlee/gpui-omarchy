@@ -1,10 +1,10 @@
 //! Read-only rich text using base's Markdown and HTML renderers.
 use crate::ActiveTheme;
 use gpui_kit::base::{TextView, TextViewStyle};
-use gpui_kit::{App, ElementId, SharedString, StyleRefinement, Styled, px, rems};
+use gpui_kit::{App, ElementId, SharedString, StyleRefinement, Styled, Window, rems};
 
 /// Theme mapping shared by Markdown, HTML and state-backed TextViews.
-pub fn text_view_style(cx: &App) -> TextViewStyle {
+pub fn text_view_style(window: &Window, cx: &App) -> TextViewStyle {
     let t = cx.omarchy();
     TextViewStyle::from_theme(&gpui_kit::base::Theme::global(cx))
         .with_foreground(t.foreground)
@@ -18,58 +18,71 @@ pub fn text_view_style(cx: &App) -> TextViewStyle {
             ..Default::default()
         })
         .with_paragraph_gap(rems(0.75))
-        .with_heading_base_font_size(px(12.))
-        .with_heading_font_size(|level, _| {
-            px(match level {
-                1 => 20.,
-                2 => 16.,
-                3 => 14.,
-                _ => 12.,
-            })
+        .with_heading_base_font_size(rems(0.75).to_pixels(window.rem_size()))
+        .with_heading_font_size(|level, base| {
+            base * match level {
+                1 => 5. / 3.,
+                2 => 4. / 3.,
+                3 => 7. / 6.,
+                _ => 1.,
+            }
         })
-        .with_code_block(StyleRefinement::default().p(px(10.)).rounded(px(0.)))
+        .with_code_block(StyleRefinement::default().p(rems(0.625)).rounded_none())
 }
 
-pub fn markdown(id: impl Into<ElementId>, source: impl Into<SharedString>, cx: &App) -> TextView {
+pub fn markdown(
+    id: impl Into<ElementId>,
+    source: impl Into<SharedString>,
+    window: &Window,
+    cx: &App,
+) -> TextView {
     TextView::markdown(id, source)
-        .style(text_view_style(cx))
+        .style(text_view_style(window, cx))
         .font_family(cx.omarchy().font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .selectable(true)
 }
 
-pub fn html(id: impl Into<ElementId>, source: impl Into<SharedString>, cx: &App) -> TextView {
+pub fn html(
+    id: impl Into<ElementId>,
+    source: impl Into<SharedString>,
+    window: &Window,
+    cx: &App,
+) -> TextView {
     TextView::html(id, source)
-        .style(text_view_style(cx))
+        .style(text_view_style(window, cx))
         .font_family(cx.omarchy().font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .selectable(true)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui_kit::px;
     use gpui_kit::{Context, IntoElement, Render, TestAppContext, Window, div, point, prelude::*};
 
     struct Document {
         html: bool,
     }
     impl Render for Document {
-        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
             let text = if self.html {
                 html(
                     "document",
                     "<p><a href=\"https://github.com/huacnlee/gpui-omarchy/issues\">Project source</a></p>",
+                    window,
                     cx,
                 )
             } else {
                 markdown(
                     "document",
                     "[Project source](https://github.com/huacnlee/gpui-omarchy)",
+                    window,
                     cx,
                 )
             };
-            div().w(px(320.)).child(text)
+            div().w(rems(20.)).child(text)
         }
     }
 

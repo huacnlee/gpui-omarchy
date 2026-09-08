@@ -5,9 +5,10 @@ use gpui_kit::base::{
     Toggle,
 };
 use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::rems;
 use gpui_kit::{
     App, ElementId, FontWeight, InteractiveElement, ParentElement, SharedString,
-    StatefulInteractiveElement, Styled, div, px,
+    StatefulInteractiveElement, Styled, div,
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -42,11 +43,11 @@ pub fn button(
     Button::new(id)
         .accessibility_label(label.clone())
         .when(!label.is_empty(), |button| button.child(label))
-        .py(px(6.))
-        .px(px(10.))
-        .gap(px(8.))
+        .py(rems(0.375))
+        .px(rems(0.625))
+        .gap(rems(0.5))
         .border_1()
-        .rounded(px(0.))
+        .rounded_none()
         .border_color(if variant == ButtonVariant::Primary {
             t.accent
         } else if variant == ButtonVariant::Outline {
@@ -55,7 +56,7 @@ pub fn button(
             t.foreground.opacity(0.)
         })
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .font_weight(FontWeight::NORMAL)
         .bg(bg)
         .text_color(fg)
@@ -81,23 +82,23 @@ pub fn checkbox(
         .accessibility_label(label.clone())
         .flex()
         .items_center()
-        .gap(px(8.))
-        .min_h(px(28.))
-        .px(px(4.))
+        .gap(rems(0.5))
+        .min_h(rems(1.75))
+        .px(rems(0.25))
         .border_1()
         .border_color(t.foreground.opacity(0.))
         .text_color(t.foreground)
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .child(
             CheckboxIndicator::new()
                 .state(state)
-                .size(px(16.))
+                .size(rems(1.))
                 .flex_shrink_0()
                 .flex()
                 .items_center()
                 .justify_center()
-                .rounded(px(0.))
+                .rounded_none()
                 .border_1()
                 .border_color(t.control_border())
                 .bg(t.normal_fill())
@@ -119,7 +120,7 @@ pub fn checkbox(
                         } else {
                             IconName::Minus
                         })
-                        .size(px(14.))
+                        .size(rems(0.875))
                         .text_color(t.foreground),
                     )
                 }),
@@ -145,14 +146,14 @@ pub fn switch(
         .accessibility_label(label.clone())
         .flex()
         .items_center()
-        .gap(px(8.))
-        .py(px(5.))
-        .px(px(5.))
+        .gap(rems(0.5))
+        .py(rems(0.3125))
+        .px(rems(0.3125))
         .border_1()
         .border_color(t.foreground.opacity(0.))
         .text_color(t.foreground)
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .hover(|s| s.bg(t.hover_fill()).border_color(t.focus_border()))
         .focus_visible(|s| s.bg(t.hover_fill()).border_color(t.focus_border()))
         .active(|s| s.bg(t.pressed_fill()))
@@ -160,17 +161,17 @@ pub fn switch(
         .child(
             SwitchTrack::new(id)
                 .checked(checked)
-                .w(px(42.))
-                .h(px(22.))
+                .w(rems(2.625))
+                .h(rems(1.375))
                 .flex_shrink_0()
-                .p(px(2.))
+                .p(rems(0.125))
                 .border_1()
                 .border_color(if checked {
                     t.foreground.opacity(0.)
                 } else {
                     t.control_border()
                 })
-                .rounded(px(0.))
+                .rounded_none()
                 .bg(if checked {
                     t.selected_fill()
                 } else {
@@ -178,10 +179,10 @@ pub fn switch(
                 })
                 .child(
                     SwitchThumb::new(checked)
-                        .size(px(16.))
-                        .rounded(px(0.))
+                        .size(rems(1.))
+                        .rounded_none()
                         .bg(if checked { t.foreground } else { t.secondary })
-                        .ml(px(if checked { 20. } else { 0. })),
+                        .ml(rems(if checked { 1.25 } else { 0. })),
                 ),
         )
         .child(label)
@@ -200,26 +201,26 @@ pub fn radio(
         .accessibility_label(label.clone())
         .flex()
         .items_center()
-        .gap(px(8.))
-        .min_h(px(28.))
-        .px(px(4.))
+        .gap(rems(0.5))
+        .min_h(rems(1.75))
+        .px(rems(0.25))
         .border_1()
         .border_color(t.foreground.opacity(0.))
         .text_color(t.foreground)
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .child(
             div()
-                .size(px(16.))
+                .size(rems(1.))
                 .flex_shrink_0()
-                .rounded(px(0.))
+                .rounded_none()
                 .border_1()
                 .border_color(t.control_border())
                 .flex()
                 .items_center()
                 .justify_center()
                 .when(checked, |s| {
-                    s.child(div().size(px(8.)).rounded(px(0.)).bg(t.foreground))
+                    s.child(div().size(rems(0.5)).rounded_none().bg(t.foreground))
                 }),
         )
         .child(label)
@@ -242,15 +243,15 @@ pub fn toggle(
         .accessibility_label(label.clone())
         .flex()
         .items_center()
-        .gap(px(8.))
-        .py(px(6.))
-        .px(px(10.))
+        .gap(rems(0.5))
+        .py(rems(0.375))
+        .px(rems(0.625))
         .border_1()
-        .rounded(px(0.))
+        .rounded_none()
         .border_color(t.border)
         .text_color(t.foreground)
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .font_weight(FontWeight::NORMAL)
         .child(label)
         .hover(|s| s.bg(t.hover_fill()).border_color(t.focus_border()))
@@ -270,9 +271,9 @@ pub fn toggle_group(id: impl Into<ElementId>, cx: &App) -> gpui_kit::base::Toggl
         .flex()
         .flex_wrap()
         .items_center()
-        .gap(px(6.))
+        .gap(rems(0.375))
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .text_color(t.foreground)
 }
 
@@ -291,25 +292,32 @@ pub fn link(
         .child(label)
         .flex()
         .items_center()
-        .gap(px(6.))
-        .text_size(px(12.))
+        .gap(rems(0.375))
+        .text_size(rems(0.75))
         .font_family(t.font.clone())
         .text_color(t.accent)
         .underline()
         .border_1()
         .border_color(t.foreground.opacity(0.))
-        .px(px(4.))
-        .py(px(6.))
+        .px(rems(0.25))
+        .py(rems(0.375))
         .hover(|s| s.text_color(t.bright))
         .focus_visible(|s| s.bg(t.hover_fill()).border_color(t.focus_border()))
         .styles(|s| s.disabled(|s| s.opacity(0.45)))
 }
 
-/// Omarchy ButtonGroup presentation with gpui-base Tab semantics.
-/// The source shell has no separate Tabs primitive: bordered peers use a quiet
-/// selected fill. The native port keeps label weight stable across selection.
-pub fn tabs(id: impl Into<ElementId>, _cx: &App) -> Tabs {
-    Tabs::new(id).flex().flex_wrap().gap(px(6.))
+/// A square segmented strip with gpui-base Tab semantics.
+pub fn tabs(id: impl Into<ElementId>, cx: &App) -> Tabs {
+    let t = cx.omarchy();
+    Tabs::new(id)
+        .flex()
+        .items_center()
+        .gap_1()
+        .p_1()
+        .border_1()
+        .rounded_none()
+        .border_color(t.divider())
+        .bg(t.normal_fill())
 }
 
 pub fn tab(
@@ -324,22 +332,25 @@ pub fn tab(
         .selected(selected)
         .accessibility_label(label.clone())
         .child(label)
-        .px(px(10.))
-        .py(px(6.))
+        .px_3()
+        .py_1()
         .flex()
+        .flex_shrink_0()
         .items_center()
+        .gap_1()
         .border_1()
-        .rounded(px(0.))
-        .border_color(t.control_border())
-        .text_size(px(12.))
+        .rounded_none()
+        .border_color(t.foreground.opacity(0.))
         .font_family(t.font.clone())
         .font_weight(FontWeight::NORMAL)
-        .text_color(t.foreground)
-        .hover(|s| s.bg(t.hover_fill()).border_color(t.focus_border()))
-        .focus_visible(|s| s.bg(t.hover_fill()).border_color(t.focus_border()))
+        .text_color(t.secondary)
         .active(|s| s.bg(t.pressed_fill()))
         .styles(|s| {
-            s.selected(|s| s.bg(t.selected_fill()))
-                .disabled(|s| s.opacity(0.45))
+            s.selected(|s| {
+                s.bg(t.selected_fill())
+                    .text_color(t.foreground)
+                    .border_color(t.accent)
+            })
+            .disabled(|s| s.opacity(0.45))
         })
 }

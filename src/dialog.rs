@@ -3,7 +3,8 @@ use crate::ActiveTheme;
 use gpui_kit::base::{
     AlertDialog, Dialog, DialogBackdrop, DialogDescription, DialogPopup, DialogTitle,
 };
-use gpui_kit::{App, FocusHandle, FontWeight, ParentElement, SharedString, Styled, px, rgb};
+use gpui_kit::rems;
+use gpui_kit::{App, FocusHandle, FontWeight, ParentElement, SharedString, Styled, rgb};
 
 /// Supply a stable focus handle, focus it on opening, and restore trigger focus on close.
 /// Base owns the focus trap, Escape, confirmation and backdrop dismissal.
@@ -38,22 +39,22 @@ pub fn dialog_popup(cx: &App) -> DialogPopup {
         .relative()
         .flex()
         .flex_col()
-        .gap(px(14.))
-        .w(px(420.))
+        .gap(rems(0.875))
+        .w(rems(26.25))
         .max_w(gpui_kit::relative(1.))
-        .p(px(18.))
+        .p(rems(1.125))
         .border_1()
         .border_color(t.border)
-        .rounded(px(0.))
+        .rounded_none()
         .bg(t.background)
         .text_color(t.foreground)
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
 }
 
 pub fn dialog_title(title: impl Into<SharedString>, cx: &App) -> DialogTitle {
     DialogTitle::new()
-        .text_size(px(16.))
+        .text_size(rems(1.))
         .font_weight(FontWeight::BOLD)
         .text_color(cx.omarchy().foreground)
         .child(title.into())

@@ -3,9 +3,10 @@ use crate::{ActiveTheme, ButtonVariant, button};
 use gpui_kit::base::{
     Accordion, AccordionPanel, AccordionTrigger, Pagination, PaginationItem, PaginationState,
 };
+use gpui_kit::rems;
 use gpui_kit::{
     App, ElementId, FontWeight, InteractiveElement, IntoElement, ParentElement, SharedString,
-    Styled, div, px,
+    Styled, div,
 };
 
 pub fn accordion(id: impl Into<ElementId>, cx: &App) -> Accordion {
@@ -27,13 +28,13 @@ pub fn accordion_trigger(
         .flex()
         .items_center()
         .justify_between()
-        .h(px(32.))
-        .px(px(8.))
+        .h(rems(2.))
+        .px(rems(0.5))
         .border_2()
         .border_color(t.background)
         .text_color(t.foreground)
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .font_weight(FontWeight::BOLD)
         .hover(|s| s.bg(t.surface))
         .focus_visible(|s| s.border_color(t.accent))
@@ -48,11 +49,11 @@ pub fn accordion_trigger(
 pub fn accordion_panel(cx: &App) -> AccordionPanel {
     let t = cx.omarchy();
     AccordionPanel::new()
-        .px(px(10.))
-        .py(px(8.))
+        .px(rems(0.625))
+        .py(rems(0.5))
         .border_b_1()
         .border_color(t.border)
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .font_family(t.font.clone())
         .text_color(t.secondary)
 }
@@ -63,7 +64,7 @@ pub fn pagination(id: impl Into<ElementId>, state: PaginationState, cx: &App) ->
         .flex()
         .flex_wrap()
         .items_center()
-        .gap(px(4.))
+        .gap(rems(0.25))
         .children(items.into_iter().map(|item| {
             match item {
                 PaginationItem::Page(page) => {
@@ -75,13 +76,13 @@ pub fn pagination(id: impl Into<ElementId>, state: PaginationState, cx: &App) ->
                         cx,
                     )
                     .selected(page == state.current_page())
-                    .w(px(32.))
-                    .px(px(0.))
+                    .w(rems(2.))
+                    .px(rems(0.))
                     .on_click(move |_, window, cx| state.request_page(page, window, cx))
                     .into_any_element()
                 }
                 PaginationItem::Ellipsis(_) => div()
-                    .w(px(24.))
+                    .w(rems(1.5))
                     .text_color(cx.omarchy().secondary)
                     .child("…")
                     .into_any_element(),
@@ -96,10 +97,10 @@ pub fn collapsible(open: bool, cx: &App) -> gpui_kit::base::Collapsible {
         .open(open)
         .flex()
         .flex_col()
-        .gap(px(14.))
+        .gap(rems(0.875))
         .w_full()
         .text_color(cx.omarchy().foreground)
-        .text_size(px(12.))
+        .text_size(rems(0.75))
 }
 
 /// Stateful page navigation with the base push/pop/forward lifecycle.
@@ -110,11 +111,11 @@ pub fn nav_stack(
     let t = cx.omarchy();
     gpui_kit::base::NavStack::new(state)
         .w_full()
-        .h(px(280.))
+        .h(rems(17.5))
         .border_1()
         .border_color(t.border)
         .bg(t.background)
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .text_color(t.foreground)
 }

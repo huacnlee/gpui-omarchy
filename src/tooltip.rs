@@ -1,8 +1,8 @@
 //! Short, non-interactive explanations with GPUI's tooltip lifecycle.
 use crate::ActiveTheme;
+use gpui_kit::rems;
 use gpui_kit::{
     App, AppContext, Context, Render, SharedString, StatefulInteractiveElement, Window, prelude::*,
-    px,
 };
 use std::time::Duration;
 
@@ -10,16 +10,16 @@ use std::time::Duration;
 pub fn tooltip(text: impl Into<SharedString>, cx: &App) -> gpui_kit::base::Tooltip {
     let t = cx.omarchy();
     gpui_kit::base::Tooltip::new("omarchy-tooltip")
-        .max_w(px(320.))
-        .px(px(10.))
-        .py(px(6.))
+        .max_w(rems(20.))
+        .px(rems(0.625))
+        .py(rems(0.375))
         .border_1()
-        .rounded(px(0.))
+        .rounded_none()
         .border_color(t.control_border())
         .bg(t.background)
         .text_color(t.foreground)
         .font_family(t.font.clone())
-        .text_size(px(11.))
+        .text_size(rems(0.6875))
         .child(text.into())
 }
 
@@ -45,6 +45,7 @@ impl Render for TooltipText {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui_kit::px;
     use gpui_kit::{Render, TestAppContext, point};
     struct Harness;
     impl Render for Harness {

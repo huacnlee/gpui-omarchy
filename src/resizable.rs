@@ -1,6 +1,7 @@
 use crate::ActiveTheme;
 use gpui_kit::base::{ResizablePanel, ResizablePanelGroup};
-use gpui_kit::{App, Axis, ElementId, div, prelude::*, px};
+use gpui_kit::rems;
+use gpui_kit::{App, Axis, ElementId, div, prelude::*};
 use std::rc::Rc;
 
 /// Resizable panes with a fine divider and base-owned drag hit area and limits.
@@ -17,10 +18,10 @@ pub fn resizable(id: impl Into<ElementId>, axis: Axis, cx: &App) -> ResizablePan
                         t.border
                     })
                     .when(handle.axis() == Axis::Horizontal, |line| {
-                        line.w(px(1.)).h_full()
+                        line.w(rems(0.0625)).h_full()
                     })
                     .when(handle.axis() == Axis::Vertical, |line| {
-                        line.h(px(1.)).w_full()
+                        line.h(rems(0.0625)).w_full()
                     })
                     .into_any_element(),
             )
@@ -35,20 +36,24 @@ pub fn resizable_panel() -> ResizablePanel {
 mod tests {
     use super::*;
     use gpui_kit::base::ResizableState;
+    use gpui_kit::px;
     use gpui_kit::{Context, Entity, MouseButton, Render, TestAppContext, Window, point};
     struct Harness {
         state: Entity<ResizableState>,
         axis: Axis,
     }
     impl Render for Harness {
-        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-            div().size(px(400.)).child(
+        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            div().size(rems(25.)).child(
                 resizable("split", self.axis, cx)
                     .with_state(&self.state)
                     .child(
                         resizable_panel()
-                            .size(px(160.))
-                            .size_range(px(120.)..px(260.))
+                            .size(rems(10.).to_pixels(window.rem_size()))
+                            .size_range(
+                                rems(7.5).to_pixels(window.rem_size())
+                                    ..rems(16.25).to_pixels(window.rem_size()),
+                            )
                             .child(
                                 div()
                                     .size_full()
@@ -57,8 +62,11 @@ mod tests {
                     )
                     .child(
                         resizable_panel()
-                            .size(px(240.))
-                            .size_range(px(120.)..px(280.))
+                            .size(rems(15.).to_pixels(window.rem_size()))
+                            .size_range(
+                                rems(7.5).to_pixels(window.rem_size())
+                                    ..rems(17.5).to_pixels(window.rem_size()),
+                            )
                             .child(
                                 div()
                                     .size_full()

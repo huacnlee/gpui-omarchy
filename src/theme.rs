@@ -1,6 +1,10 @@
 //! Semantic palette and its projection into gpui-base.
 use gpui_kit::base::{ColorTokens, RadiusTokens, ThemeAppearance};
-use gpui_kit::{App, Global, Hsla, SharedString, px, rgb};
+use gpui_kit::{App, Global, Hsla, Pixels, SharedString, px, rems, rgb};
+
+// gpui-base 0.6 stores global typography tokens in pixels. This is the nominal
+// 100% snapshot only; Omarchy layout uses rems resolved by each window.
+const BASE_REM_SIZE: Pixels = px(16.);
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Theme {
@@ -139,26 +143,26 @@ impl Theme {
         base.appearance = self.appearance;
         base.tokens.colors = self.tokens();
         base.tokens.radius = RadiusTokens {
-            none: px(0.),
-            sm: px(0.),
-            md: px(0.),
-            lg: px(0.),
-            xl: px(0.),
-            full: px(0.),
+            none: Pixels::ZERO,
+            sm: Pixels::ZERO,
+            md: Pixels::ZERO,
+            lg: Pixels::ZERO,
+            xl: Pixels::ZERO,
+            full: Pixels::ZERO,
         };
         let type_scale = &mut base.tokens.typography;
         type_scale.sans = self.font.clone();
         type_scale.mono = self.font.clone();
         for (token, size) in [
-            (&mut type_scale.xs, 10.),
-            (&mut type_scale.sm, 11.),
-            (&mut type_scale.md, 12.),
-            (&mut type_scale.lg, 14.),
-            (&mut type_scale.xl, 16.),
-            (&mut type_scale.mono_md, 12.),
+            (&mut type_scale.xs, 0.625),
+            (&mut type_scale.sm, 0.6875),
+            (&mut type_scale.md, 0.75),
+            (&mut type_scale.lg, 0.875),
+            (&mut type_scale.xl, 1.),
+            (&mut type_scale.mono_md, 0.75),
         ] {
-            token.size = px(size);
-            token.line_height = px(size * 1.5);
+            token.size = rems(size).to_pixels(BASE_REM_SIZE);
+            token.line_height = token.size * 1.5;
         }
         cx.set_global(self);
         cx.refresh_windows();

@@ -1,7 +1,8 @@
 use crate::{ButtonVariant, IconName, button, calendar, icon};
 use gpui_kit::base::{CalendarEvent, CalendarState, DatePicker, Popup};
+use gpui_kit::rems;
 use gpui_kit::{
-    App, Context, ElementId, Entity, FocusHandle, MouseButton, Window, div, prelude::*, px,
+    App, Context, ElementId, Entity, FocusHandle, MouseButton, Window, div, prelude::*,
 };
 
 pub struct DatePickerState {
@@ -96,7 +97,7 @@ pub fn date_picker(
         .w_full()
         .justify_start()
         .child(div().flex_1().child(label))
-        .child(icon(IconName::Calendar).size(px(14.)))
+        .child(icon(IconName::Calendar).size(rems(0.875)))
         .on_click(move |_, window, cx| {
             // Route pointer activation through the base root so builder refinements
             // such as `.disabled(true)` govern both keyboard and mouse behavior.
@@ -117,7 +118,7 @@ pub fn date_picker(
                 .id("date-calendar-popup")
                 .key_context("OmarchyPopoverContent")
                 .occlude()
-                .mt(px(4.))
+                .mt(rems(0.25))
                 .on_mouse_down_out(move |_, window, cx| {
                     target.update(cx, |state, cx| state.set_open(false, window, cx))
                 })
@@ -128,7 +129,7 @@ pub fn date_picker(
     let target = state.clone();
     DatePicker::new(id, &focus)
         .open(open)
-        .w(px(248.))
+        .w(rems(15.5))
         .key_context("OmarchyDatePicker")
         .on_open_change(move |open, window, cx| {
             target.update(cx, |state, cx| state.set_open(open, window, cx))
@@ -139,6 +140,7 @@ pub fn date_picker(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui_kit::px;
     use gpui_kit::{Render, TestAppContext};
 
     struct Harness {

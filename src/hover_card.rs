@@ -1,6 +1,7 @@
 use crate::popover_surface;
 use gpui_kit::base::{HoverCard, HoverCardState};
-use gpui_kit::{ElementId, IntoElement, ParentElement, Styled, prelude::*, px};
+use gpui_kit::rems;
+use gpui_kit::{ElementId, IntoElement, ParentElement, Styled, prelude::*};
 use std::time::Duration;
 
 /// Supplementary hover content. Keep essential information available inline.
@@ -22,7 +23,7 @@ pub fn hover_card<E: IntoElement>(
             let body = content(state, window, cx);
             popover_surface(cx)
                 .id("hover-card-surface")
-                .mt(px(4.))
+                .mt(rems(0.25))
                 .child(body)
         })
 }

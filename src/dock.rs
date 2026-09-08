@@ -1,9 +1,8 @@
 //! Dock presentation. Layout, reconciliation and drag operations stay in base.
 use crate::{ActiveTheme, ButtonVariant, button};
 use gpui_kit::base::dock::*;
-use gpui_kit::{
-    AnyElement, App, Context, Div, SharedString, Stateful, Window, div, prelude::*, px,
-};
+use gpui_kit::rems;
+use gpui_kit::{AnyElement, App, Context, Div, SharedString, Stateful, Window, div, prelude::*};
 use std::rc::Rc;
 
 pub fn dock_area(
@@ -24,7 +23,7 @@ impl DockAreaRenderer for OmarchyDock {
             .border_color(t.border)
             .bg(t.background)
             .font_family(t.font.clone())
-            .text_size(px(12.))
+            .text_size(rems(0.75))
             .text_color(t.foreground)
     }
     fn tiles_renderer(&self) -> Rc<dyn TilesRenderer> {
@@ -42,8 +41,8 @@ impl TabGroupRenderer for OmarchyDock {
             .id("dock-tab-bar")
             .flex()
             .items_center()
-            .gap(px(6.))
-            .p(px(6.))
+            .gap(rems(0.375))
+            .p(rems(0.375))
             .border_b_1()
             .border_color(t.border)
             .bg(t.normal_fill());
@@ -109,8 +108,8 @@ struct DockDragLabel(&'static str);
 impl gpui_kit::Render for DockDragLabel {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
-            .px(px(10.))
-            .py(px(6.))
+            .px(rems(0.625))
+            .py(rems(0.375))
             .border_1()
             .border_color(cx.omarchy().accent)
             .bg(cx.omarchy().background)

@@ -1,9 +1,9 @@
 //! Select and searchable Combobox presentations over the controlled base roots.
 use crate::{ActiveTheme, ButtonVariant, IconName, button, icon, input};
 use gpui_kit::base::{Combobox, ElementExt as _, Popup, Select, input::InputState};
+use gpui_kit::rems;
 use gpui_kit::{
     App, Context, ElementId, Entity, FocusHandle, Focusable, SharedString, Window, div, prelude::*,
-    px,
 };
 
 #[derive(Clone, Debug)]
@@ -60,7 +60,7 @@ impl ChoiceState {
                         .into_iter()
                         .find(|&i| !this.items[i].disabled)
                 };
-                this.scroll.set_offset(gpui_kit::point(px(0.), px(0.)));
+                this.scroll.set_offset(gpui_kit::Point::default());
                 cx.notify();
             },
         )
@@ -78,7 +78,7 @@ impl ChoiceState {
             query,
             searchable: false,
             scroll: gpui_kit::ScrollHandle::new(),
-            popup_width: px(280.),
+            popup_width: rems(17.5).to_pixels(window.rem_size()),
         }
     }
     pub fn label(mut self, label: impl Into<SharedString>) -> Self {
@@ -308,7 +308,7 @@ fn presentation(
         .border_color(t.control_border())
         .bg(t.normal_fill())
         .child(div().flex_1().min_w_0().text_ellipsis().child(label))
-        .child(icon(IconName::ChevronDown).size(px(14.)))
+        .child(icon(IconName::ChevronDown).size(rems(0.875)))
         .on_click(move |_, window, cx| {
             target.update(cx, |state, cx| state.set_open(!state.open, window, cx))
         });
@@ -332,19 +332,19 @@ fn presentation(
             .id("choice-popup")
             .debug_selector(|| "omarchy-choice-popup".into())
             .track_focus(&focus)
-            .mt(px(4.))
+            .mt(rems(0.25))
             .w(popup_width)
             .max_w(gpui_kit::relative(1.))
-            .p(px(6.))
+            .p(rems(0.375))
             .border_1()
             .border_color(t.control_border())
             .bg(t.background)
             .text_color(t.foreground)
             .font_family(t.font.clone())
-            .text_size(px(12.))
+            .text_size(rems(0.75))
             .flex()
             .flex_col()
-            .gap(px(6.))
+            .gap(rems(0.375))
             .on_mouse_down_out(move |_, window, cx| {
                 close.update(cx, |state, cx| {
                     state.set_open(false, window, cx);
@@ -357,15 +357,15 @@ fn presentation(
         if searchable {
             content = content.child(
                 input("choice-search", &query, window, cx)
-                    .h(px(28.))
-                    .py(px(0.))
-                    .px(px(6.)),
+                    .h(rems(1.75))
+                    .py(rems(0.))
+                    .px(rems(0.375)),
             );
         }
         let mut rows = div()
             .id("choice-options")
             .role(gpui_kit::Role::ListBox)
-            .max_h(px(224.))
+            .max_h(rems(14.))
             .overflow_y_scroll()
             .track_scroll(&scroll)
             .flex()
@@ -373,7 +373,7 @@ fn presentation(
         if visible.is_empty() {
             rows = rows.child(
                 div()
-                    .p(px(10.))
+                    .p(rems(0.625))
                     .text_color(t.secondary)
                     .child("No matching options"),
             );
@@ -385,17 +385,17 @@ fn presentation(
             rows = rows.child(
                 button(("choice-option", index), "", ButtonVariant::Secondary, cx)
                     .accessibility_label(item.label.clone())
-                    .debug_selector(move || format!("omarchy-choice-option-{index}").into())
+                    .debug_selector(move || format!("omarchy-choice-option-{index}"))
                     .role(gpui_kit::Role::ListBoxOption)
                     .aria_selected(selected == Some(index))
                     .when(cursor == Some(index), |row| row.aria_active_descendant())
                     .focusable(false)
                     .disabled(item.disabled)
                     .w_full()
-                    .h(px(28.))
-                    .py(px(0.))
-                    .px(px(6.))
-                    .gap(px(6.))
+                    .h(rems(1.75))
+                    .py(rems(0.))
+                    .px(rems(0.375))
+                    .gap(rems(0.375))
                     .justify_start()
                     .bg(if cursor == Some(index) {
                         t.selected_fill()
@@ -411,10 +411,10 @@ fn presentation(
                     )
                     .child(
                         div()
-                            .w(px(14.))
+                            .w(rems(0.875))
                             .flex_shrink_0()
                             .when(selected == Some(index), |mark| {
-                                mark.child(icon(IconName::Check).size(px(14.)))
+                                mark.child(icon(IconName::Check).size(rems(0.875)))
                             }),
                     )
                     .on_hover(move |hovered, window, cx| {
@@ -513,6 +513,7 @@ fn presentation(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui_kit::px;
     use gpui_kit::{Render, TestAppContext, VisualTestContext};
     struct Harness {
         state: Entity<ChoiceState>,
@@ -523,7 +524,7 @@ mod tests {
             crate::focus_scope("root")
                 .size_full()
                 .child(button("before", "Before", ButtonVariant::Secondary, cx))
-                .child(div().w(px(280.)).child(if self.searchable {
+                .child(div().w(rems(17.5)).child(if self.searchable {
                     combobox("choice", &self.state, window, cx).into_any_element()
                 } else {
                     select("choice", &self.state, window, cx).into_any_element()

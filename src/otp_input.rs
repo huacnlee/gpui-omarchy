@@ -1,6 +1,7 @@
 use crate::ActiveTheme;
 use gpui_kit::base::{OtpState, StyledExt as _};
-use gpui_kit::{App, Entity, Focusable, MouseButton, Window, div, prelude::*, px};
+use gpui_kit::rems;
+use gpui_kit::{App, Entity, Focusable, MouseButton, Window, div, prelude::*};
 
 /// Numeric code entry using base state, with clipboard support and inert disabled cells.
 #[derive(IntoElement)]
@@ -67,13 +68,13 @@ impl RenderOnce for OtpInput {
                 .map(|ch| if value.is_masked() { '•' } else { *ch });
             cells.push(
                 div()
-                    .w(px(32.))
-                    .h(px(36.))
+                    .w(rems(2.))
+                    .h(rems(2.25))
                     .flex()
                     .items_center()
                     .justify_center()
                     .border_1()
-                    .rounded(px(0.))
+                    .rounded_none()
                     .border_color(if current {
                         t.accent
                     } else {
@@ -81,7 +82,7 @@ impl RenderOnce for OtpInput {
                     })
                     .bg(t.normal_fill())
                     .font_family(t.font.clone())
-                    .text_size(px(16.))
+                    .text_size(rems(1.))
                     .text_color(t.foreground)
                     .when(!self.disabled, |cell| {
                         cell.on_mouse_down(MouseButton::Left, move |_, window, cx| {
@@ -96,7 +97,7 @@ impl RenderOnce for OtpInput {
         if self.disabled {
             return div()
                 .flex()
-                .gap(px(6.))
+                .gap(rems(0.375))
                 .children(cells)
                 .refine_style(&self.style)
                 .opacity(0.45)
@@ -172,7 +173,7 @@ impl RenderOnce for OtpInput {
             .child(
                 gpui_kit::base::OtpInput::new(&state)
                     .flex()
-                    .gap(px(6.))
+                    .gap(rems(0.375))
                     .children(cells)
                     .refine_style(&self.style),
             )
@@ -183,6 +184,7 @@ impl RenderOnce for OtpInput {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui_kit::px;
     use gpui_kit::{Context, Render, TestAppContext};
     struct Harness {
         state: Entity<OtpState>,

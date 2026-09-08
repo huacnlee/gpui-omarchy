@@ -1,22 +1,23 @@
 //! Calendar presentation over gpui-base's date and view state.
 use crate::{ActiveTheme, IconName, icon};
 use gpui_kit::base::{Calendar, CalendarItemKind, CalendarState};
-use gpui_kit::{App, ElementId, Entity, Role, prelude::*, px};
+use gpui_kit::rems;
+use gpui_kit::{App, ElementId, Entity, Role, prelude::*};
 
 /// A calendar with selectable days, month/year navigation and range styling.
 /// Observe the supplied state or subscribe to base CalendarEvent::Selected.
 pub fn calendar(id: impl Into<ElementId>, state: &Entity<CalendarState>, cx: &App) -> Calendar {
     let t = cx.omarchy().clone();
     Calendar::new(id, state)
-        .w(px(248.))
-        .p(px(12.))
-        .gap(px(8.))
+        .w(rems(15.5))
+        .p(rems(0.75))
+        .gap(rems(0.5))
         .border_1()
-        .rounded(px(0.))
+        .rounded_none()
         .border_color(t.border)
         .bg(t.background)
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .text_color(t.foreground)
         .label(|kind, value| match kind {
             CalendarItemKind::Weekday => {
@@ -48,10 +49,10 @@ pub fn calendar(id: impl Into<ElementId>, state: &Entity<CalendarState>, cx: &Ap
                 .flex()
                 .items_center()
                 .justify_center()
-                .h(px(28.))
-                .px(px(4.))
+                .h(rems(1.75))
+                .px(rems(0.25))
                 .border_1()
-                .rounded(px(0.))
+                .rounded_none()
                 .border_color(if state.is_today() {
                     t.accent
                 } else {
@@ -89,7 +90,7 @@ pub fn calendar(id: impl Into<ElementId>, state: &Entity<CalendarState>, cx: &Ap
                             | CalendarItemKind::Previous
                             | CalendarItemKind::Next
                     ),
-                    |item| item.w(px(32.)).flex_shrink_0(),
+                    |item| item.w(rems(2.)).flex_shrink_0(),
                 );
             if matches!(kind, CalendarItemKind::Previous | CalendarItemKind::Next) {
                 let previous = kind == CalendarItemKind::Previous;
@@ -114,7 +115,7 @@ pub fn calendar(id: impl Into<ElementId>, state: &Entity<CalendarState>, cx: &Ap
                         } else {
                             IconName::ChevronRight
                         })
-                        .size(px(14.)),
+                        .size(rems(0.875)),
                     );
             }
             item.into_any_element()

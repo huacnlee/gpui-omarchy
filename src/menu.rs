@@ -1,9 +1,9 @@
 //! A keyboard menu composed from the base Popover and Button primitives.
 use crate::{ActiveTheme, ButtonVariant, IconName, button, icon};
 use gpui_kit::base::Popover;
+use gpui_kit::rems;
 use gpui_kit::{
     App, ElementId, Focusable, KeyDownEvent, ParentElement, SharedString, Window, div, prelude::*,
-    px,
 };
 use std::rc::Rc;
 
@@ -87,17 +87,17 @@ pub fn menu(
                 .debug_selector(|| "omarchy-menu-content".into())
                 .role(gpui_kit::Role::Menu)
                 .track_focus(&focus)
-                .w(px(240.))
-                .p(px(6.))
+                .w(rems(15.))
+                .p(rems(0.375))
                 .flex()
                 .flex_col()
-                .gap(px(2.))
+                .gap(rems(0.125))
                 .border_1()
                 .border_color(t.border)
                 .bg(t.background)
                 .text_color(t.foreground)
                 .font_family(t.font.clone())
-                .text_size(px(12.))
+                .text_size(rems(0.75))
                 .on_action(move |_: &gpui_kit::base::actions::Confirm, window, cx| {
                     if let Some(index) = *confirm_cursor.read(cx) {
                         confirm_close.update(cx, |state, cx| state.dismiss(window, cx));
@@ -153,9 +153,9 @@ pub fn menu(
                         .focusable(false)
                         .disabled(item.disabled)
                         .w_full()
-                        .h(px(28.))
-                        .py(px(0.))
-                        .px(px(8.))
+                        .h(rems(1.75))
+                        .py(rems(0.))
+                        .px(rems(0.5))
                         .justify_start()
                         .bg(if current {
                             t.hover_fill()
@@ -166,23 +166,23 @@ pub fn menu(
                         .when(has_icons, |row| {
                             row.child(
                                 div()
-                                    .w(px(14.))
+                                    .w(rems(0.875))
                                     .flex_shrink_0()
                                     .when_some(item.icon, |slot, name| {
-                                        slot.child(icon(name).size(px(14.)))
+                                        slot.child(icon(name).size(rems(0.875)))
                                     }),
                             )
                         })
                         .child(div().flex_1().min_w_0().child(item.label))
                         .when_some(item.checked, |row, checked| {
-                            row.child(div().w(px(14.)).when(checked, |slot| {
-                                slot.child(icon(IconName::Check).size(px(14.)))
+                            row.child(div().w(rems(0.875)).when(checked, |slot| {
+                                slot.child(icon(IconName::Check).size(rems(0.875)))
                             }))
                         })
                         .when_some(item.shortcut, |row, shortcut| {
                             row.child(
                                 div()
-                                    .text_size(px(11.))
+                                    .text_size(rems(0.6875))
                                     .text_color(t.secondary)
                                     .child(shortcut),
                             )
@@ -203,7 +203,7 @@ pub fn menu(
                         });
                     div()
                         .when(item.separator_before, |group| {
-                            group.child(div().py(px(4.)).child(crate::separator(cx)))
+                            group.child(div().py(rems(0.25)).child(crate::separator(cx)))
                         })
                         .child(row)
                 }))

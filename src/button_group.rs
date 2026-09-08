@@ -4,7 +4,8 @@ use gpui_kit::base::{
     Radio, RadioGroup, Tabs,
     actions::{Confirm, SelectLeft, SelectRight},
 };
-use gpui_kit::{App, Context, ElementId, Entity, FocusHandle, KeyBinding, Window, prelude::*, px};
+use gpui_kit::rems;
+use gpui_kit::{App, Context, ElementId, Entity, FocusHandle, KeyBinding, Window, prelude::*};
 use std::rc::Rc;
 
 type Change = Rc<dyn Fn(usize, &mut Window, &mut App)>;
@@ -33,7 +34,7 @@ pub(crate) fn init(cx: &mut App) {
     ]);
 }
 
-/// A single-choice setting rendered as Omarchy's bordered ButtonGroup.
+/// A single-choice setting rendered as equal-width segments in a shared frame.
 /// The application owns `selected` and updates it in `on_change`.
 /// Left/Right (or h/l) move the cursor; Return/Space commit the choice.
 pub fn button_group(
@@ -67,13 +68,15 @@ pub fn button_group(
                 .tab_stop(false)
                 .flex()
                 .items_center()
-                .px(px(10.))
-                .py(px(6.))
+                .flex_1()
+                .justify_center()
+                .px_3()
+                .py_1()
                 .border_1()
-                .rounded(px(0.))
-                .border_color(t.control_border())
+                .rounded_none()
+                .border_color(t.foreground.opacity(0.))
                 .font_family(t.font.clone())
-                .text_size(px(12.))
+                .text_size(rems(0.75))
                 .text_color(t.foreground)
                 .bg(if selected == Some(index) {
                     t.selected_fill()
@@ -82,10 +85,12 @@ pub fn button_group(
                 })
                 .when(
                     focus.is_focused(window) && cursor.read(cx).index == Some(index),
-                    |row| row.bg(t.hover_fill()).border_color(t.focus_border()),
+                    |row| row.border_color(t.accent),
                 )
-                .hover(|row| row.bg(t.hover_fill()).border_color(t.focus_border()))
-                .active(|row| row.bg(t.pressed_fill()))
+                .when(!item.disabled, |row| {
+                    row.hover(|row| row.bg(t.hover_fill()))
+                        .active(|row| row.bg(t.pressed_fill()))
+                })
                 .styles(|styles| styles.disabled(|row| row.opacity(0.45)))
                 .child(item.label.clone())
                 .on_change(move |_, _, window, cx| {
@@ -99,8 +104,11 @@ pub fn button_group(
         RadioGroup::new(id)
             .axis(gpui_kit::Axis::Horizontal)
             .flex()
-            .flex_wrap()
-            .gap(px(6.))
+            .w_full()
+            .gap_1()
+            .p_1()
+            .border_1()
+            .border_color(t.divider())
             .children(rows),
         cursor,
         items,
@@ -111,10 +119,12 @@ pub fn button_group(
 
 /// A page tab list with the same restrained visual language and independent
 /// tab-list semantics. Use the selected value to render the associated panel.
+/// `show_shortcuts` renders one-based number hints; applications own key bindings.
 pub fn tab_list(
     id: impl Into<ElementId>,
     items: Vec<ChoiceItem>,
     selected: Option<usize>,
+    show_shortcuts: bool,
     on_change: impl Fn(usize, &mut Window, &mut App) + 'static,
     window: &mut Window,
     cx: &mut App,
@@ -126,7 +136,6 @@ pub fn tab_list(
             on_change(index, window, cx);
         }
     });
-    let t = cx.omarchy().clone();
     let count = items.len();
     let rows = items
         .iter()
@@ -138,13 +147,24 @@ pub fn tab_list(
                 .debug_selector(move || format!("omarchy-tab-{index}"))
                 .disabled(item.disabled)
                 .set_position(index + 1, count)
-                .when(
-                    focus.is_focused(window) && cursor.read(cx).index == Some(index),
-                    |tab| tab.bg(t.hover_fill()).border_color(t.focus_border()),
-                )
-                .on_click(move |_, window, cx| {
-                    focus.focus(window, cx);
-                    change(index, window, cx);
+                .when(show_shortcuts, |tab| {
+                    tab.child(
+                        gpui_kit::div()
+                            .self_start()
+                            .text_size(gpui_kit::rems(0.625))
+                            .child((index + 1).to_string()),
+                    )
+                })
+                .on_click({
+                    let cursor = cursor.clone();
+                    move |_, window, cx| {
+                        cursor.update(cx, |state, cx| {
+                            state.index = Some(index);
+                            cx.notify();
+                        });
+                        focus.focus(window, cx);
+                        change(index, window, cx);
+                    }
                 })
                 .into_any_element()
         })
@@ -276,8 +296,16 @@ mod tests {
                 })
             };
             let group = if self.tab_list {
-                tab_list("options", items, Some(self.selected), change, window, cx)
-                    .into_any_element()
+                tab_list(
+                    "options",
+                    items,
+                    Some(self.selected),
+                    true,
+                    change,
+                    window,
+                    cx,
+                )
+                .into_any_element()
             } else {
                 button_group("options", items, Some(self.selected), change, window, cx)
                     .into_any_element()
@@ -298,6 +326,27 @@ mod tests {
                 )
         }
     }
+    #[gpui_kit::test]
+    fn clicking_a_tab_moves_the_keyboard_cursor_to_it(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (view, cx) = cx.add_window_view(|_, cx| Harness {
+            tab_list: true,
+            selected: 0,
+            before: cx.focus_handle(),
+            after: cx.focus_handle(),
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        for (index, selector) in [(2, "omarchy-tab-2"), (0, "omarchy-tab-0")] {
+            let point = cx.debug_bounds(selector).unwrap().center();
+            cx.simulate_click(point, Default::default());
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+            cx.simulate_keystrokes("enter");
+            cx.update(|_, cx| {
+                assert_eq!(view.read(cx).selected, index);
+            });
+        }
+    }
+
     #[gpui_kit::test]
     fn groups_have_one_tab_stop_and_skip_disabled_choices(cx: &mut TestAppContext) {
         cx.update(crate::init);

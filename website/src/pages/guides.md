@@ -328,7 +328,7 @@ with_tooltip(
 )
 ```
 
-`icon(name: IconName) -> icon::Icon` returns a 16px, non-shrinking icon; use `Styled` to change size or text color. `Icon` implements `RenderOnce` and `IntoElement`. Icons inherit text color at render time and embed their assets, so you do not need to replace your application's `AssetSource`.
+`icon(name: IconName) -> icon::Icon` returns a 1rem, non-shrinking icon; use `Styled` to change size or text color. `Icon` implements `RenderOnce` and `IntoElement`. Icons inherit text color at render time and embed their assets, so you do not need to replace your application's `AssetSource`.
 
 `IconName` has these variants: `Check`, `Minus`, `Plus`, `ChevronDown`, `ChevronRight`, `ChevronLeft`, `Calendar`, `Star`, `ExternalLink`, `Close`, `Search`, `Menu`, `Settings` and `TriangleAlert`. `IconName::path(self) -> &'static str` returns the bundled `icons/*.svg` asset key, not a URL to fetch. `IconName` is re-exported at the crate root; the concrete icon type is `gpui_omarchy::icon::Icon`.
 
@@ -368,11 +368,11 @@ panel("Workspace settings", cx)
 
 | Constructor | State, context and result |
 | --- | --- |
-| `input(id, &state, window, cx)` | `Entity<gpui_kit::base::input::InputState>`, `&Window`, `&mut App`; returns `gpui_kit::base::InputBase`. |
+| `input(id, &state, window, cx)` | `Entity<gpui_kit::base::input::InputState>`, `&Window`, `&mut App`; returns `gpui_omarchy::Input`. |
 | `textarea(id, &state, window, cx)` | `Entity<gpui_kit::base::input::TextareaState>`, `&Window`, `&mut App`; returns `gpui_kit::base::InputBase`. |
 | `number_input(&state, cx)` | `Entity<InputState>`, `&mut App`; returns `gpui_kit::base::NumberInput`. |
 
-The returned `InputBase` is the styled frame containing the editor. Configure values, placeholders and editor behavior on the state. Constructors refresh the state's editor style and focus styling. Number input centers the text and adds decrement/increment controls with base arrow-key stepping; configure numeric constraints through the base number-input API. Input validation and saving remain application responsibilities.
+Configure values, placeholders and editor behavior on the state. Constructors refresh the state's editor style and focus styling. Single-line `Input` supports `.prefix(element)` and `.suffix(element)` for text, icons or custom content inside the shared border. Both slots are empty by default and remain outside the editable value. The editor takes the remaining width. For example, `input("price", &self.price, window, cx).prefix("$").suffix("USD")`. Textarea returns the base styled frame. Number input centers the text and adds decrement/increment controls with base arrow-key stepping; configure numeric constraints through the base number-input API. Input validation and saving remain application responsibilities.
 
 ### Toggle values
 
@@ -478,6 +478,7 @@ tab_list(
     "workspace-pages",
     vec![ChoiceItem::new("files", "Files"), ChoiceItem::new("activity", "Activity")],
     Some(self.page),
+    false, // show_shortcuts: optional one-based number hints
     move |index, window, cx| changed(&index, window, cx),
     window,
     cx,
@@ -485,6 +486,8 @@ tab_list(
 ```
 
 Each group has one Tab stop. Left/Right or h/l moves the keyboard cursor; Enter or Space commits. Moving the cursor alone does not switch the selected value. Disabled choices are skipped, and activating the current selection does not emit a change.
+
+Tabs use a square segmented strip. Set `show_shortcuts` to `true` to render automatic 1-based number hints; bind the corresponding shortcuts in your application. `button_group` uses equal-width segments filling its container for form choices such as Limit / Market.
 
 For custom compositions, use `tabs(id, cx) -> gpui_kit::base::Tabs` and `tab(id, label, selected: bool, cx) -> gpui_kit::base::Tab`. Both take `&App`. You own selected state, callbacks and composition; the low-level pair does not add `tab_list`'s option-group cursor handling.
 
@@ -634,7 +637,7 @@ popover(
 
 `popover<E>(id, trigger, content) -> gpui_kit::base::Popover` requires `E: IntoElement`, the same selectable trigger bounds as `menu`, and a content builder `FnOnce(&mut gpui_kit::base::PopoverState, &mut Window, &mut Context<gpui_kit::base::PopoverState>) -> E + 'static`.
 
-The content builder runs in the popup state's context, not your parent view's context. Move entity handles or a parent listener into it when content needs to update your view. The constructor wraps content in `popover_surface(cx) -> Div`, a square, 280px-wide themed surface; use that helper directly when composing another popup. Popover content has its own keyboard context so editing does not activate the trigger. Escape dismisses and restores focus.
+The content builder runs in the popup state's context, not your parent view's context. Move entity handles or a parent listener into it when content needs to update your view. The constructor wraps content in `popover_surface(cx) -> Div`, a square, 17.5rem-wide themed surface; use that helper directly when composing another popup. Popover content has its own keyboard context so editing does not activate the trigger. Escape dismisses and restores focus.
 
 ### Add supplementary help
 
@@ -684,7 +687,7 @@ The footer dispatches base confirm and cancel actions. Base owns the focus trap,
 | Constructor | What it supplies |
 | --- | --- |
 | `dialog_backdrop() -> gpui_kit::base::DialogBackdrop` | Full-size black scrim at 60% opacity; useful when composing a custom host. |
-| `dialog_popup(cx: &App) -> gpui_kit::base::DialogPopup` | Square content surface, 420px wide and capped at its available width. |
+| `dialog_popup(cx: &App) -> gpui_kit::base::DialogPopup` | Square content surface, 26.25rem wide and capped at its available width. |
 | `dialog_title(title, cx: &App) -> gpui_kit::base::DialogTitle` | Emphasized title slot. |
 | `dialog_description(text, cx: &App) -> gpui_kit::base::DialogDescription` | Secondary descriptive text slot. |
 | `dialog_button(id, label, ButtonVariant, cx: &App) -> Button` | Outlined footer action using the requested semantic variant. |
@@ -704,7 +707,7 @@ sheet(&self.sheet_focus, cx)
     .request_close(move |window, cx| close(&(), window, cx))
 ```
 
-The default surface is 360px wide, capped at the available width, anchored to the right edge and full height. Refine its width with normal `Styled` builders. Focus `self.sheet_focus` in your opening callback; Escape and backdrop dismissal request closing, while your application updates visibility and restores focus.
+The default surface is 22.5rem wide, capped at the available width, anchored to the right edge and full height. Refine its width with normal `Styled` builders. Focus `self.sheet_focus` in your opening callback; Escape and backdrop dismissal request closing, while your application updates visibility and restores focus.
 
 ## Present status and rich content
 
@@ -721,7 +724,7 @@ panel("Import", cx)
 | --- | --- |
 | `panel(title, cx)` | `Div`: title and vertically arranged content with padding and an outer edge. |
 | `separator(cx)` | `Div`: a one-pixel horizontal divider. |
-| `vertical_separator(cx)` | `Div`: a one-pixel-wide, 20px-high toolbar divider; override height when needed. |
+| `vertical_separator(cx)` | `Div`: a thin, 1.25rem-high toolbar divider; override height when needed. |
 | `keycap(key, cx)` | `Div`: a bordered keyboard hint. It does not bind that key. |
 | `badge(label, status: Status, cx)` | `Div`: short status label with a matching border. |
 | `empty_state(title, description, cx)` | `Div`: explain what belongs in the empty region; add a relevant action as a child. |
@@ -747,10 +750,10 @@ The application decides whether to provide the image or fall back to initials af
 
 ### Render a document
 
-`markdown(id, source, cx)` and `html(id, source, cx)` both return `gpui_kit::base::TextView`. They accept `id: impl Into<ElementId>`, `source: impl Into<SharedString>` and `cx: &App`.
+`markdown(id, source, window, cx)` and `html(id, source, window, cx)` both return `gpui_kit::base::TextView`. They accept `id: impl Into<ElementId>`, `source: impl Into<SharedString>`, `window: &Window` and `cx: &App`. The window supplies the current rem scale for heading sizes.
 
 ```rust
-markdown("readme", "# Workspace\n\nSelect a file to begin.", cx)
+markdown("readme", "# Workspace\n\nSelect a file to begin.", window, cx)
 ```
 
 These are read-only rich-text views with document typography, links and selectable content, not source editors or embedded web browsers. Install one `gpui_kit::base::TextSelectionLayer` as the root's **first child** so selection is initialized before rendering text:
@@ -759,12 +762,12 @@ These are read-only rich-text views with document typography, links and selectab
 focus_scope("document")
     .size_full()
     .child(gpui_kit::base::TextSelectionLayer)
-    .child(markdown("readme", "# Workspace\n\nSelect a file to begin.", cx))
+    .child(markdown("readme", "# Workspace\n\nSelect a file to begin.", window, cx))
 ```
 
 Do not add a separate selection layer to every text view.
 
-For a state-backed base TextView, use `text_view_style(cx: &App) -> gpui_kit::base::TextViewStyle`. It maps Omarchy foreground, muted text, links, selection, borders and code surfaces into the base renderer's style, so all three entry points share the same document presentation.
+For a state-backed base TextView, use `text_view_style(window: &Window, cx: &App) -> gpui_kit::base::TextViewStyle`. It maps Omarchy foreground, muted text, links, selection, borders and code surfaces into the base renderer's style, so all three entry points share the same document presentation.
 
 ## Display tables, lists and trees
 
@@ -792,7 +795,7 @@ Cells share available width by default; refine widths consistently across the he
 
 ```rust
 let sizes = std::rc::Rc::new(vec![
-    gpui_kit::size(gpui_kit::px(0.), gpui_kit::px(28.));
+    gpui_kit::size(gpui_kit::Pixels::ZERO, gpui_kit::rems(1.75).to_pixels(window.rem_size()));
     self.records.len()
 ]);
 virtual_list(
@@ -802,7 +805,7 @@ virtual_list(
     |this, range, _, _| {
         range.map(|index| {
             gpui_kit::div()
-                .h(gpui_kit::px(28.))
+                .h(gpui_kit::rems(1.75))
                 .child(this.records[index].clone())
         }).collect()
     },
@@ -812,11 +815,11 @@ virtual_list(
 
 The full parameter types are `view: Entity<V>`, `id: impl Into<ElementId>`, `sizes: Rc<Vec<Size<Pixels>>>`, `render: impl Fn(&mut V, Range<usize>, &mut Window, &mut Context<V>) -> Vec<R> + 'static`, and `cx: &App`, where `V: Render` and `R: IntoElement`.
 
-Every size must match its row's rendered height, including variable-height rows. The default list height is 280px; override it for your layout. Retain a base `VirtualListScrollHandle` and attach it with `.track_scroll(&handle)` to preserve position or navigate to an item.
+Every size must match its row's rendered height, including variable-height rows. Resolve row sizes using `window.rem_size()` and rebuild cached measurements when it changes. The default list height is 17.5rem; override it for your layout. Retain a base `VirtualListScrollHandle` and attach it with `.track_scroll(&handle)` to preserve position or navigate to an item.
 
 ### Add a scrollbar
 
-`scrollbar(id, axis, &handle, cx) -> gpui_kit::base::Scrollbar` accepts `axis: gpui_kit::base::ScrollbarAxis`, `cx: &App` and a handle implementing `gpui_kit::base::ScrollbarHandle + Clone`. Vertical, horizontal and both-axis modes are supported.
+`scrollbar(id, axis, &handle, window, cx) -> gpui_kit::base::Scrollbar` accepts `axis: gpui_kit::base::ScrollbarAxis`, `window: &Window`, `cx: &App` and a handle implementing `gpui_kit::base::ScrollbarHandle + Clone`. Vertical, horizontal and both-axis modes are supported.
 
 Share the handle with the scrollable content, and render the scrollbar **after** that content inside the same relative container. The default mode is `ScrollbarMode::Always`; base builders remain available for customization. A scrollbar does not make ordinary content scrollable by itself.
 
@@ -835,7 +838,7 @@ let files = cx.new(|cx| {
 });
 ```
 
-`tree(&Entity<gpui_kit::base::TreeState>, cx: &App) -> gpui_kit::base::Tree` adds indented 28px rows, expand/collapse icons, disabled styling and selected fills to the base virtualized keyboard tree. It defaults to 280px high. Read selection and update items through the base state, and observe the entity when dependent content needs to redraw.
+`tree(&Entity<gpui_kit::base::TreeState>, cx: &App) -> gpui_kit::base::Tree` adds indented 1.75rem rows, expand/collapse icons, disabled styling and selected fills to the base virtualized keyboard tree. It defaults to 17.5rem high. Read selection and update items through the base state, and observe the entity when dependent content needs to redraw.
 
 ## Arrange a workspace
 

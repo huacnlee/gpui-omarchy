@@ -1,8 +1,9 @@
 //! Dense, square surfaces and non-interactive information components.
 use crate::ActiveTheme;
 use gpui_kit::base::{Progress, ProgressIndicator, ProgressTrack};
+use gpui_kit::rems;
 use gpui_kit::{
-    App, Div, ElementId, FontWeight, ParentElement, SharedString, Styled, div, px, relative,
+    App, Div, ElementId, FontWeight, ParentElement, SharedString, Styled, div, relative,
 };
 
 pub fn panel(title: impl Into<SharedString>, cx: &App) -> Div {
@@ -11,17 +12,17 @@ pub fn panel(title: impl Into<SharedString>, cx: &App) -> Div {
         .flex()
         .flex_col()
         .min_w_0()
-        .gap(px(14.))
-        .p(px(18.))
+        .gap(rems(0.875))
+        .p(rems(1.125))
         .border_1()
         .border_color(t.border)
         .bg(t.background)
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .text_color(t.foreground)
         .child(
             div()
-                .text_size(px(14.))
+                .text_size(rems(0.875))
                 .font_weight(FontWeight::BOLD)
                 .child(title.into()),
         )
@@ -30,7 +31,7 @@ pub fn panel(title: impl Into<SharedString>, cx: &App) -> Div {
 pub fn separator(cx: &App) -> Div {
     div()
         .w_full()
-        .h(px(1.))
+        .h(rems(0.0625))
         .flex_shrink_0()
         .bg(cx.omarchy().divider())
 }
@@ -38,8 +39,8 @@ pub fn separator(cx: &App) -> Div {
 /// A vertical rule for toolbars. Override height to fit a different row size.
 pub fn vertical_separator(cx: &App) -> Div {
     div()
-        .w(px(1.))
-        .h(px(20.))
+        .w(rems(0.0625))
+        .h(rems(1.25))
         .flex_shrink_0()
         .bg(cx.omarchy().divider())
 }
@@ -47,13 +48,13 @@ pub fn vertical_separator(cx: &App) -> Div {
 pub fn keycap(key: impl Into<SharedString>, cx: &App) -> Div {
     let t = cx.omarchy();
     div()
-        .px(px(4.))
-        .py(px(2.))
+        .px(rems(0.25))
+        .py(rems(0.125))
         .border_1()
         .border_color(t.border)
         .bg(t.inset)
         .font_family(t.font.clone())
-        .text_size(px(11.))
+        .text_size(rems(0.6875))
         .font_weight(FontWeight::BOLD)
         .text_color(t.foreground)
         .child(key.into())
@@ -77,13 +78,13 @@ pub fn badge(label: impl Into<SharedString>, status: Status, cx: &App) -> Div {
         Status::Error => t.danger,
     };
     div()
-        .px(px(6.))
-        .py(px(2.))
+        .px(rems(0.375))
+        .py(rems(0.125))
         .border_1()
         .border_color(color)
         .text_color(color)
         .font_family(t.font.clone())
-        .text_size(px(11.))
+        .text_size(rems(0.6875))
         .child(label.into())
 }
 
@@ -96,10 +97,10 @@ pub fn empty_state(
     div()
         .flex()
         .flex_col()
-        .gap(px(8.))
-        .p(px(18.))
+        .gap(rems(0.5))
+        .p(rems(1.125))
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .text_color(t.foreground)
         .child(div().font_weight(FontWeight::BOLD).child(title.into()))
         .child(div().text_color(t.secondary).child(description.into()))
@@ -110,12 +111,16 @@ pub fn progress(id: impl Into<ElementId>, value: f32, cx: &App) -> Progress {
     let t = cx.omarchy();
     let value = normalized_progress(value);
     Progress::new(id).value(value).w_full().child(
-        ProgressTrack::new().w_full().h(px(6.)).bg(t.border).child(
-            ProgressIndicator::new()
-                .h_full()
-                .w(relative(value / 100.))
-                .bg(t.accent),
-        ),
+        ProgressTrack::new()
+            .w_full()
+            .h(rems(0.375))
+            .bg(t.border)
+            .child(
+                ProgressIndicator::new()
+                    .h_full()
+                    .w(relative(value / 100.))
+                    .bg(t.accent),
+            ),
     )
 }
 
@@ -125,6 +130,56 @@ fn normalized_progress(value: f32) -> f32 {
     } else {
         0.
     }
+}
+
+/// Notification surface; compose actions and use gpui-base's ToastManager for
+/// application-owned stacking and timeout policy.
+pub fn toast(id: impl Into<gpui_kit::ElementId>, cx: &App) -> gpui_kit::base::Toast {
+    let t = cx.omarchy();
+    gpui_kit::base::Toast::new(id)
+        .flex()
+        .flex_col()
+        .gap(rems(0.625))
+        .p(rems(0.875))
+        .w_full()
+        .border_1()
+        .rounded_none()
+        .border_color(t.border)
+        .bg(t.background)
+        .text_color(t.foreground)
+        .font_family(t.font.clone())
+        .text_size(rems(0.75))
+}
+
+/// A square identity marker. Supply initials or an icon in the fallback slot;
+/// callers can replace it with `avatar_image` through the base image builder.
+pub fn avatar(initials: impl Into<SharedString>, cx: &App) -> gpui_kit::base::Avatar {
+    let t = cx.omarchy();
+    gpui_kit::base::Avatar::new()
+        .size(rems(2.))
+        .flex_shrink_0()
+        .overflow_hidden()
+        .rounded_none()
+        .border_1()
+        .border_color(t.control_border())
+        .bg(t.hover_fill())
+        .font_family(t.font.clone())
+        .text_size(rems(0.75))
+        .text_color(t.foreground)
+        .fallback(
+            gpui_kit::base::AvatarFallback::new()
+                .size_full()
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(initials.into()),
+        )
+}
+
+/// An image slot sized to its avatar. Image loading and failure policy remain
+/// with the application, matching gpui-base's explicit slot API.
+pub fn avatar_image(source: impl Into<gpui_kit::ImageSource>) -> gpui_kit::base::AvatarImage {
+    gpui_kit::base::AvatarImage::new(source).size_full()
 }
 
 #[cfg(test)]
@@ -142,54 +197,4 @@ mod tests {
             assert_eq!(normalized_progress(input), expected);
         }
     }
-}
-
-/// Notification surface; compose actions and use gpui-base's ToastManager for
-/// application-owned stacking and timeout policy.
-pub fn toast(id: impl Into<gpui_kit::ElementId>, cx: &App) -> gpui_kit::base::Toast {
-    let t = cx.omarchy();
-    gpui_kit::base::Toast::new(id)
-        .flex()
-        .flex_col()
-        .gap(px(10.))
-        .p(px(14.))
-        .w_full()
-        .border_1()
-        .rounded(px(0.))
-        .border_color(t.border)
-        .bg(t.background)
-        .text_color(t.foreground)
-        .font_family(t.font.clone())
-        .text_size(px(12.))
-}
-
-/// A square identity marker. Supply initials or an icon in the fallback slot;
-/// callers can replace it with `avatar_image` through the base image builder.
-pub fn avatar(initials: impl Into<SharedString>, cx: &App) -> gpui_kit::base::Avatar {
-    let t = cx.omarchy();
-    gpui_kit::base::Avatar::new()
-        .size(px(32.))
-        .flex_shrink_0()
-        .overflow_hidden()
-        .rounded(px(0.))
-        .border_1()
-        .border_color(t.control_border())
-        .bg(t.hover_fill())
-        .font_family(t.font.clone())
-        .text_size(px(12.))
-        .text_color(t.foreground)
-        .fallback(
-            gpui_kit::base::AvatarFallback::new()
-                .size_full()
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(initials.into()),
-        )
-}
-
-/// An image slot sized to its avatar. Image loading and failure policy remain
-/// with the application, matching gpui-base's explicit slot API.
-pub fn avatar_image(source: impl Into<gpui_kit::ImageSource>) -> gpui_kit::base::AvatarImage {
-    gpui_kit::base::AvatarImage::new(source).size_full()
 }

@@ -1,6 +1,7 @@
 //! GPUI Kit's bundled icons, resolved against the current text color at render time.
 use gpui_kit::base::StyledExt;
-use gpui_kit::{App, IntoElement, RenderOnce, StyleRefinement, Styled, Window, px, svg};
+use gpui_kit::rems;
+use gpui_kit::{App, IntoElement, RenderOnce, StyleRefinement, Styled, Window, svg};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IconName {
@@ -94,7 +95,7 @@ pub fn icon(name: IconName) -> Icon {
         name,
         style: StyleRefinement::default(),
     }
-    .size(px(16.))
+    .size(rems(1.))
     .flex_shrink_0()
 }
 

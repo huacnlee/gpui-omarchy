@@ -20,6 +20,10 @@ cargo run --example gallery
 
 The single `gallery` example groups components under Actions, Forms, Navigation, Overlays and Display. Choose a component in the sidebar to inspect and interact with it. Use Up/Down, j/k or Home/End to navigate the sidebar, and Tab to enter the controls. The top Menu reloads the system theme, previews dark or light colors, and exits the gallery.
 
+Use the top-bar − / + controls to test interface zoom from 50% to 200% in 25% steps. Click the percentage to reset to 100%, or use Cmd/Ctrl + `+`, `-`, and `0`. Zoom updates the window's rem size, including list measurements, and persists while switching components and themes in the same window.
+
+UI typography, spacing, icon sizes and control dimensions use rem units and follow `Window::rem_size()`. Pixel-only base APIs (scrollbars, rich-text headings, resizable panels and virtual-list measurements) resolve rem dimensions with the current window. `scrollbar`, `markdown`, `html` and `text_view_style` therefore take `window: &Window` before `cx`. Physical borders, native window bounds, test pointer coordinates and the base theme's nominal typography snapshot remain pixel-based.
+
 ## Themes
 
 `gpui_omarchy::init(cx)` initializes base and first reads:
@@ -74,7 +78,9 @@ Wrap a window or form in `focus_scope("app")` to enable Tab and Shift+Tab traver
 
 `toggle_group(id, cx)` composes independent `toggle` children for multiple-choice filters. Add icons explicitly through child elements.
 
-`button_group(...)` represents a single-choice setting; `tab_list(...)` switches between content pages. Both accept `ChoiceItem` options, the selected index and a callback, returning base RadioGroup and Tabs respectively. Each group has one Tab stop. Left/Right or h/l moves the cursor, and Enter or Space confirms. Use `tabs` and `tab` for custom compositions.
+`button_group(...)` represents a single-choice setting with equal-width segments; `tab_list(...)` switches between content pages in a segmented strip. Both accept `ChoiceItem` options, the selected index and a callback, returning base RadioGroup and Tabs respectively. `tab_list` also takes `show_shortcuts: bool` after the selected index: use `false` for labels only, or `true` for automatic one-based number hints (applications own key bindings). Each group has one Tab stop. Left/Right or h/l moves the cursor, and Enter or Space confirms. Use `tabs` and `tab` for custom compositions.
+
+`input(...)` returns an `Input` supporting `.prefix(element)` and `.suffix(element)` for text, icons or custom content within the input border. Both slots are empty by default and do not change the editable value.
 
 `with_tooltip(control, "Description")` preserves the control's type and adds a tooltip after 400 ms of hovering. `tooltip(text, cx)` returns a customizable tooltip surface. Icon buttons still need explicit accessible names.
 
@@ -89,11 +95,11 @@ Wrap a window or form in `focus_scope("app")` to enable Tab and Shift+Tab traver
 
 `calendar(id, &state, cx)` uses base CalendarState, with month/year navigation, single-date or range selection and disabled-date matchers. `separator` and `vertical_separator` provide horizontal and vertical dividers.
 
-`scrollbar(id, axis, &handle, cx)` returns a themed base Scrollbar. Share its handle with the scrollable content and render it last inside the same relative container. Vertical, horizontal and both-axis configurations are supported.
+`scrollbar(id, axis, &handle, window, cx)` returns a themed base Scrollbar. Share its handle with the scrollable content and render it last inside the same relative container. Vertical, horizontal and both-axis configurations are supported.
 
 `virtual_list(view, id, sizes, render, cx)` returns a base VirtualList that builds only the visible range. Each height in `sizes` must match the corresponding rendered row. Use `.track_scroll(&handle)` to preserve position or navigate to an item. The gallery displays 1,000 activity records with varying heights.
 
-`markdown(id, source, cx)` and `html(id, source, cx)` return base TextView elements with selectable text, links and themed document typography. State-backed TextViews can use `text_view_style(cx)`. Selection uses the application's root TextSelectionLayer.
+`markdown(id, source, window, cx)` and `html(id, source, window, cx)` return base TextView elements with selectable text, links and themed document typography. State-backed TextViews can use `text_view_style(window, cx)`. Selection uses the application's root TextSelectionLayer.
 
 `tree(&state, cx)` uses base TreeState. `resizable(id, axis, cx)` returns a base split container, with dragging and size constraints handled by base. `nav_stack(&state, cx)` preserves base push, pop and forward navigation state.
 

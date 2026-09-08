@@ -1,7 +1,8 @@
 //! Color editing backed by base's hex validation and synchronized HSLA state.
 use crate::{ActiveTheme, ButtonVariant, button, input, popover_surface, slider};
 use gpui_kit::base::{ColorPicker, ColorPickerState, Popup};
-use gpui_kit::{App, ElementId, Entity, Focusable, Window, div, prelude::*, px};
+use gpui_kit::rems;
+use gpui_kit::{App, ElementId, Entity, Focusable, Window, div, prelude::*};
 
 pub fn color_picker(
     id: impl Into<ElementId>,
@@ -34,7 +35,7 @@ pub fn color_picker(
         .focusable(false)
         .child(
             div()
-                .size(px(16.))
+                .size(rems(1.))
                 .border_1()
                 .border_color(t.border)
                 .bg(color.unwrap_or(t.background)),
@@ -53,11 +54,11 @@ pub fn color_picker(
             .id("color-editor")
             .debug_selector(|| "color-picker-popup".into())
             .key_context("OmarchyPopoverContent")
-            .w(px(280.))
-            .mt(px(4.))
+            .w(rems(17.5))
+            .mt(rems(0.25))
             .flex()
             .flex_col()
-            .gap(px(6.))
+            .gap(rems(0.375))
             .on_mouse_down_out(move |_, window, cx| {
                 target.update(cx, |state, cx| {
                     restore_committed_color(state, window, cx);
@@ -82,10 +83,10 @@ pub fn color_picker(
             ("Opacity", channels.alpha()),
         ] {
             body = body.child(
-                div().flex().flex_col().gap(px(4.)).child(name).child(
+                div().flex().flex_col().gap(rems(0.25)).child(name).child(
                     div()
                         .debug_selector(move || format!("color-channel-{name}"))
-                        .child(slider(channel, false, window, cx).px(px(0.))),
+                        .child(slider(channel, false, window, cx).px(rems(0.))),
                 ),
             );
         }

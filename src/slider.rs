@@ -4,8 +4,9 @@ use gpui_kit::base::{
     Slider, SliderIndicator, SliderThumb, SliderTrack,
     slider::{SliderEvent, SliderState, SliderValue},
 };
+use gpui_kit::rems;
 use gpui_kit::{
-    App, Entity, FocusHandle, KeyDownEvent, MouseButton, Window, div, prelude::*, px, relative,
+    App, Entity, FocusHandle, KeyDownEvent, MouseButton, Window, div, prelude::*, relative,
 };
 
 /// Compose themed base parts. Pass disabled here so both track and thumbs are inert.
@@ -26,9 +27,9 @@ pub fn slider(
         .child(
             SliderIndicator::new(state)
                 .absolute()
-                .top(px(12.))
+                .top(rems(0.75))
                 .w_full()
-                .h(px(4.))
+                .h(rems(0.25))
                 .bg(t.border)
                 .child(
                     div()
@@ -61,14 +62,14 @@ pub fn slider(
                 .start(start)
                 .disabled(disabled)
                 .absolute()
-                .top(px(6.))
+                .top(rems(0.375))
                 .left(relative(if start {
                     percentage.start
                 } else {
                     percentage.end
                 }))
-                .ml(px(-8.))
-                .size(px(16.))
+                .ml(rems(-0.5))
+                .size(rems(1.))
                 .border_2()
                 .border_color(t.accent)
                 .bg(t.background)
@@ -114,8 +115,8 @@ pub fn slider(
     Slider::new(state)
         .disabled(disabled)
         .w_full()
-        .h(px(28.))
-        .px(px(8.))
+        .h(rems(1.75))
+        .px(rems(0.5))
         .when(disabled, |s| s.opacity(0.45))
         .child(track)
 }

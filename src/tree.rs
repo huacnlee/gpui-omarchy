@@ -1,12 +1,13 @@
 use crate::{ActiveTheme, IconName, icon};
 use gpui_kit::base::{Tree, TreeState};
-use gpui_kit::{App, Entity, div, prelude::*, px};
+use gpui_kit::rems;
+use gpui_kit::{App, Entity, div, prelude::*};
 
 /// Virtualized, keyboard-navigable tree with application-owned base state.
 pub fn tree(state: &Entity<TreeState>, cx: &App) -> Tree {
     let t = cx.omarchy().clone();
     Tree::new(state)
-        .h(px(280.))
+        .h(rems(17.5))
         .w_full()
         .list_style(div().size_full().style().clone())
         .item(move |_, entry, state, _, _| {
@@ -15,12 +16,12 @@ pub fn tree(state: &Entity<TreeState>, cx: &App) -> Tree {
                 .debug_selector(move || format!("omarchy-tree-{id}"))
                 .flex()
                 .items_center()
-                .gap(px(6.))
-                .h(px(28.))
-                .pl(px(6. + entry.depth() as f32 * 20.))
-                .pr(px(8.))
+                .gap(rems(0.375))
+                .h(rems(1.75))
+                .pl(rems(0.375 + entry.depth() as f32 * 1.25))
+                .pr(rems(0.5))
                 .font_family(t.font.clone())
-                .text_size(px(12.))
+                .text_size(rems(0.75))
                 .text_color(t.foreground)
                 .bg(if state.is_selected() {
                     t.selected_fill()
@@ -38,7 +39,7 @@ pub fn tree(state: &Entity<TreeState>, cx: &App) -> Tree {
                         } else {
                             IconName::ChevronRight
                         })
-                        .size(px(14.))
+                        .size(rems(0.875))
                         .flex_shrink_0(),
                     )
                 })

@@ -1,7 +1,8 @@
 //! Virtualized lists retain base's sizing and scroll model.
 use crate::ActiveTheme;
+use gpui_kit::rems;
 use gpui_kit::{
-    App, Context, ElementId, Entity, IntoElement, Pixels, Render, Size, Styled, Window, px,
+    App, Context, ElementId, Entity, IntoElement, Pixels, Render, Size, Styled, Window,
 };
 use std::{ops::Range, rc::Rc};
 
@@ -18,9 +19,9 @@ pub fn virtual_list<V: Render, R: IntoElement>(
     let t = cx.omarchy();
     gpui_kit::base::v_virtual_list(view, id, sizes, render)
         .w_full()
-        .h(px(280.))
+        .h(rems(17.5))
         .font_family(t.font.clone())
-        .text_size(px(12.))
+        .text_size(rems(0.75))
         .text_color(t.foreground)
         .bg(t.background)
 }
@@ -31,6 +32,7 @@ pub fn scrollbar<H: gpui_kit::base::ScrollbarHandle + Clone>(
     id: impl Into<ElementId>,
     axis: gpui_kit::base::ScrollbarAxis,
     handle: &H,
+    window: &Window,
     cx: &App,
 ) -> gpui_kit::base::Scrollbar {
     let t = cx.omarchy();
@@ -40,12 +42,16 @@ pub fn scrollbar<H: gpui_kit::base::ScrollbarHandle + Clone>(
         .mode(gpui_kit::base::ScrollbarMode::Always)
         .styles(|style| {
             style
-                .track(|track| track.width(px(8.)).bg(t.normal_fill()))
+                .track(|track| {
+                    track
+                        .width(rems(0.5).to_pixels(window.rem_size()))
+                        .bg(t.normal_fill())
+                })
                 .thumb(|thumb| {
                     thumb
-                        .width(px(6.))
-                        .inset(px(1.))
-                        .radius(px(0.))
+                        .width(rems(0.375).to_pixels(window.rem_size()))
+                        .inset(rems(0.0625).to_pixels(window.rem_size()))
+                        .radius(Pixels::ZERO)
                         .bg(t.foreground.opacity(0.35))
                 })
                 .thumb_hover(|thumb| thumb.bg(t.foreground.opacity(0.55)))

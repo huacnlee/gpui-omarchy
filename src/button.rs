@@ -148,7 +148,9 @@ impl RenderOnce for Button {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui_kit::{Context, Modifiers, MouseButton, Render, TestAppContext, div, point, px};
+    use gpui_kit::px;
+    use gpui_kit::rems;
+    use gpui_kit::{Context, Modifiers, MouseButton, Render, TestAppContext, div, point};
     #[gpui_kit::test]
     fn disabled_button_suppresses_hover_and_pressed_geometry(cx: &mut TestAppContext) {
         cx.update(crate::init);
@@ -159,21 +161,21 @@ mod tests {
         impl Render for States {
             fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 let button = crate::button("button", "Apply", crate::ButtonVariant::Primary, cx)
-                    .w(px(100.))
-                    .h(px(40.));
+                    .w(rems(6.25))
+                    .h(rems(2.5));
                 let button = if self.disabled_first {
                     button
                         .disabled(self.disabled)
-                        .hover(|s| s.w(px(160.)))
-                        .active(|s| s.w(px(200.)))
+                        .hover(|s| s.w(rems(10.)))
+                        .active(|s| s.w(rems(12.5)))
                 } else {
                     button
-                        .hover(|s| s.w(px(160.)))
-                        .active(|s| s.w(px(200.)))
+                        .hover(|s| s.w(rems(10.)))
+                        .active(|s| s.w(rems(12.5)))
                         .disabled(self.disabled)
                 };
                 div()
-                    .size(px(400.))
+                    .size(rems(25.))
                     .child(button.debug_selector(|| "state-button".into()))
             }
         }

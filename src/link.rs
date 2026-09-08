@@ -133,7 +133,9 @@ impl RenderOnce for Link {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui_kit::{Context, Modifiers, MouseButton, Render, TestAppContext, div, point, px};
+    use gpui_kit::px;
+    use gpui_kit::rems;
+    use gpui_kit::{Context, Modifiers, MouseButton, Render, TestAppContext, div, point};
     #[gpui_kit::test]
     fn disabled_link_suppresses_hover_and_pressed_geometry(cx: &mut TestAppContext) {
         cx.update(crate::init);
@@ -144,19 +146,19 @@ mod tests {
         impl Render for States {
             fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 let link = crate::link("link", "Project", "https://example.com", cx)
-                    .w(px(100.))
-                    .h(px(40.));
+                    .w(rems(6.25))
+                    .h(rems(2.5));
                 let link = if self.disabled_first {
                     link.disabled(self.disabled)
-                        .hover(|s| s.w(px(160.)))
-                        .active(|s| s.w(px(200.)))
+                        .hover(|s| s.w(rems(10.)))
+                        .active(|s| s.w(rems(12.5)))
                 } else {
-                    link.hover(|s| s.w(px(160.)))
-                        .active(|s| s.w(px(200.)))
+                    link.hover(|s| s.w(rems(10.)))
+                        .active(|s| s.w(rems(12.5)))
                         .disabled(self.disabled)
                 };
                 div()
-                    .size(px(400.))
+                    .size(rems(25.))
                     .child(link.debug_selector(|| "state-link".into()))
             }
         }

@@ -12,6 +12,10 @@ gpui-kit = { version = "=0.6.1", default-features = false, features = ["assets"]
 toml = "0.8"
 chrono = "0.4.45"
 
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+async-channel = "2"
+notify = "7"
+
 [dev-dependencies]
 tempfile = "3"
 gpui-kit = { version = "=0.6.1", default-features = false, features = ["test-support"] }

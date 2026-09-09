@@ -39,7 +39,7 @@ Both ANSI `color0..15` and semantic Omarchy color formats are supported. Missing
 
 Theme locations and the theme-name file follow the [Omarchy theme-set script](https://github.com/basecamp/omarchy/blob/master/bin/omarchy-theme-set). See the [ANSI theme](https://github.com/basecamp/omarchy/blob/master/themes/tokyo-night/colors.toml) and [semantic theme](https://github.com/basecamp/omarchy/blob/quattro/themes/tokyo-night/colors.toml) for color formats.
 
-Native applications follow the system theme after `init`: a background check every second detects palette edits and theme symlink replacements, then updates all windows only when the theme changes. Applying an explicit theme with `Theme::apply(cx)` stops following; `Theme::follow_system(cx)` resumes it. `Theme::system_or_default()` remains a one-time snapshot. Browsers use the default palette without filesystem monitoring. `shell.toml` size and state overrides are not yet implemented. Flexoki Light is available for previewing light colors; the gallery follows the system theme by default.
+Native applications follow the system theme after `init`: filesystem events detect palette edits and theme symlink replacements, and all windows update only when the theme changes. Applying an explicit theme with `Theme::apply(cx)` stops following; `Theme::follow_system(cx)` resumes it. `Theme::system_or_default()` remains a one-time snapshot. `Theme::follow_system(cx)` does nothing in browsers; initialization still supplies the default palette. `shell.toml` size and state overrides are not yet implemented. Flexoki Light is available for previewing light colors; the gallery follows the system theme by default.
 
 ## Usage
 

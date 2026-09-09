@@ -73,5 +73,8 @@ pub fn init(cx: &mut gpui_kit::App) {
     button_group::init(cx);
     popover::init(cx);
     date_picker::init(cx);
+    #[cfg(not(target_family = "wasm"))]
     Theme::follow_system(cx);
+    #[cfg(target_family = "wasm")]
+    Theme::tokyo_night().apply(cx);
 }

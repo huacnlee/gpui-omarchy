@@ -201,7 +201,7 @@ $HOME/.local/state/omarchy/current/theme/colors.toml
 $HOME/.local/state/omarchy/current/theme.name
 ```
 
-It checks for changes once per second off the UI thread, including replaced theme symlinks. The legacy `$HOME/.config/omarchy/current` location is used only when the current state directory is absent. An existing but invalid current theme falls back to Tokyo Night rather than reviving a stale legacy theme.
+It watches filesystem changes and reloads off the UI thread, including replaced theme symlinks and edits to their targets. The legacy `$HOME/.config/omarchy/current` location is used only when the current state directory is absent. An existing but invalid current theme falls back to Tokyo Night rather than reviving a stale legacy theme.
 
 For an application theme switcher, apply a palette explicitly:
 
@@ -229,7 +229,7 @@ Import `ActiveTheme` to use `omarchy(&self) -> &Theme` on `App` and through cont
 | `Theme::tokyo_night() -> Theme` | Construct the default dark palette without applying it. |
 | `Theme::flexoki_light() -> Theme` | Construct the built-in warm light palette. |
 | `Theme::system_or_default() -> Theme` | Read a one-time system snapshot, with atomic Tokyo Night fallback. This does not start watching. |
-| `Theme::follow_system(&mut App)` | Apply the system palette and follow later changes. In browsers, apply Tokyo Night without filesystem monitoring. |
+| `Theme::follow_system(&mut App)` | Apply the system palette and follow later changes. Does nothing in browsers. |
 | `Theme::from_current_dir(path: impl AsRef<Path>) -> Result<Theme, ThemeLoadError>` | Read `theme/colors.toml` under a supplied current directory, with optional `theme.name`. |
 | `Theme::from_colors_toml(name: &str, contents: &str) -> Result<Theme, ThemeLoadError>` | Parse palette text already loaded by your application. |
 

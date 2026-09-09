@@ -8,7 +8,7 @@ description: Build an Omarchy application with GPUI. Learn composition, themes, 
 
 Build an Omarchy application from a first window to forms, menus and a docked workspace. These guides share one page so you can read through, jump to a chapter, or search for a component with your browser's Find command.
 
-The examples target **gpui-omarchy 0.1.0** with **GPUI Kit 0.6.0**. They cover the public API defined by gpui-omarchy, including its modules, constructors, wrapper methods, state types and theme fields. [GPUI Kit](https://gpui-kit.com/) supplies the underlying framework and base builder APIs; their entire dependency APIs are not duplicated here.
+The examples target **gpui-omarchy 0.1.0** with **GPUI Kit 0.6.1**. They cover the public API defined by gpui-omarchy, including its modules, constructors, wrapper methods, state types and theme fields. [GPUI Kit](https://gpui-kit.com/) supplies the underlying framework and base builder APIs; their entire dependency APIs are not duplicated here.
 
 ## Start an application
 
@@ -16,7 +16,7 @@ Add the library to a Rust 2024 application:
 
 ```toml
 [dependencies]
-gpui-kit = { version = "=0.6.0", default-features = false }
+gpui-kit = { version = "=0.6.1", default-features = false }
 gpui-omarchy = "0.1.0"
 ```
 

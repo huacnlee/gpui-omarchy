@@ -2221,8 +2221,9 @@ dependencies = [
 
 [[package]]
 name = "gpui-base"
-version = "0.6.0"
-source = "git+https://github.com/longbridge/gpui-kit?rev=abc47ce5b522de4b7300ea57e77236b2d95a1c4f#abc47ce5b522de4b7300ea57e77236b2d95a1c4f"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d45dcaaeac889bf1e7757db1beb26c9043c8ea3156651facc11c6be56bb6722"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2255,8 +2256,9 @@ dependencies = [
 
 [[package]]
 name = "gpui-component"
-version = "0.6.0"
-source = "git+https://github.com/longbridge/gpui-kit?rev=abc47ce5b522de4b7300ea57e77236b2d95a1c4f#abc47ce5b522de4b7300ea57e77236b2d95a1c4f"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52b7ab4921dc9d2624648fb40580067bfe0f47dd14f5f8f6e070d40c6d4246d4"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2281,6 +2283,7 @@ dependencies = [
  "once_cell",
  "paste",
  "raw-window-handle",
+ "regex",
  "resvg 0.45.1",
  "ropey",
  "rust-i18n",
@@ -2297,8 +2300,9 @@ dependencies = [
 
 [[package]]
 name = "gpui-component-macros"
-version = "0.6.0"
-source = "git+https://github.com/longbridge/gpui-kit?rev=abc47ce5b522de4b7300ea57e77236b2d95a1c4f#abc47ce5b522de4b7300ea57e77236b2d95a1c4f"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21fee2d71a84a6af828e7915a1b4c6721610a47ba5ef30b35c2f8edafdd753cc"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2308,8 +2312,9 @@ dependencies = [
 
 [[package]]
 name = "gpui-kit"
-version = "0.6.0"
-source = "git+https://github.com/longbridge/gpui-kit?rev=abc47ce5b522de4b7300ea57e77236b2d95a1c4f#abc47ce5b522de4b7300ea57e77236b2d95a1c4f"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a74f10f4499d99378c73c0251541a5d92bde45cb83dd658f0618fb32769d5898"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2321,8 +2326,9 @@ dependencies = [
 
 [[package]]
 name = "gpui-kit-assets"
-version = "0.6.0"
-source = "git+https://github.com/longbridge/gpui-kit?rev=abc47ce5b522de4b7300ea57e77236b2d95a1c4f#abc47ce5b522de4b7300ea57e77236b2d95a1c4f"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be79bcf18842485308282d138cffaacb6191ece5643f4ee66d1828524be2a8e3"
 dependencies = [
  "anyhow",
  "gpui-pre",

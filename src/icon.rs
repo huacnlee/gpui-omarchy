@@ -1,45 +1,15 @@
-//! GPUI Kit's bundled icons, resolved against the current text color at render time.
+//! Icons named by gpui-kit-assets, resolved against the current text color.
+//!
+//! [`IconName`] and the SVG paths behind it come from `gpui-kit-assets`, so an
+//! application reaches the whole Lucide catalog and this crate carries no icon
+//! of its own. The bytes are read through the application's `AssetSource`:
+//! register `gpui_kit::assets::Assets` for the default bundle, `AllAssets` for
+//! the full catalog, or compose either with `icon_assets!` for a few extras.
 use gpui_kit::base::StyledExt;
 use gpui_kit::rems;
 use gpui_kit::{App, IntoElement, RenderOnce, StyleRefinement, Styled, Window, svg};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum IconName {
-    Check,
-    Minus,
-    Plus,
-    ChevronDown,
-    ChevronRight,
-    ChevronLeft,
-    Calendar,
-    Star,
-    ExternalLink,
-    Close,
-    Search,
-    Menu,
-    Settings,
-    TriangleAlert,
-}
-impl IconName {
-    pub fn path(self) -> &'static str {
-        match self {
-            Self::Check => "icons/check.svg",
-            Self::Minus => "icons/minus.svg",
-            Self::Plus => "icons/plus.svg",
-            Self::ChevronDown => "icons/chevron-down.svg",
-            Self::Calendar => "icons/calendar.svg",
-            Self::ChevronLeft => "icons/chevron-left.svg",
-            Self::ChevronRight => "icons/chevron-right.svg",
-            Self::Star => "icons/star.svg",
-            Self::ExternalLink => "icons/external-link.svg",
-            Self::Close => "icons/close.svg",
-            Self::Search => "icons/search.svg",
-            Self::Menu => "icons/menu.svg",
-            Self::Settings => "icons/settings.svg",
-            Self::TriangleAlert => "icons/triangle-alert.svg",
-        }
-    }
-}
+pub use gpui_kit::assets::IconName;
 
 #[derive(IntoElement)]
 pub struct Icon {
@@ -56,40 +26,13 @@ impl RenderOnce for Icon {
         // Svg only paints when its own text color is set. Resolve inheritance here,
         // then apply caller refinements so explicit size and color still win.
         svg()
-            .data(&icon_data(self.name))
+            .path(self.name.path())
             .text_color(window.text_style().color)
             .refine_style(&self.style)
     }
 }
-#[cfg(not(target_family = "wasm"))]
-fn icon_data(name: IconName) -> std::borrow::Cow<'static, [u8]> {
-    gpui_kit::assets::Assets::get(name.path())
-        .expect("bundled icon exists")
-        .data
-}
 
-// gpui-kit-assets exposes asynchronous AssetSource loading on the web rather
-// than Assets::get. Embed the small set used here so first paint is complete.
-#[cfg(target_family = "wasm")]
-fn icon_data(name: IconName) -> &'static [u8] {
-    match name {
-        IconName::Check => include_bytes!("../assets/icons/check.svg"),
-        IconName::Minus => include_bytes!("../assets/icons/minus.svg"),
-        IconName::Plus => include_bytes!("../assets/icons/plus.svg"),
-        IconName::ChevronDown => include_bytes!("../assets/icons/chevron-down.svg"),
-        IconName::Calendar => include_bytes!("../assets/icons/calendar.svg"),
-        IconName::ChevronLeft => include_bytes!("../assets/icons/chevron-left.svg"),
-        IconName::ChevronRight => include_bytes!("../assets/icons/chevron-right.svg"),
-        IconName::Star => include_bytes!("../assets/icons/star.svg"),
-        IconName::ExternalLink => include_bytes!("../assets/icons/external-link.svg"),
-        IconName::Close => include_bytes!("../assets/icons/close.svg"),
-        IconName::Search => include_bytes!("../assets/icons/search.svg"),
-        IconName::Menu => include_bytes!("../assets/icons/menu.svg"),
-        IconName::Settings => include_bytes!("../assets/icons/settings.svg"),
-        IconName::TriangleAlert => include_bytes!("../assets/icons/triangle-alert.svg"),
-    }
-}
-/// A 16px GPUI Kit icon. No application AssetSource replacement is needed.
+/// A 16px icon from the application's asset source.
 pub fn icon(name: IconName) -> Icon {
     Icon {
         name,
@@ -102,8 +45,12 @@ pub fn icon(name: IconName) -> Icon {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui_kit::AssetSource;
+
     #[test]
-    fn all_named_icons_exist_in_kit_assets() {
+    fn the_icons_this_crate_draws_are_in_the_default_bundle() {
+        // Components reach for these without the application asking, so they
+        // must resolve against the bundle every gpui-kit application gets.
         for name in [
             IconName::Check,
             IconName::Minus,
@@ -120,10 +67,10 @@ mod tests {
             IconName::Settings,
             IconName::TriangleAlert,
         ] {
+            let path = name.path();
             assert!(
-                gpui_kit::assets::Assets::get(name.path()).is_some(),
-                "{}",
-                name.path()
+                gpui_kit::assets::Assets.load(&path).unwrap().is_some(),
+                "{path}"
             );
         }
     }

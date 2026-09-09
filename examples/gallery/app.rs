@@ -3535,24 +3535,26 @@ fn install_panic_report() {
 #[cfg(not(target_family = "wasm"))]
 pub fn run() {
     install_panic_report();
-    gpui_kit::platform::application().run(move |cx| {
-        gpui_omarchy::init(cx);
-        cx.open_window(
-            WindowOptions {
-                titlebar: None,
-                window_min_size: Some(size(px(680.), px(520.))),
-                window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
-                    None,
-                    size(px(1060.), px(760.)),
-                    cx,
-                ))),
-                ..Default::default()
-            },
-            |window, cx| cx.new(|cx| Gallery::new(window, cx)),
-        )
-        .expect("open component gallery");
-        cx.activate(true);
-    });
+    gpui_kit::platform::application()
+        .with_assets(gpui_kit::assets::Assets)
+        .run(move |cx| {
+            gpui_omarchy::init(cx);
+            cx.open_window(
+                WindowOptions {
+                    titlebar: None,
+                    window_min_size: Some(size(px(680.), px(520.))),
+                    window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                        None,
+                        size(px(1060.), px(760.)),
+                        cx,
+                    ))),
+                    ..Default::default()
+                },
+                |window, cx| cx.new(|cx| Gallery::new(window, cx)),
+            )
+            .expect("open component gallery");
+            cx.activate(true);
+        });
 }
 
 fn initial_page() -> &'static str {

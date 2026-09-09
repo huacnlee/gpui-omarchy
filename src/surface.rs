@@ -68,6 +68,48 @@ pub enum Status {
     Warning,
     Error,
 }
+impl Status {
+    /// The theme colour that carries this status.
+    pub fn color(self, cx: &App) -> gpui_kit::Hsla {
+        let t = cx.omarchy();
+        match self {
+            Status::Neutral => t.secondary,
+            Status::Success => t.success,
+            Status::Warning => t.warning,
+            Status::Error => t.danger,
+        }
+    }
+}
+
+/// Inline feedback with square borders and semantic theme colors.
+///
+/// Unlike [`crate::alert_dialog`] this stays in the layout, so it suits
+/// persistent conditions the reader can act on without leaving the view.
+pub fn alert(message: impl Into<SharedString>, status: Status, cx: &App) -> Div {
+    let t = cx.omarchy();
+    let color = status.color(cx);
+    div()
+        .flex()
+        .items_center()
+        .gap(rems(0.625))
+        .p(rems(0.625))
+        .border_1()
+        .border_color(color.opacity(0.35))
+        .bg(color.opacity(0.06))
+        .text_color(color)
+        .font_family(t.font.clone())
+        .child(
+            crate::icon(match status {
+                Status::Success => crate::IconName::Check,
+                Status::Neutral => crate::IconName::Minus,
+                Status::Warning | Status::Error => crate::IconName::TriangleAlert,
+            })
+            .size(rems(0.875))
+            .flex_shrink_0()
+            .text_color(color),
+        )
+        .child(div().flex_1().min_w_0().child(message.into()))
+}
 
 pub fn badge(label: impl Into<SharedString>, status: Status, cx: &App) -> Div {
     let t = cx.omarchy();

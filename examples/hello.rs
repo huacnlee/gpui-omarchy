@@ -30,12 +30,15 @@ impl Render for Hello {
 }
 
 fn main() {
-    gpui_kit::application().run(|cx| {
-        gpui_omarchy::init(cx);
-        cx.open_window(WindowOptions::default(), |_, cx| {
-            cx.new(|_| Hello { clicks: 0 })
-        })
-        .expect("open window");
-        cx.activate(true);
-    });
+    // Icons are read through the asset source, so register the bundle.
+    gpui_kit::application()
+        .with_assets(gpui_kit::assets::Assets)
+        .run(|cx| {
+            gpui_omarchy::init(cx);
+            cx.open_window(WindowOptions::default(), |_, cx| {
+                cx.new(|_| Hello { clicks: 0 })
+            })
+            .expect("open window");
+            cx.activate(true);
+        });
 }

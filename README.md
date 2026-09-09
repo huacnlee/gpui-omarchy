@@ -12,7 +12,7 @@ The project is under development, with 46 component previews in one gallery. For
 
 ## Running the gallery
 
-Install Rust and the platform-specific build dependencies required by GPUI. The gallery uses `.SystemUIFont`, so no additional fonts are needed. Icons use embedded SVGs from `gpui-kit-assets`, with inherited colors resolved during rendering; the application does not need to replace its AssetSource.
+Install Rust and the platform-specific build dependencies required by GPUI. The gallery uses `.SystemUIFont`, so no additional fonts are needed. Icons use SVGs from `gpui-kit-assets`, with inherited colors resolved during rendering. Register `gpui_kit::assets::Assets` on the application, as shown in the examples.
 
 ```sh
 cargo run --example gallery
@@ -49,7 +49,7 @@ Add the library to your application:
 
 ```toml
 [dependencies]
-gpui-kit = { version = "=0.6.0", default-features = false }
+gpui-kit = { version = "=0.6.1", default-features = false }
 gpui-omarchy = "0.1.0"
 ```
 

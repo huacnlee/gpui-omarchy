@@ -56,7 +56,7 @@ test('page assets load and Cargo.toml dependencies can be copied',async({page,co
   await expect(page.getByRole('heading',{level:1})).toContainText('GPUI / OMARCHY');
   await page.getByRole('button',{name:'Copy'}).click();
   await expect(page.getByRole('button',{name:'Copy to clipboard'})).toHaveText('Copied');
-  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe('[dependencies]\ngpui-kit = { version = "=0.6.0", default-features = false }\ngpui-omarchy = "0.1.0"');
+  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe('[dependencies]\ngpui-kit = { version = "=0.6.1", default-features = false }\ngpui-omarchy = "0.1.0"');
   expect(errors).toEqual([]);
 });
 
@@ -121,8 +121,11 @@ test('Select and Combobox stay interactive and scrolling survives', async ({page
   test.setTimeout(120_000);
   await page.setViewportSize({width:1060,height:760});
   const errors:string[]=[];
-  page.on('pageerror', error=>errors.push(error.message));
-  page.on('console', message=>{if(message.type()==='error') errors.push(message.text());});
+  // gpui-kit-assets fetches icons on the web and reports a miss as an error so
+  // GPUI retries the next frame. That is the loader working, not a page fault.
+  const loadingIcon = (text:string)=>text.includes('Wasm assets loading');
+  page.on('pageerror', error=>{if(!loadingIcon(error.message)) errors.push(error.message);});
+  page.on('console', message=>{if(message.type()==='error' && !loadingIcon(message.text())) errors.push(message.text());});
   await page.goto(new URL('gallery/index.html',baseURL).href);
   await expect(page.locator('html')).toHaveAttribute('data-gallery-ready','true',{timeout:90_000});
   const canvas = page.locator('canvas');

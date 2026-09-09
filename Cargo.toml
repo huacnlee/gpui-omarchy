@@ -1,6 +1,6 @@
 [package]
 name = "gpui-omarchy"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 exclude = ["website/**", "examples/gallery-wasm/**"]
 license = "MIT"
@@ -8,13 +8,13 @@ description = "A gpui-kit component library designed for the Omarchy system and 
 repository = "https://github.com/huacnlee/gpui-omarchy"
 
 [dependencies]
-gpui-kit = { version = "=0.6.0", default-features = false, features = ["assets"] }
+gpui-kit = { version = "=0.6.1", default-features = false, features = ["assets"] }
 toml = "0.8"
 chrono = "0.4.45"
 
 [dev-dependencies]
 tempfile = "3"
-gpui-kit = { version = "=0.6.0", default-features = false, features = ["test-support"] }
+gpui-kit = { version = "=0.6.1", default-features = false, features = ["test-support"] }
 
 [profile.dev]
 debug = "limited"

@@ -15,7 +15,11 @@ thread_local! {
 #[wasm_bindgen]
 pub fn run() -> Result<(), JsValue> {
     gpui_kit::platform::web_init();
-    let application = gpui_kit::platform::single_threaded_web();
+    // gpui-kit-assets fetches icons on the web instead of embedding them, so
+    // the icon files must be reachable from this page. `.` keeps the request
+    // relative to the gallery, whatever base path the site is served under.
+    let application =
+        gpui_kit::platform::single_threaded_web().with_assets(gpui_kit::assets::Assets::new("."));
     let handle = application.run_embedded(|cx| {
         cx.text_system()
             .add_fonts(vec![

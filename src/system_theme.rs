@@ -4,6 +4,9 @@ use gpui_kit::base::ThemeAppearance;
 use gpui_kit::{Hsla, Rgba, rgb};
 use std::{fmt, fs, path::Path};
 
+#[cfg(not(target_family = "wasm"))]
+mod watch;
+
 #[derive(Debug)]
 pub struct ThemeLoadError(String);
 impl fmt::Display for ThemeLoadError {
@@ -31,29 +34,45 @@ pub(crate) fn stop_following(cx: &mut gpui_kit::App) {
 
 impl Theme {
     /// Apply the system palette and follow changes until an explicit theme is applied.
-    /// Native apps check once per second off the UI thread, following replaced symlinks.
-    /// Browsers use the default palette without filesystem monitoring.
+    /// Native apps reload on filesystem events off the UI thread, following replaced symlinks.
+    /// Does nothing in browsers, where the Omarchy filesystem is unavailable.
     pub fn follow_system(cx: &mut gpui_kit::App) {
         #[cfg(not(target_family = "wasm"))]
         Self::follow_system_from_home(std::env::var_os("HOME").map(Into::into), cx);
         #[cfg(target_family = "wasm")]
-        Self::tokyo_night().apply(cx);
+        let _ = cx;
     }
 
     #[cfg(not(target_family = "wasm"))]
     fn follow_system_from_home(home: Option<std::path::PathBuf>, cx: &mut gpui_kit::App) {
-        let mut previous = Self::system_from_home(home.as_deref());
+        stop_following(cx);
+        let Some(home) = home.filter(|home| !home.as_os_str().is_empty()) else {
+            Self::tokyo_night().apply(cx);
+            return;
+        };
+        // Register before reading so a change during startup is not missed.
+        let watcher = watch::PaletteWatcher::new(&home);
+        let mut previous = Self::system_from_home(Some(&home));
         previous.clone().apply(cx);
+        let (mut watcher, events) = match watcher {
+            Ok(watcher) => watcher,
+            Err(error) => {
+                eprintln!("Cannot watch Omarchy theme: {error}");
+                return;
+            }
+        };
         let task = cx.spawn(async move |cx| {
-            loop {
-                cx.background_executor()
-                    .timer(std::time::Duration::from_secs(1))
-                    .await;
+            while events.recv().await.is_ok() {
                 let home = home.clone();
-                let theme = cx
+                let (next_watcher, theme) = cx
                     .background_executor()
-                    .spawn(async move { Self::system_from_home(home.as_deref()) })
+                    .spawn(async move {
+                        watcher.refresh(&home);
+                        let theme = Self::system_from_home(Some(&home));
+                        (watcher, theme)
+                    })
                     .await;
+                watcher = next_watcher;
                 if theme != previous {
                     previous = theme.clone();
                     cx.update(|cx| theme.apply_palette(cx));
@@ -214,15 +233,34 @@ fn contrast(a: Hsla, b: Hsla) -> f32 {
 mod tests {
     use super::*;
     const ANSI: &str = "background = '#fffcf0'\nforeground = '#100f0f'\naccent = '#205ea6'\ncolor1 = '#af3029'\ncolor2 = '#526600'\ncolor3 = '#855b00'\n";
+    #[cfg(not(target_family = "wasm"))]
+    fn wait_for_theme(cx: &mut gpui_kit::TestAppContext, expected: impl Fn(&Theme) -> bool) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            cx.run_until_parked();
+            if cx.update(|cx| expected(cx.global::<Theme>())) {
+                return;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "filesystem event did not update theme"
+            );
+            // Native watcher callbacks use real time; leave GPUI's timer clock frozen.
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
+
     #[cfg(unix)]
     #[gpui_kit::test]
     fn following_system_tracks_symlink_replacement_edits_and_recovery(
         cx: &mut gpui_kit::TestAppContext,
     ) {
+        cx.background_executor.allow_parking();
         let home = tempfile::tempdir().unwrap();
         let current = home.path().join(".local/state/omarchy/current");
         let first = home.path().join("first");
-        let second = home.path().join("second");
+        let external = tempfile::tempdir().unwrap();
+        let second = external.path().join("second");
         fs::create_dir_all(&current).unwrap();
         for path in [&first, &second] {
             fs::create_dir_all(path).unwrap();
@@ -241,22 +279,14 @@ mod tests {
         .unwrap();
         std::os::unix::fs::symlink(&second, current.join("next")).unwrap();
         fs::rename(current.join("next"), current.join("theme")).unwrap();
-        cx.dispatcher
-            .advance_clock(std::time::Duration::from_secs(1));
-        cx.run_until_parked();
-        cx.update(|cx| assert_eq!(cx.global::<Theme>().accent, Hsla::from(rgb(0x7aa2f7))));
+        wait_for_theme(cx, |theme| theme.accent == Hsla::from(rgb(0x7aa2f7)));
 
         fs::write(second.join("colors.toml"), "broken").unwrap();
-        cx.dispatcher
-            .advance_clock(std::time::Duration::from_secs(1));
-        cx.run_until_parked();
-        cx.update(|cx| assert_eq!(cx.global::<Theme>().name.as_ref(), "Tokyo Night"));
+        wait_for_theme(cx, |theme| theme.name.as_ref() == "Tokyo Night");
 
         fs::write(second.join("colors.toml"), ANSI).unwrap();
         fs::write(current.join("theme.name"), "Recovered").unwrap();
-        cx.dispatcher
-            .advance_clock(std::time::Duration::from_secs(1));
-        cx.run_until_parked();
+        wait_for_theme(cx, |theme| theme.name.as_ref() == "Recovered");
         cx.update(|cx| {
             assert_eq!(cx.global::<Theme>().name.as_ref(), "Recovered");
             assert_eq!(cx.global::<Theme>().accent, Hsla::from(rgb(0x205ea6)));
@@ -264,7 +294,121 @@ mod tests {
                 gpui_kit::base::Theme::global(cx).tokens.colors.primary,
                 Hsla::from(rgb(0x205ea6))
             );
+            stop_following(cx);
         });
+    }
+
+    #[cfg(unix)]
+    #[gpui_kit::test]
+    fn following_system_tracks_external_palette_and_name_files(cx: &mut gpui_kit::TestAppContext) {
+        cx.background_executor.allow_parking();
+        for location in [".local/state/omarchy/current", ".config/omarchy/current"] {
+            let home = tempfile::tempdir().unwrap();
+            let palette_dir = tempfile::tempdir().unwrap();
+            let name_dir = tempfile::tempdir().unwrap();
+            let current = home.path().join(location);
+            let palette = palette_dir.path().join("palette.toml");
+            let name = name_dir.path().join("name");
+            fs::create_dir_all(current.join("theme")).unwrap();
+            fs::write(&palette, ANSI).unwrap();
+            fs::write(&name, "External").unwrap();
+            std::os::unix::fs::symlink(&palette, current.join("theme/colors.toml")).unwrap();
+            std::os::unix::fs::symlink(&name, current.join("theme.name")).unwrap();
+            cx.update(|cx| {
+                gpui_kit::base::init(cx);
+                Theme::follow_system_from_home(Some(home.path().into()), cx);
+                assert_eq!(cx.global::<Theme>().name.as_ref(), "External");
+            });
+            cx.run_until_parked();
+
+            fs::write(&palette, ANSI.replace("#205ea6", "#123456")).unwrap();
+            wait_for_theme(cx, |theme| theme.accent == Hsla::from(rgb(0x123456)));
+            fs::write(&name, "Edited").unwrap();
+            wait_for_theme(cx, |theme| theme.name.as_ref() == "Edited");
+
+            let replacement = palette_dir.path().join("replacement.toml");
+            fs::write(&replacement, ANSI).unwrap();
+            fs::rename(replacement, &palette).unwrap();
+            wait_for_theme(cx, |theme| theme.accent == Hsla::from(rgb(0x205ea6)));
+            let replacement = name_dir.path().join("replacement");
+            fs::write(&replacement, "Replaced").unwrap();
+            fs::rename(replacement, &name).unwrap();
+            wait_for_theme(cx, |theme| theme.name.as_ref() == "Replaced");
+
+            // Retarget to a missing file in a missing directory, then recover.
+            let future = tempfile::tempdir().unwrap();
+            let target = future.path().join("later/palette.toml");
+            std::os::unix::fs::symlink(&target, current.join("theme/next")).unwrap();
+            fs::rename(
+                current.join("theme/next"),
+                current.join("theme/colors.toml"),
+            )
+            .unwrap();
+            wait_for_theme(cx, |theme| theme.name.as_ref() == "Tokyo Night");
+            fs::create_dir_all(target.parent().unwrap()).unwrap();
+            fs::write(&target, ANSI).unwrap();
+            wait_for_theme(cx, |theme| theme.name.as_ref() == "Replaced");
+            fs::write(&target, ANSI.replace("#205ea6", "#654321")).unwrap();
+            wait_for_theme(cx, |theme| theme.accent == Hsla::from(rgb(0x654321)));
+
+            fs::remove_file(&name).unwrap();
+            wait_for_theme(cx, |theme| theme.name.as_ref() == "Omarchy");
+            fs::write(&name, "Recovered").unwrap();
+            wait_for_theme(cx, |theme| theme.name.as_ref() == "Recovered");
+            cx.update(stop_following);
+        }
+    }
+
+    #[cfg(not(target_family = "wasm"))]
+    #[gpui_kit::test]
+    fn following_system_handles_creation_atomic_saves_and_directory_recreation(
+        cx: &mut gpui_kit::TestAppContext,
+    ) {
+        cx.background_executor.allow_parking();
+        let home = tempfile::tempdir().unwrap();
+        cx.update(|cx| {
+            gpui_kit::base::init(cx);
+            Theme::follow_system_from_home(Some(home.path().into()), cx);
+            assert_eq!(cx.global::<Theme>().name.as_ref(), "Tokyo Night");
+        });
+        cx.run_until_parked();
+        let legacy = home.path().join(".config/omarchy/current");
+        fs::create_dir_all(legacy.join("theme")).unwrap();
+        fs::write(legacy.join("theme/colors.toml"), ANSI).unwrap();
+        fs::write(legacy.join("theme.name"), "Legacy").unwrap();
+        wait_for_theme(cx, |theme| theme.name.as_ref() == "Legacy");
+
+        let current = home.path().join(".local/state/omarchy/current");
+        fs::create_dir_all(current.join("theme")).unwrap();
+        fs::write(current.join("theme/colors.toml"), ANSI).unwrap();
+        fs::write(current.join("theme.name"), "Current").unwrap();
+        wait_for_theme(cx, |theme| theme.name.as_ref() == "Current");
+
+        fs::write(
+            current.join("theme/next.toml"),
+            ANSI.replace("#205ea6", "#123456"),
+        )
+        .unwrap();
+        fs::rename(
+            current.join("theme/next.toml"),
+            current.join("theme/colors.toml"),
+        )
+        .unwrap();
+        wait_for_theme(cx, |theme| theme.accent == Hsla::from(rgb(0x123456)));
+
+        fs::remove_dir_all(&current).unwrap();
+        wait_for_theme(cx, |theme| theme.name.as_ref() == "Legacy");
+        fs::create_dir_all(current.join("theme")).unwrap();
+        fs::write(current.join("theme/colors.toml"), ANSI).unwrap();
+        fs::write(current.join("theme.name"), "Recreated").unwrap();
+        wait_for_theme(cx, |theme| theme.name.as_ref() == "Recreated");
+        fs::write(
+            current.join("theme/colors.toml"),
+            ANSI.replace("#205ea6", "#654321"),
+        )
+        .unwrap();
+        wait_for_theme(cx, |theme| theme.accent == Hsla::from(rgb(0x654321)));
+        cx.update(stop_following);
     }
 
     #[cfg(not(target_family = "wasm"))]
@@ -272,6 +416,7 @@ mod tests {
     fn explicit_theme_stops_following_and_system_can_be_selected_again(
         cx: &mut gpui_kit::TestAppContext,
     ) {
+        cx.background_executor.allow_parking();
         let home = tempfile::tempdir().unwrap();
         let current = home.path().join(".local/state/omarchy/current/theme");
         fs::create_dir_all(&current).unwrap();
@@ -281,7 +426,10 @@ mod tests {
             Theme::follow_system_from_home(Some(home.path().into()), cx);
         });
         cx.run_until_parked();
-        cx.update(|cx| Theme::tokyo_night().apply(cx));
+        cx.update(|cx| {
+            Theme::tokyo_night().apply(cx);
+            assert!(cx.try_global::<SystemThemeWatcher>().is_none());
+        });
         fs::write(
             current.join("colors.toml"),
             ANSI.replace("#205ea6", "#ffffff"),
@@ -295,6 +443,9 @@ mod tests {
             Theme::follow_system_from_home(Some(home.path().into()), cx);
             assert_eq!(cx.global::<Theme>().accent, Hsla::from(rgb(0xffffff)));
         });
+        fs::write(current.join("colors.toml"), ANSI).unwrap();
+        wait_for_theme(cx, |theme| theme.accent == Hsla::from(rgb(0x205ea6)));
+        cx.update(stop_following);
     }
 
     #[test]

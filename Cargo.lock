@@ -2343,8 +2343,10 @@ dependencies = [
 name = "gpui-omarchy"
 version = "0.1.2"
 dependencies = [
+ "async-channel",
  "chrono",
  "gpui-kit",
+ "notify",
  "tempfile",
  "toml 0.8.23",
 ]

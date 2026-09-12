@@ -90,7 +90,7 @@ Wrap a window or form in `focus_scope("app")` to enable Tab and Shift+Tab traver
 
 `toast(id, cx)` returns a composable base Toast surface. Applications control its lifecycle, optionally using base ToastManager. The gallery displays notifications at the bottom right with Undo and Retry actions. Saved notifications expire after six seconds, with the timer paused during hover or focus; errors remain until handled manually.
 
-`alert(message, status, cx)` renders an inline feedback banner with a status icon and themed styling for persistent conditions.
+`alert(message, status, cx)` renders an inline feedback banner with a status icon and themed styling for persistent conditions, unlike `alert_dialog`, which presents an explicit-decision modal.
 
 
 `avatar(initials, cx)` returns a square base Avatar. Set its image slot with `.image(avatar_image(source))`. The application decides whether to fall back to initials when image loading fails.

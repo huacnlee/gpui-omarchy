@@ -50,7 +50,7 @@ Add the library to your application:
 ```toml
 [dependencies]
 gpui-kit = { version = "=0.6.1", default-features = false }
-gpui-omarchy = "0.1.0"
+gpui-omarchy = "0.1.2"
 ```
 
 Use `gpui_kit` for framework types, `gpui_kit::application()` for the desktop entry point, and `gpui_kit::base` for base state and composition APIs. GPUI Kit’s component facade is disabled so gpui-omarchy supplies the presentation. See the [complete quick start](examples/hello.rs).
@@ -89,6 +89,8 @@ Wrap a window or form in `focus_scope("app")` to enable Tab and Shift+Tab traver
 `popover` returns a base Popover with square styling and keyboard isolation inside its content. Escape dismisses it and restores focus. `collapsible(open, cx)` returns a base Collapsible: regular children remain visible, while its content appears only when expanded.
 
 `toast(id, cx)` returns a composable base Toast surface. Applications control its lifecycle, optionally using base ToastManager. The gallery displays notifications at the bottom right with Undo and Retry actions. Saved notifications expire after six seconds, with the timer paused during hover or focus; errors remain until handled manually.
+
+`alert(message, status, cx)` renders an inline feedback banner with a status icon and themed styling for persistent conditions.
 
 
 `avatar(initials, cx)` returns a square base Avatar. Set its image slot with `.image(avatar_image(source))`. The application decides whether to fall back to initials when image loading fails.

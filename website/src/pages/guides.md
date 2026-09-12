@@ -8,7 +8,7 @@ description: Build an Omarchy application with GPUI. Learn composition, themes, 
 
 Build an Omarchy application from a first window to forms, menus and a docked workspace. These guides share one page so you can read through, jump to a chapter, or search for a component with your browser's Find command.
 
-The examples target **gpui-omarchy 0.1.0** with **GPUI Kit 0.6.1**. They cover the public API defined by gpui-omarchy, including its modules, constructors, wrapper methods, state types and theme fields. [GPUI Kit](https://gpui-kit.com/) supplies the underlying framework and base builder APIs; their entire dependency APIs are not duplicated here.
+The examples target **gpui-omarchy 0.1.2** with **GPUI Kit 0.6.1**. They cover the public API defined by gpui-omarchy, including its modules, constructors, wrapper methods, state types and theme fields. [GPUI Kit](https://gpui-kit.com/) supplies the underlying framework and base builder APIs; their entire dependency APIs are not duplicated here.
 
 ## Start an application
 
@@ -17,7 +17,7 @@ Add the library to a Rust 2024 application:
 ```toml
 [dependencies]
 gpui-kit = { version = "=0.6.1", default-features = false }
-gpui-omarchy = "0.1.0"
+gpui-omarchy = "0.1.2"
 ```
 
 Use `gpui_kit` directly for framework types and `gpui_kit::application()` for the desktop entry point. `gpui_kit::base` provides the underlying state and composition APIs. Disabling default features leaves the GPUI Kit component facade out, so gpui-omarchy supplies the Omarchy presentation. Call `gpui_omarchy::init(cx)` to initialize base behavior and the Omarchy theme.
@@ -621,9 +621,9 @@ menu(
 
 `menu(id, trigger, items: Vec<MenuItem>, on_select) -> gpui_kit::base::Popover` requires a trigger implementing `gpui_kit::base::Selectable + IntoElement + 'static`. Its callback is `Fn(usize, &mut Window, &mut App) + 'static`, receiving the original item index. Disabled entries cannot be chosen. The popup handles keyboard navigation, outside/Escape dismissal and focus return.
 
-`MenuItem::new(label)` starts with no icon, shortcut, check or preceding separator. Its consuming builders return `Self`: `.icon(IconName)`, `.shortcut(label)`, `.disabled(bool)`, `.checked(bool)` and `.separator_before()`.
+`MenuItem::new(label)` starts with no icon, shortcut, check, preceding separator or child submenu. Its consuming builders return `Self`: `.icon(IconName)`, `.shortcut(label)`, `.disabled(bool)`, `.checked(bool)`, `.separator_before()` and `.submenu(Vec<(usize, MenuItem)>)`.
 
-The `MenuItem` fields are also public: `label: SharedString`, `icon: Option<IconName>`, `shortcut: Option<SharedString>`, `disabled: bool`, `checked: Option<bool>` and `separator_before: bool`. The type implements `Clone`. `checked: None` is an ordinary command; `Some(bool)` marks an exclusive choice with a trailing check when selected. A shortcut is display text only; register the corresponding action/keybinding in your application.
+The `MenuItem` fields are also public: `label: SharedString`, `icon: Option<IconName>`, `shortcut: Option<SharedString>`, `disabled: bool`, `checked: Option<bool>`, `separator_before: bool` and `children: Vec<(usize, MenuItem)>`. The type implements `Clone`. `.submenu(children)` opens a second panel beside the row; each child carries the index `on_select` receives. `checked: None` is an ordinary command; `Some(bool)` marks an exclusive choice with a trailing check when selected. A shortcut is display text only; register the corresponding action/keybinding in your application.
 
 ### Put an editor in a popover
 
@@ -727,12 +727,13 @@ panel("Import", cx)
 | `vertical_separator(cx)` | `Div`: a thin, 1.25rem-high toolbar divider; override height when needed. |
 | `keycap(key, cx)` | `Div`: a bordered keyboard hint. It does not bind that key. |
 | `badge(label, status: Status, cx)` | `Div`: short status label with a matching border. |
+| `alert(message, status: Status, cx)` | `Div`: inline feedback banner with a status icon and matching border/tint. |
 | `empty_state(title, description, cx)` | `Div`: explain what belongs in the empty region; add a relevant action as a child. |
 | `progress(id, value: f32, cx)` | `gpui_kit::base::Progress`: determinate percentage, clamped to `0..=100`; NaN and infinities become zero. |
 | `toast(id, cx)` | `gpui_kit::base::Toast`: notification surface with room for content and actions. |
 | `avatar(initials, cx)` | `gpui_kit::base::Avatar`: square identity marker with an initials fallback. |
 
-`Status` is `Neutral` (the default), `Success`, `Warning` or `Error`; these map to secondary, success, warning and danger colors. Like `ButtonVariant`, it supports `Clone`, `Copy`, `Debug`, `Default`, `PartialEq` and `Eq`.
+`Status` is `Neutral` (the default), `Success`, `Warning` or `Error`; these map to secondary, success, warning and danger colors. Like `ButtonVariant`, it supports `Clone`, `Copy`, `Debug`, `Default`, `PartialEq` and `Eq`. Unlike `alert_dialog`, `alert` stays in the layout for conditions the reader can act on without leaving the view.
 
 ### Own notification timing
 

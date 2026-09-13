@@ -77,6 +77,7 @@ const GROUPS: &[(&str, &[&str])] = &[
             "separator",
             "keycap",
             "badge",
+            "alert",
             "empty_state",
             "progress",
         ],
@@ -139,6 +140,7 @@ fn description(page: &str) -> &'static str {
         "separator" => "A quiet boundary between distinct sections.",
         "keycap" => "Compact, readable keyboard hints.",
         "badge" => "Short labels for neutral and semantic status.",
+        "alert" => "Inline feedback banners for neutral and semantic conditions.",
         "empty_state" => "Explain an empty collection and its next step.",
         "progress" => "Show how much of a known task is complete.",
         "toggle_group" => "Combine independent filters to show more than one status.",
@@ -991,13 +993,22 @@ impl Gallery {
                 vec![
                     MenuItem::new("New workspace").icon(IconName::Plus),
                     MenuItem::new("Favorite workspace").icon(IconName::Star),
+                    MenuItem::new("Export").submenu(vec![
+                        (10, MenuItem::new("Export as PDF")),
+                        (11, MenuItem::new("Export as Markdown")),
+                    ]),
                     MenuItem::new("Unavailable action").disabled(true),
                 ],
                 move |index, _, cx| {
                     target.update(cx, |this, cx| {
-                        this.menu_result =
-                            ["New workspace", "Favorite workspace", "Unavailable action"][index]
-                                .into();
+                        this.menu_result = match index {
+                            0 => "New workspace",
+                            1 => "Favorite workspace",
+                            10 => "Export as PDF",
+                            11 => "Export as Markdown",
+                            _ => "Unavailable action",
+                        }
+                        .into();
                         cx.notify();
                     })
                 },
@@ -1599,6 +1610,25 @@ impl Gallery {
             ("Failed", Status::Error),
         ] {
             content = content.child(badge(label, status, cx));
+        }
+        content
+    }
+    fn render_alert_page(
+        &mut self,
+        mut content: gpui_kit::Div,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui_kit::Div {
+        for (message, status) in [
+            ("No action required at this time.", Status::Neutral),
+            ("Configuration changes saved successfully.", Status::Success),
+            ("Network latency is higher than expected.", Status::Warning),
+            (
+                "Failed to synchronize theme with system palette.",
+                Status::Error,
+            ),
+        ] {
+            content = content.child(alert(message, status, cx).w_full());
         }
         content
     }
@@ -3042,6 +3072,9 @@ impl Render for Gallery {
             }
             "badge" => {
                 content = self.render_badge_page(content, window, cx);
+            }
+            "alert" => {
+                content = self.render_alert_page(content, window, cx);
             }
             "empty_state" => {
                 content = self.render_empty_state_page(content, window, cx);

@@ -8,7 +8,7 @@ The library brings Omarchy’s system themes, restrained visual style and keyboa
 
 It also serves as a practical proving ground for **[gpui-base’s customization capabilities](https://gpui-kit.com/base/)**: building a complete Omarchy design system tests how freely applications can define their own visual identity and interaction patterns on top of base primitives. The project demonstrates that a shared behavioral foundation can support a fully custom design language, while exposing gaps to improve in gpui-base.
 
-The project is under development, with 46 component previews in one gallery. Form, navigation, overlay and data components are still being expanded; the framework is not yet complete.
+The project is under development, with 47 component previews in one gallery. Form, navigation, overlay and data components are still being expanded; the framework is not yet complete.
 
 ## Running the gallery
 

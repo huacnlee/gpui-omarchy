@@ -78,8 +78,6 @@ impl AssetSource for GalleryAssets {
                                     }
                                 }
                             }
-                        } else {
-                            log::warn!("Failed to fetch icon {}: HTTP {}", path_clone, response.status());
                         }
                     }
                 }

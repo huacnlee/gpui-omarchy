@@ -30,6 +30,10 @@ try {
   new MutationObserver(syncTheme).observe(themeRoot, {attributes:true, attributeFilter:['data-theme']});
   window.addEventListener('storage', syncTheme);
   gallery.run();
+  // GalleryAssets dispatches 'gpui:asset-loaded' each time an icon fetch
+  // completes. Refresh GPUI immediately so the icon is drawn without waiting
+  // for user input. No polling — each refresh is triggered by an actual load.
+  window.addEventListener('gpui:asset-loaded', () => gallery.refresh());
   loadingPanel.remove();
   document.documentElement.dataset.galleryReady = 'true';
 } catch (error) {

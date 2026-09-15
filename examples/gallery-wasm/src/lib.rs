@@ -1,6 +1,8 @@
 use std::{borrow::Cow, cell::RefCell};
 use wasm_bindgen::prelude::*;
 
+mod assets;
+
 // This is the desktop gallery itself, not a browser recreation.
 #[path = "../../gallery/app.rs"]
 #[allow(dead_code)]
@@ -15,11 +17,12 @@ thread_local! {
 #[wasm_bindgen]
 pub fn run() -> Result<(), JsValue> {
     gpui_kit::platform::web_init();
-    // gpui-kit-assets fetches icons on the web instead of embedding them, so
-    // the icon files must be reachable from this page. `.` keeps the request
-    // relative to the gallery, whatever base path the site is served under.
+    // Icons are fetched on demand by GalleryAssets. It dispatches a
+    // `gpui:asset-loaded` CustomEvent on the window after each successful
+    // download; the JS bootstrap listens for that event and calls refresh()
+    // so GPUI repaints exactly when an icon is ready.
     let application =
-        gpui_kit::platform::single_threaded_web().with_assets(gpui_kit::assets::Assets::new("."));
+        gpui_kit::platform::single_threaded_web().with_assets(assets::GalleryAssets::new("."));
     let handle = application.run_embedded(|cx| {
         cx.text_system()
             .add_fonts(vec![
@@ -51,6 +54,19 @@ fn web_theme(name: &str) -> Option<gpui_omarchy::Theme> {
     };
     theme.font = "Inter Variable".into();
     Some(theme)
+}
+
+/// Trigger a GPUI repaint. Call this from JS after async icon fetches settle so
+/// icons that loaded in the background are drawn without waiting for user input.
+#[wasm_bindgen]
+pub fn refresh() {
+    if READY.get() {
+        APPLICATION.with(|application| {
+            if let Some(application) = application.borrow().as_ref() {
+                application.to_async().refresh();
+            }
+        });
+    }
 }
 
 /// Update the existing app without rebuilding its controls or losing state.

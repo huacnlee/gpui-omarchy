@@ -143,6 +143,64 @@ fn menu_keyboard_skips_disabled_and_selects(cx: &mut TestAppContext) {
     assert_eq!(selected.get(), 2);
 }
 
+struct SubmenuHarness(Rc<Cell<usize>>);
+impl Render for SubmenuHarness {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let selected = self.0.clone();
+        div().size(rems(37.5)).child(menu(
+            "actions",
+            button("trigger", "Actions", ButtonVariant::Secondary, cx),
+            vec![
+                MenuItem::new("First"),
+                MenuItem::new("Export").submenu(vec![
+                    (10, MenuItem::new("PDF")),
+                    (11, MenuItem::new("Markdown")),
+                ]),
+                MenuItem::new("Last"),
+            ],
+            move |index, _, _| selected.set(index),
+        ))
+    }
+}
+#[gpui_kit::test]
+fn submenu_opens_beside_its_row_and_reports_child_index(cx: &mut TestAppContext) {
+    cx.update(gpui_omarchy::init);
+    let selected = Rc::new(Cell::new(usize::MAX));
+    let result = selected.clone();
+    let (_, cx) = cx.add_window_view(move |_, _| SubmenuHarness(result));
+    cx.update(|window, cx| window.draw(cx).clear(cx));
+    cx.simulate_click(point(px(10.), px(10.)), Modifiers::default());
+    cx.update(|window, cx| window.draw(cx).clear(cx));
+    let closed = cx
+        .debug_bounds("omarchy-menu-content")
+        .expect("menu opened");
+    assert!(cx.debug_bounds("omarchy-submenu-content").is_none());
+
+    cx.simulate_keystrokes("down right");
+    cx.update(|window, cx| window.draw(cx).clear(cx));
+    let main = cx.debug_bounds("omarchy-menu-content").unwrap();
+    let submenu = cx
+        .debug_bounds("omarchy-submenu-content")
+        .expect("submenu opened");
+    let parent = cx.debug_bounds("omarchy-menu-item-1").unwrap();
+    let child = cx.debug_bounds("omarchy-submenu-item-0").unwrap();
+    assert_eq!(
+        main.origin, closed.origin,
+        "opening a submenu must not move the menu"
+    );
+    assert!(
+        submenu.left() >= main.right(),
+        "submenu should sit to the right of the menu: submenu {submenu:?}, menu {main:?}"
+    );
+    assert!(
+        (child.top() - parent.top()).abs() <= px(0.5),
+        "first submenu row should line up with its parent row: child {child:?}, parent {parent:?}"
+    );
+
+    cx.simulate_keystrokes("enter");
+    assert_eq!(selected.get(), 10);
+}
+
 #[gpui_kit::test]
 fn links_open_urls_and_disabled_links_remain_inert(cx: &mut TestAppContext) {
     struct Links;

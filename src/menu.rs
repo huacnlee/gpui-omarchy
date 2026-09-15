@@ -244,6 +244,7 @@ pub fn menu(
                     let current = *cursor.read(cx) == Some(index);
                     let select = on_select.clone();
                     let row = button(("menu-item", index), "", ButtonVariant::Secondary, cx)
+                        .debug_selector(move || format!("omarchy-menu-item-{index}"))
                         .accessibility_label(item.label.clone())
                         .role(gpui_kit::Role::MenuItem)
                         .when_some(item.checked, |row, checked| {
@@ -327,7 +328,7 @@ pub fn menu(
                 }));
             div()
                 .flex()
-                .flex_row_reverse()
+                .flex_row()
                 .items_start()
                 .gap(rems(0.25))
                 .child(main)
@@ -360,6 +361,7 @@ pub fn menu(
                                         ButtonVariant::Secondary,
                                         cx,
                                     )
+                                    .debug_selector(move || format!("omarchy-submenu-item-{index}"))
                                     .accessibility_label(item.label.clone())
                                     .role(gpui_kit::Role::MenuItemRadio)
                                     .aria_toggled(if item.checked == Some(true) {
@@ -408,7 +410,8 @@ pub fn menu(
 }
 
 /// How far the submenu sits below the top of the menu, so its first row lines
-/// up with the parent row that opened it.
+/// up with the parent row that opened it. Both panels share the same border
+/// and padding, so only the rows above the parent count.
 fn submenu_offset(items: &[MenuItem], parent: usize) -> f32 {
     let separator = |item: &MenuItem| {
         if item.separator_before {
@@ -417,12 +420,11 @@ fn submenu_offset(items: &[MenuItem], parent: usize) -> f32 {
             0.
         }
     };
-    MENU_PADDING
-        + items
-            .iter()
-            .take(parent)
-            .map(|item| ROW_HEIGHT + ROW_GAP + separator(item))
-            .sum::<f32>()
+    items
+        .iter()
+        .take(parent)
+        .map(|item| ROW_HEIGHT + ROW_GAP + separator(item))
+        .sum::<f32>()
         + items.get(parent).map_or(0., separator)
 }
 
@@ -460,14 +462,14 @@ mod tests {
             MenuItem::new("second").separator_before(),
             MenuItem::new("third"),
         ];
-        assert_eq!(submenu_offset(&items, 0), MENU_PADDING);
+        assert_eq!(submenu_offset(&items, 0), 0.);
         assert_eq!(
             submenu_offset(&items, 1),
-            MENU_PADDING + ROW_HEIGHT + ROW_GAP + SEPARATOR_HEIGHT
+            ROW_HEIGHT + ROW_GAP + SEPARATOR_HEIGHT
         );
         assert_eq!(
             submenu_offset(&items, 2),
-            MENU_PADDING + 2. * (ROW_HEIGHT + ROW_GAP) + SEPARATOR_HEIGHT
+            2. * (ROW_HEIGHT + ROW_GAP) + SEPARATOR_HEIGHT
         );
     }
 

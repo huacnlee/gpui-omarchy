@@ -55,6 +55,8 @@ pub fn keycap(key: impl Into<SharedString>, cx: &App) -> Div {
         .bg(t.inset)
         .font_family(t.font.clone())
         .text_size(rems(0.6875))
+        // Pin to the cap's own font size so an inherited line height can't inflate it.
+        .line_height(relative(1.))
         .font_weight(FontWeight::BOLD)
         .text_color(t.foreground)
         .child(key.into())

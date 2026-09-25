@@ -69,6 +69,23 @@ pub fn button(
         })
 }
 
+/// A square, icon-only button. `label` names the action for assistive tech;
+/// pair it with [`crate::with_tooltip`] so sighted users can read it too.
+pub fn icon_button(
+    id: impl Into<ElementId>,
+    name: IconName,
+    label: impl Into<SharedString>,
+    variant: ButtonVariant,
+    cx: &App,
+) -> Button {
+    button(id, "", variant, cx)
+        .accessibility_label(label)
+        // Equal padding around a fixed-size glyph keeps the hit target square.
+        .p(rems(0.375))
+        .justify_center()
+        .child(icon(name).size(rems(0.875)))
+}
+
 pub fn checkbox(
     id: impl Into<ElementId>,
     label: impl Into<SharedString>,

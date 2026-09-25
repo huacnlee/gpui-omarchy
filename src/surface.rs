@@ -3,7 +3,8 @@ use crate::ActiveTheme;
 use gpui_kit::base::{Progress, ProgressIndicator, ProgressTrack};
 use gpui_kit::rems;
 use gpui_kit::{
-    App, Div, ElementId, FontWeight, ParentElement, SharedString, Styled, div, relative,
+    Action, App, Div, ElementId, FontWeight, Modifiers, ParentElement, SharedString, Styled,
+    Window, div, relative,
 };
 
 pub fn panel(title: impl Into<SharedString>, cx: &App) -> Div {
@@ -58,6 +59,78 @@ pub fn keycap(key: impl Into<SharedString>, cx: &App) -> Div {
         .font_weight(FontWeight::BOLD)
         .text_color(t.foreground)
         .child(key.into())
+}
+
+/// A row of keycaps, one per key, e.g. `["⌘", "q"]`.
+pub fn keycaps(keys: impl IntoIterator<Item = impl Into<SharedString>>, cx: &App) -> Div {
+    div()
+        .flex()
+        .items_center()
+        .gap(rems(0.25))
+        .children(keys.into_iter().map(|key| keycap(key, cx)))
+}
+
+/// The keycaps for whichever binding the keymap resolves for `action`, or
+/// `None` when nothing is bound. The lookup reads the last rendered frame, so
+/// context-scoped bindings show once their context has been painted.
+pub fn keycap_for_action(action: &dyn Action, window: &Window, cx: &App) -> Option<Div> {
+    let binding = window.highest_precedence_binding_for_action(action)?;
+    let keys: Vec<_> = binding
+        .keystrokes()
+        .iter()
+        .flat_map(|stroke| keystroke_labels(stroke.modifiers(), stroke.key()))
+        .collect();
+    (!keys.is_empty()).then(|| keycaps(keys, cx))
+}
+
+/// Split a keystroke into the labels this platform prints on its keys, all
+/// lowercase in Omarchy's style: symbols in macOS order (⌃⌥⇧⌘), words
+/// elsewhere (ctrl alt shift super).
+pub fn keystroke_labels(modifiers: &Modifiers, key: &str) -> Vec<SharedString> {
+    let mac = cfg!(target_os = "macos");
+    let pick = |symbol: &'static str, word: &'static str| if mac { symbol } else { word };
+    let platform = pick(
+        "⌘",
+        if cfg!(target_os = "windows") {
+            "win"
+        } else {
+            "super"
+        },
+    );
+    let mut labels: Vec<SharedString> = [
+        (modifiers.control, pick("⌃", "ctrl")),
+        (modifiers.alt, pick("⌥", "alt")),
+        (modifiers.shift, pick("⇧", "shift")),
+        (modifiers.platform, platform),
+        (modifiers.function, "fn"),
+    ]
+    .into_iter()
+    .filter_map(|(held, label)| held.then(|| label.into()))
+    .collect();
+    let label = match key {
+        "" => return labels,
+        "ctrl" | "control" => pick("⌃", "ctrl"),
+        "alt" => pick("⌥", "alt"),
+        "shift" => pick("⇧", "shift"),
+        "cmd" | "super" | "win" | "platform" => platform,
+        "enter" => pick("⏎", "enter"),
+        "escape" => pick("⎋", "esc"),
+        "backspace" => pick("⌫", "backspace"),
+        "delete" => pick("⌦", "delete"),
+        "tab" => pick("⇥", "tab"),
+        "left" => pick("←", "left"),
+        "right" => pick("→", "right"),
+        "up" => pick("↑", "up"),
+        "down" => pick("↓", "down"),
+        "pageup" => "page up",
+        "pagedown" => "page down",
+        key => {
+            labels.push(key.to_lowercase().into());
+            return labels;
+        }
+    };
+    labels.push(label.into());
+    labels
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -227,6 +300,29 @@ pub fn avatar_image(source: impl Into<gpui_kit::ImageSource>) -> gpui_kit::base:
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn keystroke_labels_are_lowercase_and_platform_ordered() {
+        let modifiers = Modifiers {
+            platform: true,
+            shift: true,
+            ..Default::default()
+        };
+        let labels: Vec<String> = keystroke_labels(&modifiers, "Q")
+            .into_iter()
+            .map(|label| label.to_string())
+            .collect();
+        if cfg!(target_os = "macos") {
+            assert_eq!(labels, ["⇧", "⌘", "q"]);
+        } else if cfg!(target_os = "windows") {
+            assert_eq!(labels, ["shift", "win", "q"]);
+        } else {
+            assert_eq!(labels, ["shift", "super", "q"]);
+        }
+        assert_eq!(
+            keystroke_labels(&Modifiers::none(), "pagedown"),
+            ["page down"]
+        );
+    }
     #[test]
     fn progress_handles_invalid_and_out_of_range_values() {
         for (input, expected) in [

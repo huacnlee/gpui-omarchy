@@ -1,10 +1,11 @@
 //! A keyboard menu composed from the base Popover and Button primitives.
-use crate::{ActiveTheme, ButtonVariant, IconName, button, icon, keycap};
+use crate::{ActiveTheme, ButtonVariant, IconName, button, icon, keycap_for_action, keycaps};
 use gpui_kit::base::{ElementExt, Popover};
 use gpui_kit::rems;
 use gpui_kit::{
-    Anchor, App, Bounds, Div, ElementId, Entity, Focusable, KeyDownEvent, ParentElement, Pixels,
-    Point, SharedString, Window, anchored, deferred, div, point, prelude::*, px,
+    Action, Anchor, AnyElement, App, Bounds, ElementId, Entity, Focusable, KeyDownEvent,
+    ParentElement, Pixels, Point, SharedString, Window, anchored, deferred, div, point, prelude::*,
+    px,
 };
 use std::rc::Rc;
 
@@ -26,6 +27,8 @@ pub struct MenuItem {
     pub label: SharedString,
     pub icon: Option<IconName>,
     pub shortcut: Option<SharedString>,
+    /// Shows the keymap's binding for this action, taking precedence over `shortcut`.
+    pub action: Option<Rc<dyn Action>>,
     pub disabled: bool,
     pub checked: Option<bool>,
     pub separator_before: bool,
@@ -38,6 +41,7 @@ impl MenuItem {
             label: label.into(),
             icon: None,
             shortcut: None,
+            action: None,
             disabled: false,
             checked: None,
             separator_before: false,
@@ -68,6 +72,25 @@ impl MenuItem {
     pub fn shortcut(mut self, shortcut: impl Into<SharedString>) -> Self {
         self.shortcut = Some(shortcut.into());
         self
+    }
+    /// Show the shortcut bound to `action` in the keymap, so the label always
+    /// matches the platform and any user rebinding. Display only: selection is
+    /// still reported through `on_select`.
+    pub fn action(mut self, action: impl Action) -> Self {
+        self.action = Some(Rc::new(action));
+        self
+    }
+    /// The trailing keycaps: the action's binding, else the literal shortcut.
+    fn render_shortcut(&self, window: &Window, cx: &App) -> Option<AnyElement> {
+        self.action
+            .as_ref()
+            .and_then(|action| keycap_for_action(action.as_ref(), window, cx))
+            .or_else(|| {
+                self.shortcut
+                    .as_ref()
+                    .map(|shortcut| keycaps(shortcut.split_whitespace().map(str::to_owned), cx))
+            })
+            .map(IntoElement::into_any_element)
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
@@ -255,6 +278,7 @@ pub fn menu(
                     let click_child = child_cursor.clone();
                     let current = *cursor.read(cx) == Some(index);
                     let select = on_select.clone();
+                    let shortcut = item.render_shortcut(window, cx);
                     let row = button(("menu-item", index), "", ButtonVariant::Secondary, cx)
                         .debug_selector(move || format!("omarchy-menu-item-{index}"))
                         .accessibility_label(item.label.clone())
@@ -299,9 +323,7 @@ pub fn menu(
                                 slot.child(icon(IconName::Check).size(rems(0.875)))
                             }))
                         })
-                        .when_some(item.shortcut, |row, shortcut| {
-                            row.child(shortcut_keys(&shortcut, cx))
-                        })
+                        .children(shortcut)
                         .on_hover(move |hovered, window, cx| {
                             if *hovered && !item.disabled {
                                 hover_page.update(cx, |page, cx| {
@@ -367,6 +389,7 @@ pub fn menu(
                                     submenu_cursor,
                                     submenu_page,
                                     submenu_select,
+                                    window,
                                     cx,
                                 )),
                         ),
@@ -419,6 +442,7 @@ fn submenu_panel(
     cursor: Entity<Option<usize>>,
     page: Entity<Option<usize>>,
     select: Select,
+    window: &Window,
     cx: &App,
 ) -> impl IntoElement {
     let t = cx.omarchy().clone();
@@ -487,9 +511,7 @@ fn submenu_panel(
                         slot.child(icon(IconName::Check).size(rems(0.875)))
                     }))
                 })
-                .when_some(item.shortcut.clone(), |row, shortcut| {
-                    row.child(shortcut_keys(&shortcut, cx))
-                })
+                .children(item.render_shortcut(window, cx))
                 .on_hover(move |hovered, window, cx| {
                     if *hovered && !disabled {
                         hover_cursor.update(cx, |cursor, cx| {
@@ -506,15 +528,6 @@ fn submenu_panel(
                     window.refresh();
                 })
         }))
-}
-
-/// One keycap per space-separated key, e.g. "Cmd/Ctrl Q".
-fn shortcut_keys(shortcut: &str, cx: &App) -> Div {
-    div().flex().items_center().gap(rems(0.25)).children(
-        shortcut
-            .split_whitespace()
-            .map(|key| keycap(key.to_string(), cx)),
-    )
 }
 
 /// How far the submenu sits below the top of the menu, so its first row lines

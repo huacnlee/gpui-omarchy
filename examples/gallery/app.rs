@@ -257,6 +257,7 @@ impl Gallery {
     }
 
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        bind_zoom_keys(cx);
         let number =
             cx.new(|cx| gpui_kit::base::input::InputState::new(window, cx).default_value("1"));
         let input = cx.new(|cx| {
@@ -1641,9 +1642,9 @@ impl Gallery {
                 .flex()
                 .items_center()
                 .gap(rems(0.5))
-                .child(keycap("Tab", cx))
+                .child(keycap("tab", cx))
                 .child("Next control")
-                .child(keycap("Return", cx))
+                .child(keycap("enter", cx))
                 .child("Activate"),
         );
         content
@@ -3199,21 +3200,15 @@ impl Render for Gallery {
             );
         let zoom = self.zoom_percent(window);
         focus_scope("gallery")
-            .capture_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
-                let modifiers = event.keystroke.modifiers;
-                if !(modifiers.platform || modifiers.control) || modifiers.alt {
-                    return;
-                }
-                let current = this.zoom_percent(window);
-                let next = match event.keystroke.key.as_str() {
-                    "+" | "=" => current.saturating_add(25),
-                    "-" => current.saturating_sub(25),
-                    "0" => 100,
-                    _ => return,
-                };
-                this.set_zoom(next, window, cx);
-                cx.stop_propagation();
+            .on_action(cx.listener(|this, _: &ZoomIn, window, cx| {
+                this.set_zoom(this.zoom_percent(window).saturating_add(25), window, cx)
             }))
+            .on_action(cx.listener(|this, _: &ZoomOut, window, cx| {
+                this.set_zoom(this.zoom_percent(window).saturating_sub(25), window, cx)
+            }))
+            .on_action(
+                cx.listener(|this, _: &ActualSize, window, cx| this.set_zoom(100, window, cx)),
+            )
             .relative()
             .debug_selector(|| "gallery-root".into())
             .size_full()
@@ -3268,26 +3263,23 @@ impl Render for Gallery {
                                         (
                                             10,
                                             MenuItem::new("Zoom In")
-                                                .shortcut("Cmd/Ctrl +")
+                                                .action(ZoomIn)
                                                 .disabled(zoom >= 200),
                                         ),
                                         (
                                             11,
                                             MenuItem::new("Zoom Out")
-                                                .shortcut("Cmd/Ctrl −")
+                                                .action(ZoomOut)
                                                 .disabled(zoom <= 50),
                                         ),
                                         (
                                             12,
                                             MenuItem::new("Actual Size")
-                                                .shortcut("Cmd/Ctrl 0")
+                                                .action(ActualSize)
                                                 .disabled(zoom == 100),
                                         ),
                                     ]),
-                                MenuItem::new("Exit")
-                                    .shortcut("Cmd/Ctrl Q")
-                                    .separator_before()
-                                    .disabled(cfg!(target_family = "wasm")),
+                                exit_menu_item(),
                             ],
                             {
                                 let target = cx.entity();
@@ -3573,6 +3565,31 @@ fn install_panic_report() {
 
 #[cfg(not(target_family = "wasm"))]
 gpui_kit::actions!(gallery, [Quit]);
+gpui_kit::actions!(gallery, [ZoomIn, ZoomOut, ActualSize]);
+
+/// Zoom follows the platform's primary modifier. `+` is bound last so the menu
+/// shows it rather than the unshifted `=` that also zooms in.
+fn bind_zoom_keys(cx: &mut App) {
+    let modifier = if cfg!(target_os = "macos") {
+        "cmd"
+    } else {
+        "ctrl"
+    };
+    cx.bind_keys([
+        gpui_kit::KeyBinding::new(&format!("{modifier}-="), ZoomIn, None),
+        gpui_kit::KeyBinding::new(&format!("{modifier}-+"), ZoomIn, None),
+        gpui_kit::KeyBinding::new(&format!("{modifier}--"), ZoomOut, None),
+        gpui_kit::KeyBinding::new(&format!("{modifier}-0"), ActualSize, None),
+    ]);
+}
+
+fn exit_menu_item() -> MenuItem {
+    let item = MenuItem::new("Exit").separator_before();
+    #[cfg(not(target_family = "wasm"))]
+    return item.action(Quit);
+    #[cfg(target_family = "wasm")]
+    return item.disabled(true);
+}
 
 #[cfg(not(target_family = "wasm"))]
 pub fn run() {

@@ -48,14 +48,21 @@ pub fn vertical_separator(cx: &App) -> Div {
 
 pub fn keycap(key: impl Into<SharedString>, cx: &App) -> Div {
     let t = cx.omarchy();
+    // macOS draws ⌘⌥⇧ from the system UI face (Menlo lacks them and falls back
+    // to undersized glyphs), a touch larger so the symbols stay legible.
+    let (font, size) = if cfg!(target_os = "macos") {
+        (t.font.clone(), rems(0.75))
+    } else {
+        (t.mono_font.clone(), rems(0.6875))
+    };
     div()
         .px(rems(0.25))
         .py(rems(0.125))
         .border_1()
         .border_color(t.border)
         .bg(t.inset)
-        .font_family(t.mono_font.clone())
-        .text_size(rems(0.6875))
+        .font_family(font)
+        .text_size(size)
         // Pin to the cap's own font size so an inherited line height can't inflate it.
         .line_height(relative(1.))
         .font_weight(FontWeight::BOLD)
@@ -63,7 +70,7 @@ pub fn keycap(key: impl Into<SharedString>, cx: &App) -> Div {
         .child(key.into())
 }
 
-/// A row of keycaps, one per keystroke, e.g. `["⌘q"]` or `["ctrl+k", "ctrl+s"]`.
+/// A row of keycaps, one per keystroke, e.g. `["⌘Q"]` or `["ctrl+k", "ctrl+s"]`.
 pub fn keycaps(keys: impl IntoIterator<Item = impl Into<SharedString>>, cx: &App) -> Div {
     div()
         .flex()
@@ -85,7 +92,7 @@ pub fn keycap_for_action(action: &dyn Action, window: &Window, cx: &App) -> Opti
     (!keys.is_empty()).then(|| keycaps(keys, cx))
 }
 
-/// One keystroke as a single keycap label: `⌘q` on macOS, `ctrl+q` elsewhere.
+/// One keystroke as a single keycap label: `⌘Q` on macOS, `ctrl+q` elsewhere.
 pub fn keystroke_label(modifiers: &Modifiers, key: &str) -> SharedString {
     let separator = if cfg!(target_os = "macos") { "" } else { "+" };
     let labels = keystroke_labels(modifiers, key);
@@ -93,9 +100,9 @@ pub fn keystroke_label(modifiers: &Modifiers, key: &str) -> SharedString {
     labels.join(separator).into()
 }
 
-/// Split a keystroke into the labels this platform prints on its keys, all
-/// lowercase in Omarchy's style: symbols in macOS order (⌃⌥⇧⌘), words
-/// elsewhere (ctrl alt shift super).
+/// Split a keystroke into the labels this platform prints on its keys: on
+/// macOS symbols in its order (⌃⌥⇧⌘) with capitalized keys like its menus,
+/// elsewhere lowercase words in Omarchy's style (ctrl alt shift super).
 pub fn keystroke_labels(modifiers: &Modifiers, key: &str) -> Vec<SharedString> {
     let mac = cfg!(target_os = "macos");
     let pick = |symbol: &'static str, word: &'static str| if mac { symbol } else { word };
@@ -132,8 +139,21 @@ pub fn keystroke_labels(modifiers: &Modifiers, key: &str) -> Vec<SharedString> {
         "right" => pick("→", "right"),
         "up" => pick("↑", "up"),
         "down" => pick("↓", "down"),
-        "pageup" => "page up",
-        "pagedown" => "page down",
+        "pageup" => pick("⇞", "page up"),
+        "pagedown" => pick("⇟", "page down"),
+        key if mac => {
+            let mut chars = key.chars();
+            let first = chars.next().map(char::to_uppercase);
+            labels.push(
+                first
+                    .into_iter()
+                    .flatten()
+                    .chain(chars)
+                    .collect::<String>()
+                    .into(),
+            );
+            return labels;
+        }
         key => {
             labels.push(key.to_lowercase().into());
             return labels;
@@ -311,7 +331,7 @@ pub fn avatar_image(source: impl Into<gpui_kit::ImageSource>) -> gpui_kit::base:
 mod tests {
     use super::*;
     #[test]
-    fn keystroke_labels_are_lowercase_and_platform_ordered() {
+    fn keystroke_labels_follow_platform_case_and_order() {
         let modifiers = Modifiers {
             platform: true,
             shift: true,
@@ -319,7 +339,8 @@ mod tests {
         };
         let label = keystroke_label(&modifiers, "Q");
         if cfg!(target_os = "macos") {
-            assert_eq!(label.as_ref(), "⇧⌘q");
+            assert_eq!(label.as_ref(), "⇧⌘Q");
+            assert_eq!(keystroke_labels(&Modifiers::none(), "f12"), ["F12"]);
         } else if cfg!(target_os = "windows") {
             assert_eq!(label.as_ref(), "shift+win+q");
         } else {
@@ -327,7 +348,11 @@ mod tests {
         }
         assert_eq!(
             keystroke_labels(&Modifiers::none(), "pagedown"),
-            ["page down"]
+            [if cfg!(target_os = "macos") {
+                "⇟"
+            } else {
+                "page down"
+            }]
         );
     }
     #[test]

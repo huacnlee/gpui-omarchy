@@ -229,45 +229,31 @@ impl Gallery {
         cx.notify();
     }
 
-    fn render_zoom_controls(&self, window: &Window, cx: &Context<Self>) -> gpui_kit::Div {
-        let percent = self.zoom_percent(window);
-        div()
-            .flex()
-            .items_center()
-            .gap_1()
-            .child(with_tooltip(
-                button("zoom-out", "−", ButtonVariant::Secondary, cx)
-                    .debug_selector(|| "zoom-out".into())
-                    .accessibility_label("Zoom out")
-                    .disabled(percent <= 50)
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.set_zoom(this.zoom_percent(window).saturating_sub(25), window, cx);
-                    })),
-                "Zoom out (Cmd/Ctrl −)",
-            ))
-            .child(with_tooltip(
-                button(
-                    "zoom-reset",
-                    format!("{percent}%"),
-                    ButtonVariant::Secondary,
-                    cx,
-                )
-                .debug_selector(|| "zoom-reset".into())
-                .accessibility_label(format!("Zoom {percent}%, reset to 100%"))
-                .min_w(rems(3.5))
-                .on_click(cx.listener(|this, _, window, cx| this.set_zoom(100, window, cx))),
-                "Reset zoom (Cmd/Ctrl 0)",
-            ))
-            .child(with_tooltip(
-                button("zoom-in", "+", ButtonVariant::Secondary, cx)
-                    .debug_selector(|| "zoom-in".into())
-                    .accessibility_label("Zoom in")
-                    .disabled(percent >= 200)
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.set_zoom(this.zoom_percent(window).saturating_add(25), window, cx);
-                    })),
-                "Zoom in (Cmd/Ctrl +)",
-            ))
+    fn select_application_menu(
+        &mut self,
+        index: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match index {
+            0 => {
+                #[cfg(not(target_family = "wasm"))]
+                Theme::follow_system(cx);
+                #[cfg(target_family = "wasm")]
+                apply_gallery_theme(Theme::system_or_default(), cx);
+            }
+            1 => apply_gallery_theme(Theme::tokyo_night(), cx),
+            2 => apply_gallery_theme(Theme::flexoki_light(), cx),
+            10 => return self.set_zoom(self.zoom_percent(window).saturating_add(25), window, cx),
+            11 => return self.set_zoom(self.zoom_percent(window).saturating_sub(25), window, cx),
+            12 => return self.set_zoom(100, window, cx),
+            _ => {
+                cx.quit();
+                return;
+            }
+        }
+        self.theme_mode = index;
+        cx.notify();
     }
 
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
@@ -951,14 +937,18 @@ impl Gallery {
                             })),
                     )
                     .child(with_tooltip(
-                        button("tooltip-favorite", "", ButtonVariant::Secondary, cx)
-                            .accessibility_label(action)
-                            .selected(self.pressed)
-                            .child(icon(IconName::Star))
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.pressed = !this.pressed;
-                                cx.notify();
-                            })),
+                        icon_button(
+                            "tooltip-favorite",
+                            IconName::Star,
+                            action,
+                            ButtonVariant::Secondary,
+                            cx,
+                        )
+                        .selected(self.pressed)
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.pressed = !this.pressed;
+                            cx.notify();
+                        })),
                         action,
                     )),
             )
@@ -1204,20 +1194,28 @@ impl Gallery {
                             })),
                     )
                     .child(with_tooltip(
-                        button("icon-only", "", ButtonVariant::Outline, cx)
-                            .accessibility_label("Add workspace")
-                            .child(icon(IconName::Plus).size(rems(0.875)))
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.count += 1;
-                                cx.notify();
-                            })),
+                        icon_button(
+                            "icon-only",
+                            IconName::Plus,
+                            "Add workspace",
+                            ButtonVariant::Outline,
+                            cx,
+                        )
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.count += 1;
+                            cx.notify();
+                        })),
                         "Add workspace",
                     ))
                     .child(
-                        button("icon-disabled", "", ButtonVariant::Outline, cx)
-                            .accessibility_label("Add workspace unavailable")
-                            .child(icon(IconName::Plus).size(rems(0.875)))
-                            .disabled(true),
+                        icon_button(
+                            "icon-disabled",
+                            IconName::Plus,
+                            "Add workspace unavailable",
+                            ButtonVariant::Outline,
+                            cx,
+                        )
+                        .disabled(true),
                     )
                     .child(
                         button("reset-count", "Reset", ButtonVariant::Secondary, cx).on_click(
@@ -3158,7 +3156,7 @@ impl Render for Gallery {
                             let t = cx.omarchy().clone();
                             if header {
                                 return div()
-                                    .mt(rems(if index == 0 { 0. } else { 0.75 }))
+                                    .mt(rems(if index == 0 { 0. } else { 1.25 }))
                                     .mb(rems(0.125))
                                     .px(rems(0.5))
                                     .py(rems(0.375))
@@ -3199,6 +3197,7 @@ impl Render for Gallery {
                 })
                 .size_full(),
             );
+        let zoom = self.zoom_percent(window);
         focus_scope("gallery")
             .capture_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
                 let modifiers = event.keystroke.modifiers;
@@ -3245,7 +3244,6 @@ impl Render for Gallery {
                             })
                             .child("GPUI Omarchy"),
                     )
-                    .child(self.render_zoom_controls(window, cx))
                     .child(
                         menu(
                             "application-menu",
@@ -3264,30 +3262,38 @@ impl Render for Gallery {
                                 MenuItem::new("System theme").checked(self.theme_mode == 0),
                                 MenuItem::new("Tokyo Night").checked(self.theme_mode == 1),
                                 MenuItem::new("Flexoki Light").checked(self.theme_mode == 2),
+                                MenuItem::new(format!("Zoom ({zoom}%)"))
+                                    .separator_before()
+                                    .submenu(vec![
+                                        (
+                                            10,
+                                            MenuItem::new("Zoom In")
+                                                .shortcut("Cmd/Ctrl +")
+                                                .disabled(zoom >= 200),
+                                        ),
+                                        (
+                                            11,
+                                            MenuItem::new("Zoom Out")
+                                                .shortcut("Cmd/Ctrl −")
+                                                .disabled(zoom <= 50),
+                                        ),
+                                        (
+                                            12,
+                                            MenuItem::new("Actual Size")
+                                                .shortcut("Cmd/Ctrl 0")
+                                                .disabled(zoom == 100),
+                                        ),
+                                    ]),
                                 MenuItem::new("Exit")
+                                    .shortcut("Cmd/Ctrl Q")
                                     .separator_before()
                                     .disabled(cfg!(target_family = "wasm")),
                             ],
                             {
                                 let target = cx.entity();
-                                move |index, _, cx| {
+                                move |index, window, cx| {
                                     target.update(cx, |this, cx| {
-                                        match index {
-                                            0 => {
-                                                #[cfg(not(target_family = "wasm"))]
-                                                Theme::follow_system(cx);
-                                                #[cfg(target_family = "wasm")]
-                                                apply_gallery_theme(Theme::system_or_default(), cx);
-                                            }
-                                            1 => apply_gallery_theme(Theme::tokyo_night(), cx),
-                                            2 => apply_gallery_theme(Theme::flexoki_light(), cx),
-                                            _ => {
-                                                cx.quit();
-                                                return;
-                                            }
-                                        }
-                                        this.theme_mode = index;
-                                        cx.notify();
+                                        this.select_application_menu(index, window, cx)
                                     })
                                 }
                             },
@@ -3566,12 +3572,25 @@ fn install_panic_report() {
 }
 
 #[cfg(not(target_family = "wasm"))]
+gpui_kit::actions!(gallery, [Quit]);
+
+#[cfg(not(target_family = "wasm"))]
 pub fn run() {
     install_panic_report();
     gpui_kit::platform::application()
         .with_assets(gpui_kit::assets::Assets)
         .run(move |cx| {
             gpui_omarchy::init(cx);
+            cx.on_action(|_: &Quit, cx| cx.quit());
+            cx.bind_keys([gpui_kit::KeyBinding::new(
+                if cfg!(target_os = "macos") {
+                    "cmd-q"
+                } else {
+                    "ctrl-q"
+                },
+                Quit,
+                None,
+            )]);
             cx.open_window(
                 WindowOptions {
                     titlebar: None,
@@ -4403,7 +4422,7 @@ mod tests {
     }
 
     #[gpui_kit::test]
-    fn zoom_controls_resize_rem_layout_and_reset(cx: &mut TestAppContext) {
+    fn zoom_menu_resizes_rem_layout_and_resets(cx: &mut TestAppContext) {
         cx.update(gpui_omarchy::init);
         let (view, cx) = cx.add_window_view(Gallery::new);
         view.update(cx, |this, cx| {
@@ -4412,8 +4431,9 @@ mod tests {
         });
         cx.update(|window, cx| window.draw(cx).clear(cx));
         for expected in [125, 150, 175, 200, 200] {
-            let point = cx.debug_bounds("zoom-in").unwrap().center();
-            cx.simulate_click(point, Default::default());
+            view.update_in(cx, |this, window, cx| {
+                this.select_application_menu(10, window, cx)
+            });
             cx.update(|window, cx| {
                 window.draw(cx).clear(cx);
                 assert_eq!(view.read(cx).zoom_percent(window), expected);
@@ -4421,15 +4441,17 @@ mod tests {
             let row = cx.debug_bounds("activity-row-0").unwrap();
             assert_eq!(row.size.height, px(44. * expected as f32 / 100.));
         }
-        let reset = cx.debug_bounds("zoom-reset").unwrap().center();
-        cx.simulate_click(reset, Default::default());
+        view.update_in(cx, |this, window, cx| {
+            this.select_application_menu(12, window, cx)
+        });
         cx.update(|window, cx| {
             window.draw(cx).clear(cx);
             assert_eq!(view.read(cx).zoom_percent(window), 100);
         });
         for expected in [75, 50, 50] {
-            let point = cx.debug_bounds("zoom-out").unwrap().center();
-            cx.simulate_click(point, Default::default());
+            view.update_in(cx, |this, window, cx| {
+                this.select_application_menu(11, window, cx)
+            });
             cx.update(|window, cx| {
                 window.draw(cx).clear(cx);
                 assert_eq!(view.read(cx).zoom_percent(window), expected);

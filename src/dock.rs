@@ -26,9 +26,6 @@ impl DockAreaRenderer for OmarchyDock {
             .text_size(rems(0.75))
             .text_color(t.foreground)
     }
-    fn tiles_renderer(&self) -> Rc<dyn TilesRenderer> {
-        Rc::new(OmarchyDock)
-    }
     fn tab_group_renderer(&self) -> Rc<dyn TabGroupRenderer> {
         Rc::new(OmarchyDock)
     }
@@ -115,12 +112,5 @@ impl gpui_kit::Render for DockDragLabel {
             .bg(cx.omarchy().background)
             .text_color(cx.omarchy().foreground)
             .child(self.0)
-    }
-}
-
-// Required by base's renderer contract; this skin offers tabbed/split docks only.
-impl TilesRenderer for OmarchyDock {
-    fn render_drag_bar(&self, _: &TileContext, _: &mut Window, _: &mut App) -> AnyElement {
-        gpui_kit::Empty.into_any_element()
     }
 }

@@ -1,9 +1,10 @@
 //! A keyboard menu composed from the base Popover and Button primitives.
 use crate::{ActiveTheme, ButtonVariant, IconName, button, icon};
-use gpui_kit::base::Popover;
+use gpui_kit::base::{ElementExt, Popover};
 use gpui_kit::rems;
 use gpui_kit::{
-    App, ElementId, Focusable, KeyDownEvent, ParentElement, SharedString, Window, div, prelude::*,
+    Anchor, App, Bounds, ElementId, Entity, Focusable, KeyDownEvent, ParentElement, Pixels, Point,
+    SharedString, Window, anchored, deferred, div, point, prelude::*, px,
 };
 use std::rc::Rc;
 
@@ -16,6 +17,9 @@ const ROW_GAP: f32 = 0.125;
 /// A separator costs its padding on both sides plus its own hairline.
 const SEPARATOR_HEIGHT: f32 = 0.5625;
 const MENU_PADDING: f32 = 0.375;
+const SUBMENU_WIDTH: f32 = 10.625;
+/// Space between the menu and its submenu, in rems.
+const SUBMENU_GAP: f32 = 0.25;
 
 #[derive(Clone)]
 pub struct MenuItem {
@@ -82,6 +86,9 @@ pub fn menu(
     let on_select = Rc::new(on_select);
     Popover::new(id)
         .trigger(trigger)
+        // The submenu floats outside the menu's bounds, so dismissal on an
+        // outside press is handled below where both panels are known.
+        .overlay_closable(false)
         .content(move |popover, window, cx| {
             let t = cx.omarchy().clone();
             let cursor = window.use_keyed_state("menu-cursor", cx, |_, _| {
@@ -97,6 +104,11 @@ pub fn menu(
             // The open submenu, and the row highlighted inside it.
             let page = window.use_keyed_state("menu-page", cx, |_, _| None::<usize>);
             let child_cursor = window.use_keyed_state("submenu-cursor", cx, |_, _| None::<usize>);
+            // Last painted bounds of each panel, used to place the submenu
+            // beside the menu and to tell presses inside it from outside ones.
+            let menu_bounds = window.use_keyed_state("menu-bounds", cx, |_, _| Bounds::default());
+            let submenu_bounds =
+                window.use_keyed_state("submenu-bounds", cx, |_, _| None::<Bounds<Pixels>>);
 
             // Selection is one decision for both panels: open a submenu, or
             // dismiss and report. Every code path below routes through it, so
@@ -326,87 +338,184 @@ pub fn menu(
                         })
                         .child(row)
                 }));
+            let dismiss_bounds = submenu_bounds.clone();
+            let dismiss = cx.entity();
+            if open_page.is_none() {
+                submenu_bounds.update(cx, |slot, _| *slot = None);
+            }
+            let submenu = open_page.map(|parent| {
+                let rem = window.rem_size();
+                let (anchor, origin) = submenu_placement(
+                    *menu_bounds.read(cx),
+                    rems(submenu_offset(&submenu_items, parent)).to_pixels(rem),
+                    rems(SUBMENU_WIDTH).to_pixels(rem),
+                    rems(SUBMENU_GAP).to_pixels(rem),
+                    window.viewport_size().width,
+                );
+                let record_submenu = submenu_bounds.clone();
+                deferred(
+                    anchored()
+                        .anchor(anchor)
+                        .position(origin)
+                        .snap_to_window_with_margin(px(4.))
+                        .child(
+                            // Measured on this unpadded wrapper: the probe
+                            // `on_prepaint` adds is absolutely positioned, so on
+                            // the padded panel it would be inset.
+                            div()
+                                .on_prepaint(move |bounds, _, cx| {
+                                    record_submenu.update(cx, |slot, _| *slot = Some(bounds))
+                                })
+                                .child(submenu_panel(
+                                    &submenu_items[parent].children,
+                                    parent,
+                                    submenu_cursor,
+                                    submenu_page,
+                                    submenu_select,
+                                    cx,
+                                )),
+                        ),
+                )
+                // Above the popover surface itself, which paints at POPUP_PRIORITY.
+                .with_priority(gpui_kit::base::POPUP_PRIORITY + 1)
+            });
             div()
-                .flex()
-                .flex_row()
-                .items_start()
-                .gap(rems(0.25))
+                .on_mouse_down_out(move |_, window, cx| {
+                    let inside_submenu = dismiss_bounds
+                        .read(cx)
+                        .is_some_and(|bounds| bounds.contains(&window.mouse_position()));
+                    if !inside_submenu {
+                        dismiss.update(cx, |state, cx| state.dismiss(window, cx));
+                        window.refresh();
+                    }
+                })
+                // Measured on this unpadded wrapper for the same reason.
+                .on_prepaint(move |bounds, _, cx| menu_bounds.update(cx, |slot, _| *slot = bounds))
                 .child(main)
-                .when_some(open_page, |surface, parent| {
-                    surface.child(
+                .children(submenu)
+        })
+}
+
+/// Where the submenu opens: beside the menu, level with the row that opened
+/// it. It prefers the right and flips to the left when it would run past the
+/// viewport, the way a desktop menu does. `top` is the opening row's offset
+/// from the top of the menu.
+fn submenu_placement(
+    menu: Bounds<Pixels>,
+    top: Pixels,
+    width: Pixels,
+    gap: Pixels,
+    viewport_width: Pixels,
+) -> (Anchor, Point<Pixels>) {
+    let top = menu.top() + top;
+    if menu.right() + gap + width <= viewport_width {
+        (Anchor::TopLeft, point(menu.right() + gap, top))
+    } else {
+        (Anchor::TopRight, point(menu.left() - gap, top))
+    }
+}
+
+/// The floating panel listing a submenu's rows. It shares the menu's cursor
+/// model: `cursor` is the highlighted row, and choosing a row routes through
+/// `select` with the parent index so both panels make one decision.
+fn submenu_panel(
+    items: &[(usize, MenuItem)],
+    parent: usize,
+    cursor: Entity<Option<usize>>,
+    page: Entity<Option<usize>>,
+    select: Select,
+    cx: &App,
+) -> impl IntoElement {
+    let t = cx.omarchy().clone();
+    let has_icons = items.iter().any(|(_, item)| item.icon.is_some());
+    let highlighted = *cursor.read(cx);
+    div()
+        .id("submenu")
+        .debug_selector(|| "omarchy-submenu-content".into())
+        .role(gpui_kit::Role::Menu)
+        .occlude()
+        .w(rems(SUBMENU_WIDTH))
+        .p(rems(MENU_PADDING))
+        .flex()
+        .flex_col()
+        .gap(rems(ROW_GAP))
+        .border_1()
+        .border_color(t.border)
+        .bg(t.background)
+        .text_color(t.foreground)
+        .font_family(t.font.clone())
+        .text_size(rems(0.75))
+        .children(items.iter().enumerate().map(|(index, (_, item))| {
+            let hover_cursor = cursor.clone();
+            let click_cursor = cursor.clone();
+            let click_page = page.clone();
+            let select = select.clone();
+            let disabled = item.disabled;
+            button(("submenu-item", index), "", ButtonVariant::Secondary, cx)
+                .debug_selector(move || format!("omarchy-submenu-item-{index}"))
+                .accessibility_label(item.label.clone())
+                .role(gpui_kit::Role::MenuItem)
+                .when_some(item.checked, |row, checked| {
+                    row.role(gpui_kit::Role::MenuItemRadio)
+                        .aria_toggled(if checked {
+                            gpui_kit::accesskit::Toggled::True
+                        } else {
+                            gpui_kit::accesskit::Toggled::False
+                        })
+                })
+                .focusable(false)
+                .disabled(disabled)
+                .w_full()
+                .h(rems(ROW_HEIGHT))
+                .py(rems(0.))
+                .px(rems(0.5))
+                .justify_start()
+                .bg(if highlighted == Some(index) {
+                    t.hover_fill()
+                } else {
+                    t.foreground.opacity(0.)
+                })
+                .text_color(t.foreground)
+                .when(has_icons, |row| {
+                    row.child(
                         div()
-                            .id("submenu")
-                            .debug_selector(|| "omarchy-submenu-content".into())
-                            .mt(rems(submenu_offset(&submenu_items, parent)))
-                            .w(rems(10.625))
-                            .p(rems(MENU_PADDING))
-                            .flex()
-                            .flex_col()
-                            .gap(rems(ROW_GAP))
-                            .border_1()
-                            .border_color(t.border)
-                            .bg(t.background)
-                            .text_color(t.foreground)
-                            .font_family(t.font.clone())
-                            .text_size(rems(0.75))
-                            .children(submenu_items[parent].children.iter().enumerate().map(
-                                |(index, (_, item))| {
-                                    let hover_cursor = submenu_cursor.clone();
-                                    let click_cursor = submenu_cursor.clone();
-                                    let select = submenu_select.clone();
-                                    let page = submenu_page.clone();
-                                    button(
-                                        ("submenu-item", index),
-                                        "",
-                                        ButtonVariant::Secondary,
-                                        cx,
-                                    )
-                                    .debug_selector(move || format!("omarchy-submenu-item-{index}"))
-                                    .accessibility_label(item.label.clone())
-                                    .role(gpui_kit::Role::MenuItemRadio)
-                                    .aria_toggled(if item.checked == Some(true) {
-                                        gpui_kit::accesskit::Toggled::True
-                                    } else {
-                                        gpui_kit::accesskit::Toggled::False
-                                    })
-                                    .focusable(false)
-                                    .disabled(item.disabled)
-                                    .w_full()
-                                    .h(rems(ROW_HEIGHT))
-                                    .py(rems(0.))
-                                    .px(rems(0.5))
-                                    .bg(if *submenu_cursor.read(cx) == Some(index) {
-                                        t.hover_fill()
-                                    } else {
-                                        t.foreground.opacity(0.)
-                                    })
-                                    .child(div().flex_1().child(item.label.clone()))
-                                    .when(item.checked == Some(true), |row| {
-                                        row.child(icon(IconName::Check).size(rems(0.875)))
-                                    })
-                                    .on_hover(move |hovered, window, cx| {
-                                        if *hovered {
-                                            hover_cursor.update(cx, |cursor, cx| {
-                                                *cursor = Some(index);
-                                                cx.notify();
-                                            });
-                                            window.refresh();
-                                        }
-                                    })
-                                    .on_click(
-                                        move |_, window, cx| {
-                                            page.update(cx, |page, _| *page = Some(parent));
-                                            click_cursor
-                                                .update(cx, |cursor, _| *cursor = Some(index));
-                                            select(parent, window, cx);
-                                            window.refresh();
-                                        },
-                                    )
-                                },
-                            )),
+                            .w(rems(0.875))
+                            .flex_shrink_0()
+                            .when_some(item.icon, |slot, name| {
+                                slot.child(icon(name).size(rems(0.875)))
+                            }),
                     )
                 })
-        })
+                .child(div().flex_1().min_w_0().child(item.label.clone()))
+                .when_some(item.checked, |row, checked| {
+                    row.child(div().w(rems(0.875)).when(checked, |slot| {
+                        slot.child(icon(IconName::Check).size(rems(0.875)))
+                    }))
+                })
+                .when_some(item.shortcut.clone(), |row, shortcut| {
+                    row.child(
+                        div()
+                            .text_size(rems(0.6875))
+                            .text_color(t.secondary)
+                            .child(shortcut),
+                    )
+                })
+                .on_hover(move |hovered, window, cx| {
+                    if *hovered && !disabled {
+                        hover_cursor.update(cx, |cursor, cx| {
+                            *cursor = Some(index);
+                            cx.notify();
+                        });
+                        window.refresh();
+                    }
+                })
+                .on_click(move |_, window, cx| {
+                    click_page.update(cx, |page, _| *page = Some(parent));
+                    click_cursor.update(cx, |cursor, _| *cursor = Some(index));
+                    select(parent, window, cx);
+                    window.refresh();
+                })
+        }))
 }
 
 /// How far the submenu sits below the top of the menu, so its first row lines
@@ -453,6 +562,19 @@ mod tests {
         assert_eq!(next_item(&[0, 2], Some(2), "down"), Some(0));
         assert_eq!(next_item(&[0, 2], Some(0), "up"), Some(2));
         assert_eq!(next_item(&[], None, "home"), None);
+    }
+
+    #[test]
+    fn submenu_opens_right_and_flips_left_at_the_viewport_edge() {
+        let menu = Bounds::new(point(px(100.), px(40.)), gpui_kit::size(px(240.), px(160.)));
+        let open = |viewport| submenu_placement(menu, px(30.), px(170.), px(4.), viewport);
+
+        // Room on the right: the submenu's left edge sits past the menu.
+        assert_eq!(open(px(800.)), (Anchor::TopLeft, point(px(344.), px(70.))));
+        // Exactly enough room still opens to the right.
+        assert_eq!(open(px(514.)).0, Anchor::TopLeft);
+        // One pixel short: its right edge sits before the menu instead.
+        assert_eq!(open(px(513.)), (Anchor::TopRight, point(px(96.), px(70.))));
     }
 
     #[test]

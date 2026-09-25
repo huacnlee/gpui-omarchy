@@ -24,6 +24,8 @@ pub struct Theme {
     pub warning: Hsla,
     pub success: Hsla,
     pub font: SharedString,
+    /// Fixed-width face for keycaps and code.
+    pub mono_font: SharedString,
 }
 impl Global for Theme {}
 
@@ -47,6 +49,7 @@ impl Theme {
             warning: rgb(0xe0af68).into(),
             success: rgb(0x9ece6a).into(),
             font: ".SystemUIFont".into(),
+            mono_font: default_mono_font(),
         }
     }
 
@@ -69,6 +72,7 @@ impl Theme {
             warning: rgb(0x855b00).into(),
             success: rgb(0x526600).into(),
             font: ".SystemUIFont".into(),
+            mono_font: default_mono_font(),
         }
     }
 
@@ -152,7 +156,7 @@ impl Theme {
         };
         let type_scale = &mut base.tokens.typography;
         type_scale.sans = self.font.clone();
-        type_scale.mono = self.font.clone();
+        type_scale.mono = self.mono_font.clone();
         for (token, size) in [
             (&mut type_scale.xs, 0.625),
             (&mut type_scale.sm, 0.6875),
@@ -167,6 +171,42 @@ impl Theme {
         cx.set_global(self);
         cx.refresh_windows();
     }
+}
+
+/// The system monospace face: macOS and Windows stock fonts, and on Linux the
+/// family fontconfig resolves for `monospace`, which is where `omarchy font
+/// set` records the user's choice (the same query as `omarchy-font-current`).
+/// Resolved once per process.
+pub(crate) fn default_mono_font() -> SharedString {
+    static FONT: std::sync::OnceLock<SharedString> = std::sync::OnceLock::new();
+    FONT.get_or_init(|| {
+        if cfg!(target_os = "macos") {
+            "Menlo".into()
+        } else if cfg!(target_os = "windows") {
+            "Consolas".into()
+        } else {
+            fontconfig_monospace().unwrap_or_else(|| "JetBrainsMono Nerd Font".into())
+        }
+    })
+    .clone()
+}
+
+#[cfg(all(unix, not(target_os = "macos"), not(target_family = "wasm")))]
+fn fontconfig_monospace() -> Option<SharedString> {
+    let output = std::process::Command::new("fc-match")
+        .args(["monospace", "-f", "%{family}"])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())?;
+    // fc-match lists aliases, e.g. "JetBrainsMono Nerd Font,JetBrainsMono NF".
+    let family = String::from_utf8(output.stdout).ok()?;
+    let family = family.lines().next()?.split(',').next()?.trim();
+    (!family.is_empty()).then(|| family.to_owned().into())
+}
+
+#[cfg(not(all(unix, not(target_os = "macos"), not(target_family = "wasm"))))]
+fn fontconfig_monospace() -> Option<SharedString> {
+    None
 }
 
 pub trait ActiveTheme {

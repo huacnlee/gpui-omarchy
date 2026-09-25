@@ -197,6 +197,7 @@ impl Theme {
             warning: required(&["yellow", "color3"])?,
             success: required(&["green", "color2"])?,
             font: ".SystemUIFont".into(),
+            mono_font: crate::theme::default_mono_font(),
         })
     }
 }

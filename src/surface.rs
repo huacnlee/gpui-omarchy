@@ -54,14 +54,14 @@ pub fn keycap(key: impl Into<SharedString>, cx: &App) -> Div {
         .border_1()
         .border_color(t.border)
         .bg(t.inset)
-        .font_family(t.font.clone())
+        .font_family(t.mono_font.clone())
         .text_size(rems(0.6875))
         .font_weight(FontWeight::BOLD)
         .text_color(t.foreground)
         .child(key.into())
 }
 
-/// A row of keycaps, one per key, e.g. `["⌘", "q"]`.
+/// A row of keycaps, one per keystroke, e.g. `["⌘q"]` or `["ctrl+k", "ctrl+s"]`.
 pub fn keycaps(keys: impl IntoIterator<Item = impl Into<SharedString>>, cx: &App) -> Div {
     div()
         .flex()
@@ -78,9 +78,17 @@ pub fn keycap_for_action(action: &dyn Action, window: &Window, cx: &App) -> Opti
     let keys: Vec<_> = binding
         .keystrokes()
         .iter()
-        .flat_map(|stroke| keystroke_labels(stroke.modifiers(), stroke.key()))
+        .map(|stroke| keystroke_label(stroke.modifiers(), stroke.key()))
         .collect();
     (!keys.is_empty()).then(|| keycaps(keys, cx))
+}
+
+/// One keystroke as a single keycap label: `⌘q` on macOS, `ctrl+q` elsewhere.
+pub fn keystroke_label(modifiers: &Modifiers, key: &str) -> SharedString {
+    let separator = if cfg!(target_os = "macos") { "" } else { "+" };
+    let labels = keystroke_labels(modifiers, key);
+    let labels: Vec<&str> = labels.iter().map(AsRef::as_ref).collect();
+    labels.join(separator).into()
 }
 
 /// Split a keystroke into the labels this platform prints on its keys, all
@@ -307,16 +315,13 @@ mod tests {
             shift: true,
             ..Default::default()
         };
-        let labels: Vec<String> = keystroke_labels(&modifiers, "Q")
-            .into_iter()
-            .map(|label| label.to_string())
-            .collect();
+        let label = keystroke_label(&modifiers, "Q");
         if cfg!(target_os = "macos") {
-            assert_eq!(labels, ["⇧", "⌘", "q"]);
+            assert_eq!(label.as_ref(), "⇧⌘q");
         } else if cfg!(target_os = "windows") {
-            assert_eq!(labels, ["shift", "win", "q"]);
+            assert_eq!(label.as_ref(), "shift+win+q");
         } else {
-            assert_eq!(labels, ["shift", "super", "q"]);
+            assert_eq!(label.as_ref(), "shift+super+q");
         }
         assert_eq!(
             keystroke_labels(&Modifiers::none(), "pagedown"),

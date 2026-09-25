@@ -98,6 +98,8 @@ pub fn checkbox(
         .state(state)
         .accessibility_label(label.clone())
         .flex()
+        // Hug the control and its label instead of stretching across a column.
+        .self_start()
         .items_center()
         .gap(rems(0.5))
         .min_h(rems(1.75))
@@ -162,6 +164,8 @@ pub fn switch(
         .checked(checked)
         .accessibility_label(label.clone())
         .flex()
+        // Hug the control and its label instead of stretching across a column.
+        .self_start()
         .items_center()
         .gap(rems(0.5))
         .py(rems(0.3125))
@@ -217,6 +221,8 @@ pub fn radio(
         .checked(checked)
         .accessibility_label(label.clone())
         .flex()
+        // Hug the control and its label instead of stretching across a column.
+        .self_start()
         .items_center()
         .gap(rems(0.5))
         .min_h(rems(1.75))
@@ -259,6 +265,8 @@ pub fn toggle(
         .pressed(pressed)
         .accessibility_label(label.clone())
         .flex()
+        // Hug the control and its label instead of stretching across a column.
+        .self_start()
         .items_center()
         .gap(rems(0.5))
         .py(rems(0.375))

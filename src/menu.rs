@@ -1,10 +1,10 @@
 //! A keyboard menu composed from the base Popover and Button primitives.
-use crate::{ActiveTheme, ButtonVariant, IconName, button, icon};
+use crate::{ActiveTheme, ButtonVariant, IconName, button, icon, keycap};
 use gpui_kit::base::{ElementExt, Popover};
 use gpui_kit::rems;
 use gpui_kit::{
-    Anchor, App, Bounds, ElementId, Entity, Focusable, KeyDownEvent, ParentElement, Pixels, Point,
-    SharedString, Window, anchored, deferred, div, point, prelude::*, px,
+    Anchor, App, Bounds, Div, ElementId, Entity, Focusable, KeyDownEvent, ParentElement, Pixels,
+    Point, SharedString, Window, anchored, deferred, div, point, prelude::*, px,
 };
 use std::rc::Rc;
 
@@ -300,12 +300,7 @@ pub fn menu(
                             }))
                         })
                         .when_some(item.shortcut, |row, shortcut| {
-                            row.child(
-                                div()
-                                    .text_size(rems(0.6875))
-                                    .text_color(t.secondary)
-                                    .child(shortcut),
-                            )
+                            row.child(shortcut_keys(&shortcut, cx))
                         })
                         .on_hover(move |hovered, window, cx| {
                             if *hovered && !item.disabled {
@@ -493,12 +488,7 @@ fn submenu_panel(
                     }))
                 })
                 .when_some(item.shortcut.clone(), |row, shortcut| {
-                    row.child(
-                        div()
-                            .text_size(rems(0.6875))
-                            .text_color(t.secondary)
-                            .child(shortcut),
-                    )
+                    row.child(shortcut_keys(&shortcut, cx))
                 })
                 .on_hover(move |hovered, window, cx| {
                     if *hovered && !disabled {
@@ -516,6 +506,15 @@ fn submenu_panel(
                     window.refresh();
                 })
         }))
+}
+
+/// One keycap per space-separated key, e.g. "Cmd/Ctrl Q".
+fn shortcut_keys(shortcut: &str, cx: &App) -> Div {
+    div().flex().items_center().gap(rems(0.25)).children(
+        shortcut
+            .split_whitespace()
+            .map(|key| keycap(key.to_string(), cx)),
+    )
 }
 
 /// How far the submenu sits below the top of the menu, so its first row lines

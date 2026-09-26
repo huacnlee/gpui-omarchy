@@ -24,14 +24,13 @@ use gpui_kit::{
     AnyElement, App, Bounds, ContentMask, ElementId, Hsla, IntoElement, ParentElement as _, Pixels,
     SharedString, Size, TextAlign, Window, point, px,
 };
-use num_traits::{Num, ToPrimitive};
 
 use crate::{
     ActiveTheme,
     plot::{
         AxisLabelPlacement, AxisText, Grid, PlotLabel,
         label::{TEXT_GAP, TEXT_HEIGHT, TEXT_SIZE, Text, measure_text_width},
-        scale::{Scale, ScaleBand, ScaleLinear, ScalePoint, Sealed},
+        scale::{PlotValue, Scale, ScaleBand, ScaleLinear, ScalePoint},
         tooltip::Tooltip,
     },
 };
@@ -81,13 +80,13 @@ pub(crate) fn axis_point_count(point_count: Option<usize>, data_len: usize) -> u
 /// laid out for `point_count` of them across `width` pixels from `start`.
 ///
 /// The data takes the leading points, so each keeps its place as the data grows.
-pub(crate) fn point_range(start: f32, width: f32, data_len: usize, point_count: usize) -> Vec<f32> {
+pub(crate) fn point_range(start: f32, width: f32, data_len: usize, point_count: usize) -> [f32; 2] {
     let end = if point_count > 1 {
         width * data_len.saturating_sub(1) as f32 / (point_count - 1) as f32
     } else {
         width
     };
-    vec![start, start + end]
+    [start, start + end]
 }
 
 /// The value range a y scale spans and the pixel range it maps onto, kept in
@@ -133,7 +132,7 @@ pub(crate) fn point_value_scale<Y>(
     (top, bottom): (f32, f32),
 ) -> (ScaleLinear<Y>, ValueExtent)
 where
-    Y: Copy + PartialOrd + Num + ToPrimitive + Sealed,
+    Y: PlotValue,
 {
     let domain: Vec<Y> = match domain {
         Some((min, max)) => vec![min, max],
@@ -149,8 +148,17 @@ where
         bottom: height - bottom,
         top,
     };
-    (ScaleLinear::new(domain, vec![height - bottom, top]), extent)
+    (ScaleLinear::new(domain, [height - bottom, top]), extent)
 }
+
+/// The height the charts reserve under the plot for x-axis labels, which they
+/// draw at the default [`TEXT_SIZE`]: [`axis_gutter`](crate::plot::axis_gutter)
+/// for that size.
+pub(crate) const AXIS_GAP: f32 = TEXT_SIZE + TEXT_GAP * 4.;
+
+/// The widest a bar or candle is by default, in pixels, however few bands
+/// share the width; see `BarChart::max_band_width`.
+pub(crate) const MAX_BAND_WIDTH: f32 = 30.;
 
 /// The least space kept beside the plot for value-axis tick labels drawn
 /// outside it, in pixels; wider labels widen it (see [`value_axis_gap`]).
@@ -332,7 +340,7 @@ impl Default for PointAxes {
             y_tick_format: None,
             x_tick_count: None,
             grid_columns: 0,
-            grid_dashed: true,
+            grid_dashed: false,
             y_padding: (10., 0.),
             reference_lines: vec![],
             y_label_gap: VALUE_AXIS_GAP,

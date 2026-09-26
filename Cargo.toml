@@ -33,6 +33,6 @@ debug-assertions = true
 # Temporary: build against the gpui-kit branch that moves `plot` into gpui-base
 # (longbridge/gpui-kit, branch `base-plot`). Remove once it is released.
 [patch.crates-io]
-gpui-kit = { path = "../gpui-kit-base-plot/crates/kit" }
-gpui-base = { path = "../gpui-kit-base-plot/crates/base" }
-gpui-kit-assets = { path = "../gpui-kit-base-plot/crates/assets" }
+gpui-kit = { git = "https://github.com/longbridge/gpui-kit", branch = "base-plot" }
+gpui-base = { git = "https://github.com/longbridge/gpui-kit", branch = "base-plot" }
+gpui-kit-assets = { git = "https://github.com/longbridge/gpui-kit", branch = "base-plot" }

@@ -2222,6 +2222,7 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.6.5"
+source = "git+https://github.com/longbridge/gpui-kit?branch=base-plot#cabc62bed1fc4b5a7ebea1b3d2ee8a6e6c3b0e02"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2260,6 +2261,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.6.5"
+source = "git+https://github.com/longbridge/gpui-kit?branch=base-plot#cabc62bed1fc4b5a7ebea1b3d2ee8a6e6c3b0e02"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2302,6 +2304,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.6.5"
+source = "git+https://github.com/longbridge/gpui-kit?branch=base-plot#cabc62bed1fc4b5a7ebea1b3d2ee8a6e6c3b0e02"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2312,6 +2315,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.6.5"
+source = "git+https://github.com/longbridge/gpui-kit?branch=base-plot#cabc62bed1fc4b5a7ebea1b3d2ee8a6e6c3b0e02"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2324,6 +2328,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.6.5"
+source = "git+https://github.com/longbridge/gpui-kit?branch=base-plot#cabc62bed1fc4b5a7ebea1b3d2ee8a6e6c3b0e02"
 dependencies = [
  "anyhow",
  "gpui-pre",

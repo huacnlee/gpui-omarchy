@@ -14,6 +14,8 @@ use std::time::Instant as GalleryInstant;
 #[cfg(target_family = "wasm")]
 use web_time::Instant as GalleryInstant;
 
+mod charts;
+
 const GROUPS: &[(&str, &[&str])] = &[
     ("Explore", &["overview"]),
     (
@@ -82,6 +84,18 @@ const GROUPS: &[(&str, &[&str])] = &[
             "progress",
         ],
     ),
+    (
+        "Charts",
+        &[
+            "line_chart",
+            "bar_chart",
+            "area_chart",
+            "pie_chart",
+            "radar_chart",
+            "candlestick_chart",
+            "sankey_chart",
+        ],
+    ),
 ];
 
 fn components() -> impl Iterator<Item = &'static str> {
@@ -146,6 +160,13 @@ fn description(page: &str) -> &'static str {
         "toggle_group" => "Combine independent filters to show more than one status.",
         "toggle" => "Keep a command active until it is pressed again.",
         "link" => "Open a named destination.",
+        "line_chart" => "Follow one measure over time. Hover a point for its value.",
+        "bar_chart" => "Compare totals across categories.",
+        "area_chart" => "Compare related measures over time, such as download and upload.",
+        "pie_chart" => "Show how a whole divides into parts.",
+        "radar_chart" => "Compare profiles across several dimensions at once.",
+        "candlestick_chart" => "Read the open, high, low and close of each trading session.",
+        "sankey_chart" => "Trace how an amount flows from its sources to where it goes.",
         _ => "",
     }
 }
@@ -3102,6 +3123,10 @@ impl Render for Gallery {
             "progress" => {
                 content = self.render_progress_page(content, window, cx);
             }
+            "line_chart" | "bar_chart" | "area_chart" | "pie_chart" | "radar_chart"
+            | "candlestick_chart" | "sankey_chart" => {
+                content = charts::render(self.page, content, cx);
+            }
             _ => unreachable!(),
         }
         let sidebar_width =
@@ -3751,7 +3776,7 @@ mod tests {
         cx.simulate_keystrokes("end");
         cx.update(|window, cx| {
             window.draw(cx).clear(cx);
-            assert_eq!(view.read(cx).page, "progress");
+            assert_eq!(view.read(cx).page, "sankey_chart");
             assert!(view.read(cx).navigation_list.logical_scroll_top().item_ix > 0);
         });
         cx.simulate_keystrokes("home");

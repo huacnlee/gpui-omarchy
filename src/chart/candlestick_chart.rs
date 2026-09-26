@@ -4,24 +4,25 @@ use gpui_kit::{
     AnyElement, App, Bounds, ElementId, Hsla, IntoElement, PathBuilder, Pixels, Point,
     SharedString, Window, fill, point, px,
 };
-use num_traits::{Num, ToPrimitive};
 
 use crate::{
     ActiveTheme,
     plot::{
-        AXIS_GAP, Grid, Plot, PlotAxis, origin_point,
-        scale::{Scale, ScaleBand, ScaleLinear, Sealed},
+        Grid, Plot, PlotAxis, origin_point,
+        scale::{PlotValue, Scale, ScaleBand, ScaleLinear},
         tooltip::{CrossLine, Tooltip, TooltipState},
     },
 };
 
-use super::{TooltipContent, build_band_labels, caller_id, labeled_items};
+use super::{
+    AXIS_GAP, MAX_BAND_WIDTH, TooltipContent, build_band_labels, caller_id, labeled_items,
+};
 
 pub struct CandlestickChart<T, X, Y>
 where
     T: 'static,
     X: Eq + Hash + Into<SharedString> + 'static,
-    Y: Copy + PartialOrd + Num + ToPrimitive + Sealed + 'static,
+    Y: PlotValue,
 {
     data: Vec<T>,
     x: Option<Rc<dyn Fn(&T) -> X>>,
@@ -31,6 +32,7 @@ where
     close: Option<Rc<dyn Fn(&T) -> Y>>,
     tick_margin: usize,
     body_width_ratio: f32,
+    max_band_width: Pixels,
     x_axis: bool,
     grid: bool,
     bullish: Option<Hsla>,
@@ -43,7 +45,7 @@ where
 impl<T, X, Y> CandlestickChart<T, X, Y>
 where
     X: Eq + Hash + Into<SharedString> + 'static,
-    Y: Copy + PartialOrd + Num + ToPrimitive + Sealed + 'static,
+    Y: PlotValue,
 {
     #[track_caller]
     pub fn new<I>(data: I) -> Self
@@ -59,6 +61,7 @@ where
             close: None,
             tick_margin: 1,
             body_width_ratio: 0.8,
+            max_band_width: px(MAX_BAND_WIDTH),
             x_axis: true,
             grid: true,
             bullish: None,
@@ -176,6 +179,15 @@ where
         self
     }
 
+    /// Keep every candle's band at most `width` wide, so a few candles across
+    /// a wide chart stay narrow.
+    ///
+    /// Default is 30px.
+    pub fn max_band_width(mut self, width: impl Into<Pixels>) -> Self {
+        self.max_band_width = width.into();
+        self
+    }
+
     /// Show or hide the x-axis line and labels.
     ///
     /// Default is true.
@@ -220,9 +232,10 @@ where
         let x_fn = self.x.as_ref()?;
         Some(
             ScaleBand::new(
-                self.data.iter().map(|v| x_fn(v)).collect(),
-                vec![0., bounds.size.width.as_f32()],
+                self.data.iter().map(|v| x_fn(v)),
+                [0., bounds.size.width.as_f32()],
             )
+            .max_band_width(self.max_band_width.as_f32())
             .padding_inner(0.4)
             .padding_outer(0.2),
         )
@@ -234,12 +247,12 @@ where
     }
 }
 
-crate::impl_into_plot!(impl<T, X, Y> CandlestickChart<T, X, Y> where X: Eq + Hash + Into<SharedString> + 'static, Y: Copy + PartialOrd + Num + ToPrimitive + Sealed + 'static);
+crate::impl_into_plot!(impl<T, X, Y> CandlestickChart<T, X, Y> where X: Eq + Hash + Into<SharedString> + 'static, Y: PlotValue);
 
 impl<T, X, Y> Plot for CandlestickChart<T, X, Y>
 where
     X: Eq + Hash + Into<SharedString> + 'static,
-    Y: Copy + PartialOrd + Num + ToPrimitive + Sealed + 'static,
+    Y: PlotValue,
 {
     fn paint(&mut self, bounds: Bounds<Pixels>, window: &mut Window, cx: &mut App) {
         let (Some(x_fn), Some(open_fn), Some(high_fn), Some(low_fn), Some(close_fn)) = (
@@ -266,7 +279,7 @@ where
             .iter()
             .flat_map(|d| vec![high_fn(d), low_fn(d), open_fn(d), close_fn(d)])
             .collect();
-        let y = ScaleLinear::new(all_values, vec![height, 10.]);
+        let y = ScaleLinear::new(all_values, [height, 10.]);
 
         // Draw X axis
         let mut axis = PlotAxis::new().stroke(cx.omarchy().border);
@@ -279,14 +292,14 @@ where
                 &labeled_items(self.data.len(), None, self.tick_margin),
                 cx.omarchy().secondary,
             );
-            axis = axis.x(height).x_label(labels);
+            axis = axis.x_axis_at(height).x_label(labels);
         }
         axis.paint(&bounds, window, cx);
 
         // Draw grid
         if self.grid {
             Grid::new()
-                .y((0..=3).map(|i| height * i as f32 / 4.0).collect())
+                .y((0..=3).map(|i| height * i as f32 / 4.0))
                 .stroke(cx.omarchy().divider())
                 .paint(&bounds, window);
         }
@@ -379,7 +392,7 @@ where
             return None;
         }
 
-        let index = x.least_index(position.x.as_f32());
+        let index = x.nearest_index(position.x.as_f32());
         let d = self.data.get(index)?;
         let center = x.tick(&x_fn(d))? + x.band_width() / 2.;
 

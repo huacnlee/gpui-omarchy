@@ -1,6 +1,8 @@
 //! Semantic palette and its projection into gpui-base.
-use gpui_kit::base::{ColorTokens, RadiusTokens, ThemeAppearance};
+use gpui_kit::base::motion::{Easing, Transition};
+use gpui_kit::base::{ColorTokens, PlotMotion, PlotTheme, RadiusTokens, Spring, ThemeAppearance};
 use gpui_kit::{App, Global, Hsla, Pixels, SharedString, px, rems, rgb};
+use std::time::Duration;
 
 // gpui-base 0.6 stores global typography tokens in pixels. This is the nominal
 // 100% snapshot only; Omarchy layout uses rems resolved by each window.
@@ -23,6 +25,10 @@ pub struct Theme {
     pub danger: Hsla,
     pub warning: Hsla,
     pub success: Hsla,
+    /// Data-series colors in order of use. The first is the accent, so a
+    /// single-series chart carries the screen's one accent; the rest come from
+    /// the same palette's ANSI hues.
+    pub chart: [Hsla; 5],
     pub font: SharedString,
     /// Fixed-width face for keycaps and code.
     pub mono_font: SharedString,
@@ -48,6 +54,13 @@ impl Theme {
             danger: rgb(0xf7768e).into(),
             warning: rgb(0xe0af68).into(),
             success: rgb(0x9ece6a).into(),
+            chart: [
+                rgb(0x7aa2f7).into(),
+                rgb(0xbb9af7).into(),
+                rgb(0x7dcfff).into(),
+                rgb(0xe0af68).into(),
+                rgb(0x9ece6a).into(),
+            ],
             font: ".SystemUIFont".into(),
             mono_font: default_mono_font(),
         }
@@ -71,6 +84,13 @@ impl Theme {
             danger: rgb(0xaf3029).into(),
             warning: rgb(0x855b00).into(),
             success: rgb(0x526600).into(),
+            chart: [
+                rgb(0x205ea6).into(),
+                rgb(0xa02f6f).into(),
+                rgb(0x24837b).into(),
+                rgb(0x855b00).into(),
+                rgb(0x526600).into(),
+            ],
             font: ".SystemUIFont".into(),
             mono_font: default_mono_font(),
         }
@@ -154,6 +174,7 @@ impl Theme {
             xl: Pixels::ZERO,
             full: Pixels::ZERO,
         };
+        base.plot = plot_theme();
         let type_scale = &mut base.tokens.typography;
         type_scale.sans = self.font.clone();
         type_scale.mono = self.mono_font.clone();
@@ -171,6 +192,19 @@ impl Theme {
         cx.set_global(self);
         cx.refresh_windows();
     }
+}
+
+/// Chart hover timing: Omarchy's 120ms state-color duration (`Button.qml`) for
+/// the fade and the pointer glide, easing out on enter and in on exit.
+fn plot_theme() -> PlotTheme {
+    let duration = Duration::from_millis(120);
+    let curve = |x1, y1, x2, y2| Easing::cubic_bezier(x1, y1, x2, y2).expect("static curve");
+    PlotTheme::new().with_motion(
+        PlotMotion::default()
+            .with_pointer(Spring::new(duration).with_epsilon(0.1))
+            .with_enter(Transition::new(duration).easing(curve(0.16, 1., 0.3, 1.)))
+            .with_exit(Transition::new(duration).easing(curve(0.4, 0., 1., 1.))),
+    )
 }
 
 /// The system monospace face: macOS and Windows stock fonts, and on Linux the

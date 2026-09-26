@@ -2142,9 +2142,8 @@ dependencies = [
 
 [[package]]
 name = "gpui-base"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9e904ee0d351f4e85b967e26ae986d3aa195a8d9d35fcd18184a2c40989694e"
+version = "0.6.5"
+source = "git+https://github.com/longbridge/gpui-kit?branch=base-plot#cabc62bed1fc4b5a7ebea1b3d2ee8a6e6c3b0e02"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2158,9 +2157,11 @@ dependencies = [
  "gpui-pre-sum-tree",
  "html5ever",
  "instant",
+ "itertools 0.13.0",
  "lsp-types",
  "markdown",
  "markup5ever_rcdom",
+ "num-traits",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
@@ -2180,9 +2181,8 @@ dependencies = [
 
 [[package]]
 name = "gpui-kit"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42732dc20f50926278b2abf7a99d427a7741ab28bca6bfb49685f9ce3a53a1c7"
+version = "0.6.5"
+source = "git+https://github.com/longbridge/gpui-kit?branch=base-plot#cabc62bed1fc4b5a7ebea1b3d2ee8a6e6c3b0e02"
 dependencies = [
  "gpui-base",
  "gpui-kit-assets",
@@ -2193,9 +2193,8 @@ dependencies = [
 
 [[package]]
 name = "gpui-kit-assets"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "111d3d03a68454318a193f137419864ccebdc7d3dc0194b0b0b3f818a6bc3d55"
+version = "0.6.5"
+source = "git+https://github.com/longbridge/gpui-kit?branch=base-plot#cabc62bed1fc4b5a7ebea1b3d2ee8a6e6c3b0e02"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -2213,7 +2212,9 @@ dependencies = [
  "async-channel",
  "chrono",
  "gpui-kit",
+ "itertools 0.13.0",
  "notify",
+ "num-traits",
  "toml 0.8.23",
 ]
 

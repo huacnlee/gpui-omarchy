@@ -171,6 +171,22 @@ impl Theme {
         let bright =
             color(&["bright_foreground", "selection_foreground", "cursor"])?.unwrap_or(foreground);
         let secondary = mix(background, foreground, 0.75);
+        let danger = required(&["red", "color1"])?;
+        let warning = required(&["yellow", "color3"])?;
+        let success = required(&["green", "color2"])?;
+        let chart = chart_palette(
+            accent,
+            &[
+                color(&["magenta", "color5"])?,
+                color(&["cyan", "color6"])?,
+                Some(warning),
+                Some(success),
+                color(&["orange"])?,
+                color(&["blue", "color4"])?,
+                Some(danger),
+            ],
+            background,
+        );
         let black: Hsla = rgb(0x000000).into();
         let white: Hsla = rgb(0xffffff).into();
         let on_accent = if contrast(accent, black) > contrast(accent, white) {
@@ -193,13 +209,40 @@ impl Theme {
                 .unwrap_or_else(|| mix(background, accent, 0.2)),
             border: color(&["muted", "color8"])?
                 .unwrap_or_else(|| mix(background, foreground, 0.25)),
-            danger: required(&["red", "color1"])?,
-            warning: required(&["yellow", "color3"])?,
-            success: required(&["green", "color2"])?,
+            danger,
+            warning,
+            success,
+            chart,
             font: ".SystemUIFont".into(),
             mono_font: crate::theme::default_mono_font(),
         })
     }
+}
+
+/// Series colors start from the accent and take the palette's hues in order,
+/// skipping any too close to one already chosen to tell apart. A palette short
+/// of distinct hues fills the rest with accent tints over the background.
+fn chart_palette(accent: Hsla, candidates: &[Option<Hsla>], background: Hsla) -> [Hsla; 5] {
+    let distinct = |a: Hsla, b: Hsla| {
+        let (a, b): (Rgba, Rgba) = (a.into(), b.into());
+        let (r, g, bl) = (a.r - b.r, a.g - b.g, a.b - b.b);
+        (r * r + g * g + bl * bl).sqrt() > 0.2
+    };
+    let mut chosen = vec![accent];
+    for candidate in candidates.iter().flatten() {
+        if chosen.len() == 5 {
+            break;
+        }
+        if chosen.iter().all(|color| distinct(*color, *candidate)) {
+            chosen.push(*candidate);
+        }
+    }
+    let mut tint = 0.75;
+    while chosen.len() < 5 {
+        chosen.push(mix(background, accent, tint));
+        tint -= 0.2;
+    }
+    [chosen[0], chosen[1], chosen[2], chosen[3], chosen[4]]
 }
 
 fn mix(a: Hsla, b: Hsla, amount: f32) -> Hsla {
@@ -533,6 +576,27 @@ mod tests {
         let theme = Theme::from_colors_toml("Custom", source).unwrap();
         assert_eq!(theme.surface, Hsla::from(rgb(0x24283b)));
         assert_eq!(theme.selection, Hsla::from(rgb(0x292e42)));
+    }
+    #[test]
+    fn chart_series_start_at_accent_and_skip_indistinct_hues() {
+        let source = "background = '#000000'\nforeground = '#efefef'\naccent = '#8a9fbe'\nred = '#d35f5f'\ngreen = '#8a9a7b'\nyellow = '#ffc107'\nblue = '#8a9fbe'\ncyan = '#88aabb'\nmagenta = '#c1a1c1'\n";
+        let theme = Theme::from_colors_toml("Test", source).unwrap();
+        assert_eq!(theme.chart[0], theme.accent);
+        // Cyan and blue sit on the accent, so the next distinct hues follow.
+        assert_eq!(theme.chart[1], Hsla::from(rgb(0xc1a1c1)));
+        assert_eq!(theme.chart[2], theme.warning);
+        assert_eq!(theme.chart[3], theme.success);
+        assert_eq!(theme.chart[4], theme.danger);
+    }
+    #[test]
+    fn short_palettes_fill_chart_series_from_the_accent() {
+        let theme = Theme::from_colors_toml("Test", ANSI).unwrap();
+        assert_eq!(theme.chart[0], theme.accent);
+        for (index, color) in theme.chart.iter().enumerate() {
+            for other in &theme.chart[index + 1..] {
+                assert_ne!(color, other);
+            }
+        }
     }
     #[test]
     fn invalid_palettes_are_rejected_without_partial_defaults() {

@@ -6,6 +6,7 @@
 pub mod button;
 pub mod button_group;
 pub mod calendar;
+pub mod chart;
 pub mod color_picker;
 pub mod controls;
 pub mod date_picker;
@@ -20,6 +21,7 @@ pub mod list;
 pub mod menu;
 pub mod navigation;
 pub mod otp_input;
+pub mod plot;
 pub mod popover;
 pub mod resizable;
 pub mod select;
@@ -36,6 +38,9 @@ pub mod tree;
 pub use button::Button;
 pub use button_group::{button_group, tab_list};
 pub use calendar::calendar;
+pub use chart::{
+    AreaChart, BarChart, CandlestickChart, LineChart, PieChart, RadarChart, SankeyChart,
+};
 pub use color_picker::color_picker;
 pub use controls::*;
 pub use date_picker::{DatePickerState, date_picker};
@@ -56,6 +61,9 @@ pub use select::{ChoiceItem, ChoiceState, combobox, select};
 pub use sheet::{sheet, sheet_surface};
 pub use slider::slider;
 pub use surface::*;
+
+#[doc(hidden)]
+pub use gpui_kit;
 
 /// Create an application using the current desktop platform.
 pub use gpui_kit::application;

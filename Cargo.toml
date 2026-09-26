@@ -8,9 +8,11 @@ description = "A gpui-kit component library designed for the Omarchy system and 
 repository = "https://github.com/huacnlee/gpui-omarchy"
 
 [dependencies]
-gpui-kit = { version = "=0.6.6", default-features = false, features = ["assets"] }
+gpui-kit = { version = "0.6", default-features = false, features = ["assets"] }
 toml = "0.8"
 chrono = "0.4.45"
+itertools = "0.13"
+num-traits = "0.2"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 async-channel = "2"
@@ -18,7 +20,7 @@ notify = "7"
 
 [dev-dependencies]
 tempfile = "3"
-gpui-kit = { version = "=0.6.6", default-features = false, features = ["test-support"] }
+gpui-kit = { version = "0.6", default-features = false, features = ["test-support"] }
 
 [profile.dev]
 debug = "limited"
@@ -27,3 +29,10 @@ debug = "limited"
 # module is gated on debug_assertions. Enable it for the host proc-macro only.
 [profile.release.package.gpui-pre-macros]
 debug-assertions = true
+
+# Temporary: build against the gpui-kit branch that moves `plot` into gpui-base
+# (longbridge/gpui-kit, branch `base-plot`). Remove once it is released.
+[patch.crates-io]
+gpui-kit = { git = "https://github.com/longbridge/gpui-kit", branch = "base-plot" }
+gpui-base = { git = "https://github.com/longbridge/gpui-kit", branch = "base-plot" }
+gpui-kit-assets = { git = "https://github.com/longbridge/gpui-kit", branch = "base-plot" }

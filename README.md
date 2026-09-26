@@ -8,7 +8,7 @@ The library brings Omarchy’s system themes, restrained visual style and keyboa
 
 It also serves as a practical proving ground for **[gpui-base’s customization capabilities](https://gpui-kit.com/base/)**: building a complete Omarchy design system tests how freely applications can define their own visual identity and interaction patterns on top of base primitives. The project demonstrates that a shared behavioral foundation can support a fully custom design language, while exposing gaps to improve in gpui-base.
 
-The project is under development, with 47 component previews in one gallery. Form, navigation, overlay and data components are still being expanded; the framework is not yet complete.
+The project is under development, with 54 component previews in one gallery. Form, navigation, overlay and data components are still being expanded; the framework is not yet complete.
 
 ## Running the gallery
 
@@ -18,7 +18,7 @@ Install Rust and the platform-specific build dependencies required by GPUI. The 
 cargo run --example gallery
 ```
 
-The single `gallery` example groups components under Actions, Forms, Navigation, Overlays and Display. Choose a component in the sidebar to inspect and interact with it. Use Up/Down, j/k or Home/End to navigate the sidebar, and Tab to enter the controls. The top Menu reloads the system theme, previews dark or light colors, and exits the gallery.
+The single `gallery` example groups components under Actions, Forms, Navigation, Overlays, Display and Charts. Choose a component in the sidebar to inspect and interact with it. Use Up/Down, j/k or Home/End to navigate the sidebar, and Tab to enter the controls. The top Menu reloads the system theme, previews dark or light colors, and exits the gallery.
 
 Use the top-bar − / + controls to test interface zoom from 50% to 200% in 25% steps. Click the percentage to reset to 100%, or use Cmd/Ctrl + `+`, `-`, and `0`. Zoom updates the window's rem size, including list measurements, and persists while switching components and themes in the same window.
 

@@ -4,7 +4,7 @@ use gpui_kit::base::{TextView, TextViewStyle};
 use gpui_kit::{App, ElementId, SharedString, StyleRefinement, Styled, Window, rems};
 
 /// Theme mapping shared by Markdown, HTML and state-backed TextViews.
-pub fn text_view_style(window: &Window, cx: &App) -> TextViewStyle {
+pub fn text_view_style(_window: &Window, cx: &App) -> TextViewStyle {
     let t = cx.omarchy();
     TextViewStyle::from_theme(&gpui_kit::base::Theme::global(cx))
         .with_foreground(t.foreground)
@@ -18,14 +18,14 @@ pub fn text_view_style(window: &Window, cx: &App) -> TextViewStyle {
             ..Default::default()
         })
         .with_paragraph_gap(rems(0.75))
-        .with_heading_base_font_size(rems(0.75).to_pixels(window.rem_size()))
-        .with_heading_font_size(|level, base| {
-            base * match level {
-                1 => 5. / 3.,
-                2 => 4. / 3.,
-                3 => 7. / 6.,
-                _ => 1.,
-            }
+        // Headings scale from the 12px body: 20 / 16 / 14, then body size.
+        .with_heading(|level| {
+            StyleRefinement::default().text_size(rems(match level {
+                1 => 1.25,
+                2 => 1.,
+                3 => 0.875,
+                _ => 0.75,
+            }))
         })
         .with_code_block(StyleRefinement::default().p(rems(0.625)).rounded_none())
 }

@@ -1,3 +1,4 @@
+use crate::popover::popup_fade;
 use crate::popover_surface;
 use gpui_kit::base::{HoverCard, HoverCardState};
 use gpui_kit::rems;
@@ -15,15 +16,19 @@ pub fn hover_card<E: IntoElement>(
     ) -> E
     + 'static,
 ) -> HoverCard {
-    HoverCard::new(id)
+    let id = id.into();
+    HoverCard::new(id.clone())
         .trigger(trigger)
         .open_delay(Duration::from_millis(400))
         .close_delay(Duration::from_millis(200))
         .content(move |state, window, cx| {
             let body = content(state, window, cx);
+            // Fades in like the popover card; it closes at once (see `popup_fade`).
+            let opacity = popup_fade(&id, window, cx);
             popover_surface(cx)
                 .id("hover-card-surface")
                 .mt(rems(0.25))
+                .opacity(opacity)
                 .child(body)
         })
 }

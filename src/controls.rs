@@ -1,8 +1,7 @@
 //! Styled constructors retain gpui-base's controlled-state builder APIs.
 use crate::{ActiveTheme, Button, IconName, Link, icon};
 use gpui_kit::base::{
-    Checkbox, CheckboxIndicator, CheckboxState, Radio, Switch, SwitchThumb, SwitchTrack, Tab, Tabs,
-    Toggle,
+    Checkbox, CheckboxIndicator, CheckboxState, Radio, Switch, Tab, Tabs, Toggle,
 };
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::rems;
@@ -63,10 +62,8 @@ pub fn button(
         .hover(|s| s.bg(t.hover_fill()).border_color(interaction_border))
         .focus_visible(|s| s.bg(t.hover_fill()).border_color(interaction_border))
         .active(|s| s.bg(t.pressed_fill()))
-        .styles(|s| {
-            s.selected(|s| s.bg(t.selected_fill()))
-                .disabled(|s| s.opacity(0.45))
-        })
+        .selected_fill(t.selected_fill())
+        .styles(|s| s.disabled(|s| s.opacity(0.45)))
 }
 
 /// A square, icon-only button. `label` names the action for assistive tech;
@@ -80,6 +77,8 @@ pub fn icon_button(
 ) -> Button {
     button(id, "", variant, cx)
         .accessibility_label(label)
+        // `PanelActionButton.qml`: compact actions follow the cursor faster.
+        .fill_duration(crate::motion::CURSOR_COLOR)
         // Equal padding around a fixed-size glyph keeps the hit target square.
         .p(rems(0.375))
         .justify_center()
@@ -179,33 +178,7 @@ pub fn switch(
         .focus_visible(|s| s.bg(t.hover_fill()).border_color(t.focus_border()))
         .active(|s| s.bg(t.pressed_fill()))
         .styles(|s| s.disabled(|s| s.opacity(0.45)))
-        .child(
-            SwitchTrack::new(id)
-                .checked(checked)
-                .w(rems(2.625))
-                .h(rems(1.375))
-                .flex_shrink_0()
-                .p(rems(0.125))
-                .border_1()
-                .border_color(if checked {
-                    t.foreground.opacity(0.)
-                } else {
-                    t.control_border()
-                })
-                .rounded_none()
-                .bg(if checked {
-                    t.selected_fill()
-                } else {
-                    t.normal_fill()
-                })
-                .child(
-                    SwitchThumb::new(checked)
-                        .size(rems(1.))
-                        .rounded_none()
-                        .bg(if checked { t.foreground } else { t.secondary })
-                        .ml(rems(if checked { 1.25 } else { 0. })),
-                ),
-        )
+        .child(crate::switch_motion::SwitchMotion::new(id, checked))
         .child(label)
 }
 

@@ -3267,17 +3267,14 @@ impl Render for Gallery {
                     .child(
                         menu(
                             "application-menu",
-                            with_tooltip(
-                                button(
-                                    "application-menu-trigger",
-                                    "Menu",
-                                    ButtonVariant::Secondary,
-                                    cx,
-                                )
-                                .styles(|styles| styles.selected(|style| style.bg(t.border)))
-                                .child(icon(IconName::ChevronDown).size(rems(0.875))),
-                                "Appearance and application commands",
-                            ),
+                            button(
+                                "application-menu-trigger",
+                                "Menu",
+                                ButtonVariant::Secondary,
+                                cx,
+                            )
+                            .styles(|styles| styles.selected(|style| style.bg(t.border)))
+                            .child(icon(IconName::ChevronDown).size(rems(0.875))),
                             vec![
                                 MenuItem::new("System theme").checked(self.theme_mode == 0),
                                 MenuItem::new("Tokyo Night").checked(self.theme_mode == 1),

@@ -243,7 +243,7 @@ struct EdgeSubmenuHarness(Rc<Cell<usize>>);
 impl Render for EdgeSubmenuHarness {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let selected = self.0.clone();
-        div().size_full().flex().justify_end().child(
+        div().size_full().flex().items_start().justify_end().child(
             menu(
                 "actions",
                 button("trigger", "Actions", ButtonVariant::Secondary, cx)

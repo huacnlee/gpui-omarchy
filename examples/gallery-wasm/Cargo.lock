@@ -2142,9 +2142,8 @@ dependencies = [
 
 [[package]]
 name = "gpui-base"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9e904ee0d351f4e85b967e26ae986d3aa195a8d9d35fcd18184a2c40989694e"
+version = "0.6.5"
+source = "git+https://github.com/longbridge/gpui-kit?rev=f197a197888833312a0fa8109e3c01ad6fc29913#f197a197888833312a0fa8109e3c01ad6fc29913"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2180,9 +2179,8 @@ dependencies = [
 
 [[package]]
 name = "gpui-kit"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42732dc20f50926278b2abf7a99d427a7741ab28bca6bfb49685f9ce3a53a1c7"
+version = "0.6.5"
+source = "git+https://github.com/longbridge/gpui-kit?rev=f197a197888833312a0fa8109e3c01ad6fc29913#f197a197888833312a0fa8109e3c01ad6fc29913"
 dependencies = [
  "gpui-base",
  "gpui-kit-assets",
@@ -2193,9 +2191,8 @@ dependencies = [
 
 [[package]]
 name = "gpui-kit-assets"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "111d3d03a68454318a193f137419864ccebdc7d3dc0194b0b0b3f818a6bc3d55"
+version = "0.6.5"
+source = "git+https://github.com/longbridge/gpui-kit?rev=f197a197888833312a0fa8109e3c01ad6fc29913#f197a197888833312a0fa8109e3c01ad6fc29913"
 dependencies = [
  "anyhow",
  "gpui-pre",

@@ -18,13 +18,17 @@ pub fn text_view_style(window: &Window, cx: &App) -> TextViewStyle {
             ..Default::default()
         })
         .with_paragraph_gap(rems(0.75))
-        .with_heading_base_font_size(rems(0.75).to_pixels(window.rem_size()))
-        .with_heading_font_size(|level, base| {
-            base * match level {
-                1 => 5. / 3.,
-                2 => 4. / 3.,
-                3 => 7. / 6.,
-                _ => 1.,
+        .with_heading({
+            let base = rems(0.75).to_pixels(window.rem_size());
+            move |level| {
+                StyleRefinement::default().text_size(
+                    base * match level {
+                        1 => 5. / 3.,
+                        2 => 4. / 3.,
+                        3 => 7. / 6.,
+                        _ => 1.,
+                    },
+                )
             }
         })
         .with_code_block(StyleRefinement::default().p(rems(0.625)).rounded_none())

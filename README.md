@@ -49,8 +49,8 @@ Add the library to your application:
 
 ```toml
 [dependencies]
-gpui-kit = { version = "=0.6.1", default-features = false }
-gpui-omarchy = "0.1.2"
+gpui-kit = { version = "=0.7.0", default-features = false }
+gpui-omarchy = "0.1.3"
 ```
 
 Use `gpui_kit` for framework types, `gpui_kit::application()` for the desktop entry point, and `gpui_kit::base` for base state and composition APIs. GPUI Kit’s component facade is disabled so gpui-omarchy supplies the presentation. See the [complete quick start](examples/hello.rs).

@@ -255,7 +255,9 @@ impl Dot {
 impl RenderOnce for Dot {
     fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
         let border_width = px(1.);
-        let offset = self.size / 2. - border_width / 2.;
+        // Div borders are inside its bounds; center the entire square on the
+        // datum, just like the halo, without a half-border translation.
+        let offset = self.size / 2.;
 
         let dot = div()
             .absolute()
@@ -628,6 +630,47 @@ mod tests {
     use gpui_kit::{point, px};
 
     use super::*;
+
+    #[gpui_kit::test]
+    fn hovered_dot_and_halo_share_the_data_point_center(cx: &mut gpui_kit::TestAppContext) {
+        struct Marker;
+        impl gpui_kit::Render for Marker {
+            fn render(
+                &mut self,
+                _: &mut Window,
+                _: &mut gpui_kit::Context<Self>,
+            ) -> impl IntoElement {
+                div().size(px(100.)).relative().child(
+                    Dot::new(point(px(40.), px(50.)))
+                        .size(px(8.))
+                        .halo(px(12.))
+                        .fill(gpui_kit::blue())
+                        .stroke(gpui_kit::black()),
+                )
+            }
+        }
+
+        let (_, cx) = cx.add_window_view(|_, _| Marker);
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.update(|window, _| {
+            let quads = window.painted_quads();
+            let dot = quads
+                .iter()
+                .find(|quad| quad.background == gpui_kit::Background::from(gpui_kit::blue()))
+                .expect("dot is painted");
+            let halo = quads
+                .iter()
+                .find(|quad| {
+                    quad.background == gpui_kit::Background::from(gpui_kit::blue().opacity(0.2))
+                })
+                .expect("halo is painted");
+            assert_eq!(dot.bounds.center(), halo.bounds.center());
+            assert_eq!(
+                dot.bounds.center(),
+                point(px(40.), px(50.)).scale(window.scale_factor())
+            );
+        });
+    }
 
     #[test]
     fn a_value_color_colors_only_the_row_added_last() {

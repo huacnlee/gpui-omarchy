@@ -63,11 +63,12 @@ pub(crate) fn caller_id() -> ElementId {
 /// The size of the dot marking the hovered data point.
 pub(crate) const HOVER_DOT_SIZE: Pixels = px(8.);
 
-/// The ring behind the hovered dot at full focus; a [`Tooltip`] grows it out
-/// of the dot as the hover fades in.
+/// The ring behind the hovered dot at full focus, extending 2px per side;
+/// a [`Tooltip`] grows it out of the dot as the hover fades in. This compact
+/// chart-specific size keeps the halo subordinate to the data point.
 ///
 /// [`Tooltip`]: crate::plot::tooltip::Tooltip
-pub(crate) const HOVER_HALO_SIZE: Pixels = px(20.);
+pub(crate) const HOVER_HALO_SIZE: Pixels = px(12.);
 
 /// How many points the x axis of a point chart (`LineChart`, `AreaChart`) is
 /// laid out for: `point_count`, or the data's own length when that is unset or

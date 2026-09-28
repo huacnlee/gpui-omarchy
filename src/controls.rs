@@ -139,6 +139,13 @@ pub fn checkbox(
                             IconName::Minus
                         })
                         .size(rems(0.875))
+                        .when(state == CheckboxState::Checked, |mark| {
+                            // The bundled Check path spans y=6..17 in its 24px
+                            // viewBox: its painted center is 11.5, not 12.
+                            // Center the glyph itself, like MultiSelect.qml's
+                            // centered check, rather than its SVG whitespace.
+                            mark.relative().top(rems(0.875 / 48.))
+                        })
                         .text_color(t.foreground),
                     )
                 }),

@@ -2694,14 +2694,7 @@ impl Gallery {
             if alert {
                 content = content.child(
                     alert_dialog(&self.modal_focus, cx)
-                        .popup(
-                            div()
-                                .size_full()
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .child(popup),
-                        )
+                        .popup(popup)
                         .request_close(move |confirmed, window, cx| close(&confirmed, window, cx)),
                 );
             } else {

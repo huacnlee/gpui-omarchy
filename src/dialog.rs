@@ -11,9 +11,6 @@ use gpui_kit::{App, FocusHandle, FontWeight, ParentElement, SharedString, Styled
 pub fn dialog(focus: &FocusHandle, cx: &mut App) -> Dialog {
     Dialog::new(cx)
         .focus_handle(focus.clone())
-        .flex()
-        .items_center()
-        .justify_center()
         .backdrop(dialog_backdrop())
 }
 

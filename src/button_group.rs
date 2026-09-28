@@ -59,8 +59,10 @@ pub fn button_group(
         .enumerate()
         .map(|(index, item)| {
             let change = on_change.clone();
+            let pointer_cursor = cursor.clone();
             let focus = cursor.read(cx).focus.clone();
             Radio::new(index)
+                .debug_selector(move || format!("omarchy-option-{index}"))
                 .checked(selected == Some(index))
                 .disabled(item.disabled)
                 .accessibility_label(item.label.clone())
@@ -85,7 +87,7 @@ pub fn button_group(
                 })
                 .when(
                     focus.is_focused(window) && cursor.read(cx).index == Some(index),
-                    |row| row.border_color(t.accent),
+                    |row| row.border_color(t.focus_border()),
                 )
                 .when(!item.disabled, |row| {
                     row.hover(|row| row.bg(t.hover_fill()))
@@ -93,6 +95,17 @@ pub fn button_group(
                 })
                 .styles(|styles| styles.disabled(|row| row.opacity(0.45)))
                 .child(item.label.clone())
+                .when(!item.disabled, |row| {
+                    row.on_mouse_down(gpui_kit::MouseButton::Left, move |_, window, cx| {
+                        pointer_cursor.update(cx, |state, cx| {
+                            state.focus.focus(window, cx);
+                            // Preserve the pointer cursor when focus enters the group.
+                            state.was_focused = true;
+                            state.index = Some(index);
+                            cx.notify();
+                        });
+                    })
+                })
                 .on_change(move |_, _, window, cx| {
                     focus.focus(window, cx);
                     change(index, window, cx);
@@ -345,6 +358,39 @@ mod tests {
                 assert_eq!(view.read(cx).selected, index);
             });
         }
+    }
+
+    #[gpui_kit::test]
+    fn clicking_a_button_moves_the_keyboard_cursor_to_it(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (view, cx) = cx.add_window_view(|_, cx| Harness {
+            tab_list: false,
+            selected: 0,
+            before: cx.focus_handle(),
+            after: cx.focus_handle(),
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        for (index, selector) in [
+            (2, "omarchy-option-2"),
+            (0, "omarchy-option-0"),
+            (2, "omarchy-option-2"),
+            (0, "omarchy-option-0"),
+        ] {
+            let point = cx.debug_bounds(selector).unwrap().center();
+            cx.simulate_click(point, Default::default());
+            cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                assert_eq!(view.read(cx).selected, index);
+            });
+            cx.simulate_keystrokes("enter space");
+            cx.update(|_, cx| assert_eq!(view.read(cx).selected, index));
+        }
+        // Clicking the selected radio must also reset an uncommitted arrow cursor.
+        cx.simulate_keystrokes("right");
+        let point = cx.debug_bounds("omarchy-option-0").unwrap().center();
+        cx.simulate_click(point, Default::default());
+        cx.simulate_keystrokes("enter");
+        cx.update(|_, cx| assert_eq!(view.read(cx).selected, 0));
     }
 
     #[gpui_kit::test]

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Omarchy Style"
+  short_description: "Design Omarchy UI, visuals, copy, themes, and covers"
+  icon_large: "../../../assets/logo.svg"
+  brand_color: "#7AA2F7"
+  default_prompt: "Use $omarchy-style to design or review this artifact against the Omarchy community system."

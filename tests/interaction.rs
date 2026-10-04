@@ -1,3 +1,5 @@
+extern crate gpui_kit as gpui;
+
 use gpui_kit::rems;
 use gpui_kit::{
     Context, IntoElement, Modifiers, Render, TestAppContext, Window, div, point, prelude::*, px,

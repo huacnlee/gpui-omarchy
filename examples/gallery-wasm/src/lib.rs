@@ -1,3 +1,5 @@
+extern crate gpui_kit as gpui;
+
 use std::{borrow::Cow, cell::RefCell};
 use wasm_bindgen::prelude::*;
 

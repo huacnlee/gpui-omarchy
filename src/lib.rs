@@ -3,6 +3,9 @@
 //! Call [`init`] once, then use the constructors in [`controls`] and [`surface`]
 //! inside `Render`. They retain base builder APIs; Button adds disabled-state style gating.
 
+// GPUI macros expand through the canonical `gpui` crate path.
+extern crate gpui_kit as gpui;
+
 pub mod button;
 pub mod button_group;
 pub mod calendar;

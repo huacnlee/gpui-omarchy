@@ -187,6 +187,7 @@ mod tests {
             checkbox_focus: cx.focus_handle(),
         });
         let draw = |cx: &mut gpui_kit::VisualTestContext| {
+            cx.update(|window, cx| window.simulate_next_frame(cx));
             cx.update(|window, cx| window.draw(cx).clear(cx));
             LAST_FADE.with(Cell::get)
         };

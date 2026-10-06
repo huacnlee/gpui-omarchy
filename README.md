@@ -49,17 +49,9 @@ Add the library to your application:
 
 ```toml
 [dependencies]
-gpui-kit = { git = "https://github.com/longbridge/gpui-kit", branch = "main", default-features = false }
-gpui-omarchy = { git = "https://github.com/huacnlee/gpui-omarchy", branch = "use-gpui-fast" }
+gpui-kit = { version = "=0.7.0", default-features = false }
+gpui-omarchy = "0.2.0"
 ```
-
-gpui-omarchy enables `gpui-fast` by default and forwards it to GPUI Kit, selecting
-GPUI Fast for the core, native platforms, and web backend. Applications do not
-need to enable the feature again on their own gpui-kit dependency.
-
-[gpui-kit PR #3375](https://github.com/longbridge/gpui-kit/pull/3375) is merged on `main`.
-Do not publish gpui-omarchy until the feature is released and the Git dependency
-is replaced with the released version.
 
 Use `gpui_kit` for framework types, `gpui_kit::application()` for the desktop entry point, and `gpui_kit::base` for base state and composition APIs. GPUI Kit’s component facade is disabled so gpui-omarchy supplies the presentation. See the [complete quick start](examples/hello.rs).
 

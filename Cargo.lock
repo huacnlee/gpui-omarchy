@@ -2212,7 +2212,7 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.7.1"
-source = "git+https://github.com/longbridge/gpui-kit?branch=add-gpui-fast-feature#675919ad41a9846964450e31e72bf1cc7d0373a6"
+source = "git+https://github.com/longbridge/gpui-kit?branch=main#7eb5209c2138a44a8bab7aaeb504a19c8b702800"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2253,7 +2253,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.7.1"
-source = "git+https://github.com/longbridge/gpui-kit?branch=add-gpui-fast-feature#675919ad41a9846964450e31e72bf1cc7d0373a6"
+source = "git+https://github.com/longbridge/gpui-kit?branch=main#7eb5209c2138a44a8bab7aaeb504a19c8b702800"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2297,7 +2297,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.7.1"
-source = "git+https://github.com/longbridge/gpui-kit?branch=add-gpui-fast-feature#675919ad41a9846964450e31e72bf1cc7d0373a6"
+source = "git+https://github.com/longbridge/gpui-kit?branch=main#7eb5209c2138a44a8bab7aaeb504a19c8b702800"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2610,7 +2610,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.7.1"
-source = "git+https://github.com/longbridge/gpui-kit?branch=add-gpui-fast-feature#675919ad41a9846964450e31e72bf1cc7d0373a6"
+source = "git+https://github.com/longbridge/gpui-kit?branch=main#7eb5209c2138a44a8bab7aaeb504a19c8b702800"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2627,7 +2627,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.7.1"
-source = "git+https://github.com/longbridge/gpui-kit?branch=add-gpui-fast-feature#675919ad41a9846964450e31e72bf1cc7d0373a6"
+source = "git+https://github.com/longbridge/gpui-kit?branch=main#7eb5209c2138a44a8bab7aaeb504a19c8b702800"
 dependencies = [
  "anyhow",
  "gpui-fast",

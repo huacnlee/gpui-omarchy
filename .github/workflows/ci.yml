@@ -57,6 +57,9 @@ jobs:
       - name: Test components and gallery
         run: cargo test --locked --all-targets
 
+      - name: Check without default features
+        run: cargo check --locked --no-default-features --all-targets
+
       - name: Build gallery
         run: cargo build --locked --example gallery
 

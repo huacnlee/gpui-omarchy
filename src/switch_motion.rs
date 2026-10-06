@@ -115,6 +115,7 @@ mod tests {
     }
 
     fn thumb_x(cx: &mut VisualTestContext) -> f32 {
+        cx.update(|window, cx| window.simulate_next_frame(cx));
         cx.update(|window, cx| window.draw(cx).clear(cx));
         cx.debug_bounds("omarchy-switch-thumb-wifi")
             .unwrap()

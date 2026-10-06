@@ -254,6 +254,7 @@ mod tests {
     }
 
     fn knob_center(cx: &mut gpui_kit::VisualTestContext) -> f32 {
+        cx.update(|window, cx| window.simulate_next_frame(cx));
         cx.update(|window, cx| window.draw(cx).clear(cx));
         let bounds = cx.debug_bounds("omarchy-slider-thumb-end").unwrap();
         bounds.center().x.as_f32()

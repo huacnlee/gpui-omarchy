@@ -8,7 +8,7 @@ Install the build tools, then generate the website assets:
 
 ```sh
 rustup toolchain install nightly --target wasm32-unknown-unknown
-cargo install wasm-bindgen-cli --version 0.2.121 --locked
+cargo install wasm-bindgen-cli --version 0.2.127 --locked
 bash examples/gallery-wasm/scripts/build.sh --release
 ```
 

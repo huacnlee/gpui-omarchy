@@ -11,8 +11,8 @@ if [[ "${1:-}" == "--release" ]]; then
   cargo_args+=(--release)
 fi
 
-if [[ "$(wasm-bindgen --version)" != "wasm-bindgen 0.2.121" ]]; then
-  echo 'Install the matching CLI: cargo install wasm-bindgen-cli --version 0.2.121 --locked' >&2
+if [[ "$(wasm-bindgen --version)" != "wasm-bindgen 0.2.127" ]]; then
+  echo 'Install the matching CLI: cargo install wasm-bindgen-cli --version 0.2.127 --locked' >&2
   exit 1
 fi
 

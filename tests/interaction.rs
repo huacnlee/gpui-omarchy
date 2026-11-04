@@ -94,12 +94,9 @@ fn applying_theme_updates_base_tokens_and_geometry(cx: &mut TestAppContext) {
         assert_eq!(base.tokens.typography.md.size, px(12.));
         assert_eq!(base.tokens.typography.sans.as_ref(), ".SystemUIFont");
         for theme in [Theme::tokyo_night(), Theme::flexoki_light()] {
-            let style = theme
-                .input_style()
-                .resolved(&gpui_kit::base::SemanticThemeTokens {
-                    colors: theme.tokens(),
-                    ..Default::default()
-                });
+            let mut tokens = gpui_kit::base::SemanticThemeTokens::default();
+            tokens.colors = theme.tokens();
+            let style = theme.input_style().resolved(&tokens);
             assert_eq!(style.selection, theme.foreground.opacity(0.35));
             assert_eq!(style.selection.a, 0.35);
             assert_ne!(style.selection, style.background);

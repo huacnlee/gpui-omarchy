@@ -3585,16 +3585,16 @@ gpui_kit::actions!(gallery, [ZoomIn, ZoomOut, ActualSize]);
 /// Zoom follows the platform's primary modifier. `+` is bound last so the menu
 /// shows it rather than the unshifted `=` that also zooms in.
 fn bind_zoom_keys(cx: &mut App) {
-    let modifier = if cfg!(target_os = "macos") {
-        "cmd"
+    let [equal, plus, minus, zero] = if cfg!(target_os = "macos") {
+        ["cmd-=", "cmd-+", "cmd--", "cmd-0"]
     } else {
-        "ctrl"
+        ["ctrl-=", "ctrl-+", "ctrl--", "ctrl-0"]
     };
     cx.bind_keys([
-        gpui_kit::KeyBinding::new(&format!("{modifier}-="), ZoomIn, None),
-        gpui_kit::KeyBinding::new(&format!("{modifier}-+"), ZoomIn, None),
-        gpui_kit::KeyBinding::new(&format!("{modifier}--"), ZoomOut, None),
-        gpui_kit::KeyBinding::new(&format!("{modifier}-0"), ActualSize, None),
+        gpui_kit::KeyBinding::new(equal, ZoomIn, None),
+        gpui_kit::KeyBinding::new(plus, ZoomIn, None),
+        gpui_kit::KeyBinding::new(minus, ZoomOut, None),
+        gpui_kit::KeyBinding::new(zero, ActualSize, None),
     ]);
 }
 

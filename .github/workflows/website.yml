@@ -47,7 +47,7 @@ jobs:
             examples/gallery-wasm/target
           key: website-wasm-${{ runner.os }}-${{ hashFiles('examples/gallery-wasm/Cargo.lock') }}
       - name: Install wasm-bindgen
-        run: cargo install wasm-bindgen-cli --version 0.2.121 --locked
+        run: cargo install wasm-bindgen-cli --version 0.2.127 --locked
       - name: Build real gallery
         run: bash examples/gallery-wasm/scripts/build.sh --release
         working-directory: .

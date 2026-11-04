@@ -3175,10 +3175,9 @@ impl Render for Gallery {
                             let t = cx.omarchy().clone();
                             if header {
                                 return div()
-                                    .mt(rems(if index == 0 { 0. } else { 1.25 }))
-                                    .mb(rems(0.125))
+                                    .pt(rems(if index == 0 { 0.375 } else { 1.625 }))
+                                    .pb(rems(0.5))
                                     .px(rems(0.5))
-                                    .py(rems(0.375))
                                     .text_size(rems(0.625))
                                     .font_weight(FontWeight::BOLD)
                                     .text_color(t.secondary)

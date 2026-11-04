@@ -72,7 +72,7 @@ test('the homepage runs the real WebAssembly gallery', async ({page}) => {
   await expect(canvas).toBeVisible();
   await waitForGalleryPaint(page, canvas);
   const overview = await canvas.screenshot();
-  await canvas.click({position:{x:40,y:150}, delay:100});
+  await canvas.click({position:{x:40,y:174}, delay:100});
   await page.mouse.move(0,0);
   await expect.poll(async()=>!(await canvas.screenshot()).equals(overview)).toBe(true);
   await expect(gallery.locator('#loading')).toHaveCount(0);
@@ -133,7 +133,7 @@ test('Select and Combobox stay interactive and scrolling survives', async ({page
   // The WASM canvas has no DOM controls. These coordinates are for the fixed
   // 1060×760 viewport; verify navigation separately from opening the popup.
   const overview = await canvas.screenshot();
-  await canvas.click({position:{x:35,y:386},delay:100});
+  await canvas.click({position:{x:35,y:432},delay:100});
   await page.mouse.move(1000,700);
   await expect.poll(async()=>!(await canvas.screenshot()).equals(overview)).toBe(true);
   const select = await canvas.screenshot();
@@ -145,7 +145,7 @@ test('Select and Combobox stay interactive and scrolling survives', async ({page
   // Compare after closing the popup, so opening it alone cannot satisfy selection.
   await expect.poll(async()=>!(await canvas.screenshot()).equals(select)).toBe(true);
   const selected = await canvas.screenshot();
-  await canvas.click({position:{x:35,y:412},delay:100});
+  await canvas.click({position:{x:35,y:458},delay:100});
   await page.mouse.move(1000,700);
   await expect.poll(async()=>!(await canvas.screenshot()).equals(selected)).toBe(true);
   const combobox = await canvas.screenshot();

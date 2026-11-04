@@ -2234,7 +2234,7 @@ impl Gallery {
     ) -> gpui_kit::Div {
         content = content
             .child("Quantity")
-            .child(number_input(&self.number, cx))
+            .child(number_input(&self.number, cx).accessibility_label("Quantity"))
             .child("Arrow Up / Arrow Down  adjust by 1");
         content
     }
@@ -2588,11 +2588,11 @@ impl Gallery {
     ) -> gpui_kit::Div {
         content = content
             .child(format!("Volume: {}", self.slider_value.read(cx).value()))
-            .child(slider(&self.slider_value, false, window, cx))
+            .child(slider(&self.slider_value, false, window, cx).accessibility_label("Volume"))
             .child(format!("Range: {}", self.slider_range.read(cx).value()))
-            .child(slider(&self.slider_range, false, window, cx))
+            .child(slider(&self.slider_range, false, window, cx).accessibility_label("Range"))
             .child("Disabled")
-            .child(slider(&self.slider_disabled, true, window, cx))
+            .child(slider(&self.slider_disabled, true, window, cx).accessibility_label("Disabled"))
             .child("Arrow keys / h l  adjust · Home / End  bounds · Tab  next thumb");
         content
     }

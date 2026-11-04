@@ -1,6 +1,6 @@
 # gpui-omarchy
 
-Independent presentation library on gpui-base 0.7.0. No dependency on the
+Independent presentation library on gpui-base 0.9.0. No dependency on the
 gpui-component facade. Public constructors return composable base elements, retaining their interaction,
 accessibility, child composition, and styling APIs. Button uses a thin facade
 that withholds transient styles when disabled while delegating activation and
@@ -52,6 +52,8 @@ support j/k; both controls support Ctrl-j/k/n/p without consuming Combobox
 search text. Radio previews demonstrate density changes on an actual list.
 ButtonGroup and Tabs have separate setting/page semantics with shared keyboard
 navigation. Tooltip uses the base tooltip surface and GPUI hover lifecycle.
+Textarea draws the `scrollbar()` presentation through base's editor scrollbar
+hook and keeps base's fade, because the bar overlays the text.
 The focus_scope helper connects Tab traversal for forms and the gallery.
 Popover now includes internal keyboard isolation and focus recovery. Collapsible
 provides a controlled single region. Toast provides the base notification surface
@@ -79,7 +81,7 @@ folder collapse/expand are covered by an integration test.
 Native AX review found unnamed Calendar day/month/year buttons. [gpui-kit PR #2996](https://github.com/longbridge/gpui-kit/pull/2996)
 was merged on September 7, 2026. It assigns names when items are created and uses full ISO dates for day cells.
 The regression test inspects all three views and fails on the old implementation.
-The fix is included in the current gpui-base 0.7.0 dependency. Native screenshots
+The fix is included since gpui-base 0.7.0. Native screenshots
 can remain stale while AX updates; do not treat these as final visual validation.
 Gallery footer now has explicit width and cannot shrink away its wrapped rows;
 repository visibility is checked at narrow, default and wide viewport sizes.

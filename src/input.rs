@@ -1,7 +1,7 @@
 //! Native text editing, selection, clipboard and IME supplied by gpui-base.
 use crate::ActiveTheme;
 use gpui_kit::base::{
-    Input as BaseInput, InputBase, Textarea,
+    Input as BaseInput, InputBase, ScrollbarMode, Textarea,
     input::{InputState, TextareaState},
 };
 use gpui_kit::rems;
@@ -10,6 +10,7 @@ use gpui_kit::{
     MouseButton, ParentElement, RenderOnce, StatefulInteractiveElement, StyleRefinement, Styled,
     Window, div,
 };
+use std::rc::Rc;
 
 /// A native single-line editor with optional, non-editable prefix and suffix slots.
 /// The caller retains the `InputState`; affixes never become part of its value.
@@ -114,7 +115,17 @@ pub fn textarea(
     cx: &mut App,
 ) -> InputBase {
     let style = cx.omarchy().input_style();
-    state.update(cx, |state, _| state.set_editor_style(style));
+    let scrollbar_id = ("omarchy-textarea-scrollbar", state.entity_id().as_u64());
+    state.update(cx, |state, _| {
+        state.set_editor_style(style);
+        // The bar overlays the text, so it keeps base's fade instead of the
+        // always-visible track that `scrollbar` gives a list.
+        state.set_scrollbar_renderer(Some(Rc::new(move |context, window, cx| {
+            crate::list::scrollbar(scrollbar_id, context.axis(), &context, window, cx)
+                .mode(ScrollbarMode::Scrolling)
+                .into_any_element()
+        })));
+    });
     let focused = state.read(cx).focus_handle(cx).is_focused(window);
     let target = state.clone();
     frame(id, focused, cx)

@@ -1,6 +1,6 @@
 //! Semantic palette and its projection into gpui-base.
 use gpui_kit::base::motion::{Easing, Transition};
-use gpui_kit::base::{ColorTokens, PlotMotion, PlotTheme, RadiusTokens, Spring, ThemeAppearance};
+use gpui_kit::base::{ColorTokens, PlotMotion, PlotTheme, Spring, ThemeAppearance};
 use gpui_kit::{App, Global, Hsla, Pixels, SharedString, px, rems, rgb};
 use std::time::Duration;
 
@@ -133,26 +133,26 @@ impl Theme {
     }
 
     pub fn tokens(&self) -> ColorTokens {
-        ColorTokens {
-            background: self.background,
-            foreground: self.foreground,
-            surface: self.surface,
-            surface_foreground: self.foreground,
-            primary: self.accent,
-            primary_foreground: self.on_accent,
-            secondary: self.surface,
-            secondary_foreground: self.foreground,
-            muted: self.inset,
-            muted_foreground: self.secondary,
-            accent: self.selection,
-            accent_foreground: self.bright,
-            destructive: self.danger,
-            destructive_foreground: self.background,
-            border: self.border,
-            input: self.border,
-            ring: self.accent,
-            selection: self.selection,
-        }
+        let mut tokens = ColorTokens::default();
+        tokens.background = self.background;
+        tokens.foreground = self.foreground;
+        tokens.surface = self.surface;
+        tokens.surface_foreground = self.foreground;
+        tokens.primary = self.accent;
+        tokens.primary_foreground = self.on_accent;
+        tokens.secondary = self.surface;
+        tokens.secondary_foreground = self.foreground;
+        tokens.muted = self.inset;
+        tokens.muted_foreground = self.secondary;
+        tokens.accent = self.selection;
+        tokens.accent_foreground = self.bright;
+        tokens.destructive = self.danger;
+        tokens.destructive_foreground = self.background;
+        tokens.border = self.border;
+        tokens.input = self.border;
+        tokens.ring = self.accent;
+        tokens.selection = self.selection;
+        tokens
     }
 
     /// Atomically update presentation and base tokens, then redraw all windows.
@@ -166,14 +166,17 @@ impl Theme {
         let base = gpui_kit::base::Theme::global_mut(cx);
         base.appearance = self.appearance;
         base.tokens.colors = self.tokens();
-        base.tokens.radius = RadiusTokens {
-            none: Pixels::ZERO,
-            sm: Pixels::ZERO,
-            md: Pixels::ZERO,
-            lg: Pixels::ZERO,
-            xl: Pixels::ZERO,
-            full: Pixels::ZERO,
-        };
+        let radius = &mut base.tokens.radius;
+        for token in [
+            &mut radius.none,
+            &mut radius.sm,
+            &mut radius.md,
+            &mut radius.lg,
+            &mut radius.xl,
+            &mut radius.full,
+        ] {
+            *token = Pixels::ZERO;
+        }
         base.plot = plot_theme();
         let type_scale = &mut base.tokens.typography;
         type_scale.sans = self.font.clone();

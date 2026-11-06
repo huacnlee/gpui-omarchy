@@ -2234,7 +2234,7 @@ impl Gallery {
     ) -> gpui_kit::Div {
         content = content
             .child("Quantity")
-            .child(number_input(&self.number, cx))
+            .child(number_input(&self.number, cx).accessibility_label("Quantity"))
             .child("Arrow Up / Arrow Down  adjust by 1");
         content
     }
@@ -2588,11 +2588,11 @@ impl Gallery {
     ) -> gpui_kit::Div {
         content = content
             .child(format!("Volume: {}", self.slider_value.read(cx).value()))
-            .child(slider(&self.slider_value, false, window, cx))
+            .child(slider(&self.slider_value, false, window, cx).accessibility_label("Volume"))
             .child(format!("Range: {}", self.slider_range.read(cx).value()))
-            .child(slider(&self.slider_range, false, window, cx))
+            .child(slider(&self.slider_range, false, window, cx).accessibility_label("Range"))
             .child("Disabled")
-            .child(slider(&self.slider_disabled, true, window, cx))
+            .child(slider(&self.slider_disabled, true, window, cx).accessibility_label("Disabled"))
             .child("Arrow keys / h l  adjust · Home / End  bounds · Tab  next thumb");
         content
     }
@@ -3175,10 +3175,9 @@ impl Render for Gallery {
                             let t = cx.omarchy().clone();
                             if header {
                                 return div()
-                                    .mt(rems(if index == 0 { 0. } else { 1.25 }))
-                                    .mb(rems(0.125))
+                                    .pt(rems(if index == 0 { 0.375 } else { 1.625 }))
+                                    .pb(rems(0.5))
                                     .px(rems(0.5))
-                                    .py(rems(0.375))
                                     .text_size(rems(0.625))
                                     .font_weight(FontWeight::BOLD)
                                     .text_color(t.secondary)
@@ -3585,16 +3584,16 @@ gpui_kit::actions!(gallery, [ZoomIn, ZoomOut, ActualSize]);
 /// Zoom follows the platform's primary modifier. `+` is bound last so the menu
 /// shows it rather than the unshifted `=` that also zooms in.
 fn bind_zoom_keys(cx: &mut App) {
-    let modifier = if cfg!(target_os = "macos") {
-        "cmd"
+    let [equal, plus, minus, zero] = if cfg!(target_os = "macos") {
+        ["cmd-=", "cmd-+", "cmd--", "cmd-0"]
     } else {
-        "ctrl"
+        ["ctrl-=", "ctrl-+", "ctrl--", "ctrl-0"]
     };
     cx.bind_keys([
-        gpui_kit::KeyBinding::new(&format!("{modifier}-="), ZoomIn, None),
-        gpui_kit::KeyBinding::new(&format!("{modifier}-+"), ZoomIn, None),
-        gpui_kit::KeyBinding::new(&format!("{modifier}--"), ZoomOut, None),
-        gpui_kit::KeyBinding::new(&format!("{modifier}-0"), ActualSize, None),
+        gpui_kit::KeyBinding::new(equal, ZoomIn, None),
+        gpui_kit::KeyBinding::new(plus, ZoomIn, None),
+        gpui_kit::KeyBinding::new(minus, ZoomOut, None),
+        gpui_kit::KeyBinding::new(zero, ActualSize, None),
     ]);
 }
 

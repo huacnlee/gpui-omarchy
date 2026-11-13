@@ -75,7 +75,7 @@ pub fn button_group(
                 .px_3()
                 .py_1()
                 .border_1()
-                .rounded_none()
+                .rounded(crate::theme::radius(cx).md)
                 .border_color(t.foreground.opacity(0.))
                 .font_family(t.font.clone())
                 .text_size(rems(0.75))
@@ -121,6 +121,7 @@ pub fn button_group(
             .gap_1()
             .p_1()
             .border_1()
+            .rounded(crate::theme::radius(cx).md)
             .border_color(t.divider())
             .children(rows),
         cursor,

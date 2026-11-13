@@ -35,6 +35,9 @@ pub fn slider(
     cx: &mut App,
 ) -> Slider {
     let t = cx.omarchy().clone();
+    // `PanelSlider.qml` draws a pill track and a round knob; on sharp corners
+    // this crate keeps them square, as `ToggleSwitch.qml` does for switches.
+    let pill = crate::theme::radius(cx).full;
     let id = state.entity_id();
     let target_percentage = state.read(cx).percentage();
     let range = state.read(cx).value().is_range();
@@ -87,6 +90,7 @@ pub fn slider(
                 .top(rems(0.75))
                 .w_full()
                 .h(rems(0.25))
+                .rounded(pill)
                 .bg(t.border)
                 .child(
                     div()
@@ -94,6 +98,7 @@ pub fn slider(
                         .h_full()
                         .left(relative(percentage.start))
                         .right(relative(1. - percentage.end))
+                        .rounded(pill)
                         .bg(t.accent),
                 ),
         );
@@ -154,6 +159,7 @@ pub fn slider(
                 .size(size)
                 .debug_selector(move || format!("omarchy-slider-thumb-{edge}"))
                 .border_2()
+                .rounded(pill)
                 .border_color(t.accent)
                 .bg(t.background)
                 .when(!disabled, |thumb| {

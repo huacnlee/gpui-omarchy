@@ -1,4 +1,5 @@
 //! Styled constructors retain gpui-base's controlled-state builder APIs.
+use crate::theme::radius;
 use crate::{ActiveTheme, Button, IconName, Link, icon};
 use gpui_kit::base::{
     Checkbox, CheckboxIndicator, CheckboxState, Radio, Switch, Tab, Tabs, Toggle,
@@ -46,7 +47,7 @@ pub fn button(
         .px(rems(0.625))
         .gap(rems(0.5))
         .border_1()
-        .rounded_none()
+        .rounded(radius(cx).md)
         .border_color(if variant == ButtonVariant::Primary {
             t.accent
         } else if variant == ButtonVariant::Outline {
@@ -104,6 +105,7 @@ pub fn checkbox(
         .min_h(rems(1.75))
         .px(rems(0.25))
         .border_1()
+        .rounded(radius(cx).md)
         .border_color(t.foreground.opacity(0.))
         .text_color(t.foreground)
         .font_family(t.font.clone())
@@ -116,7 +118,7 @@ pub fn checkbox(
                 .flex()
                 .items_center()
                 .justify_center()
-                .rounded_none()
+                .rounded(radius(cx).sm)
                 .border_1()
                 .border_color(t.control_border())
                 .bg(t.normal_fill())
@@ -177,6 +179,7 @@ pub fn switch(
         .py(rems(0.3125))
         .px(rems(0.3125))
         .border_1()
+        .rounded(radius(cx).md)
         .border_color(t.foreground.opacity(0.))
         .text_color(t.foreground)
         .font_family(t.font.clone())
@@ -208,6 +211,7 @@ pub fn radio(
         .min_h(rems(1.75))
         .px(rems(0.25))
         .border_1()
+        .rounded(radius(cx).md)
         .border_color(t.foreground.opacity(0.))
         .text_color(t.foreground)
         .font_family(t.font.clone())
@@ -216,14 +220,19 @@ pub fn radio(
             div()
                 .size(rems(1.))
                 .flex_shrink_0()
-                .rounded_none()
+                .rounded(radius(cx).full)
                 .border_1()
                 .border_color(t.control_border())
                 .flex()
                 .items_center()
                 .justify_center()
                 .when(checked, |s| {
-                    s.child(div().size(rems(0.5)).rounded_none().bg(t.foreground))
+                    s.child(
+                        div()
+                            .size(rems(0.5))
+                            .rounded(radius(cx).full)
+                            .bg(t.foreground),
+                    )
                 }),
         )
         .child(label)
@@ -252,7 +261,7 @@ pub fn toggle(
         .py(rems(0.375))
         .px(rems(0.625))
         .border_1()
-        .rounded_none()
+        .rounded(radius(cx).md)
         .border_color(t.border)
         .text_color(t.foreground)
         .font_family(t.font.clone())
@@ -303,6 +312,7 @@ pub fn link(
         .text_color(t.accent)
         .underline()
         .border_1()
+        .rounded(radius(cx).md)
         .border_color(t.foreground.opacity(0.))
         .px(rems(0.25))
         .py(rems(0.375))
@@ -311,7 +321,7 @@ pub fn link(
         .styles(|s| s.disabled(|s| s.opacity(0.45)))
 }
 
-/// A square segmented strip with gpui-base Tab semantics.
+/// A segmented strip with gpui-base Tab semantics.
 pub fn tabs(id: impl Into<ElementId>, cx: &App) -> Tabs {
     let t = cx.omarchy();
     Tabs::new(id)
@@ -320,7 +330,7 @@ pub fn tabs(id: impl Into<ElementId>, cx: &App) -> Tabs {
         .gap_1()
         .p_1()
         .border_1()
-        .rounded_none()
+        .rounded(radius(cx).md)
         .border_color(t.divider())
         .bg(t.normal_fill())
 }
@@ -344,7 +354,7 @@ pub fn tab(
         .items_center()
         .gap_1()
         .border_1()
-        .rounded_none()
+        .rounded(radius(cx).md)
         .border_color(t.foreground.opacity(0.))
         .font_family(t.font.clone())
         .font_weight(FontWeight::NORMAL)

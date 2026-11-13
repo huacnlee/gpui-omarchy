@@ -37,6 +37,7 @@ pub fn color_picker(
             div()
                 .size(rems(1.))
                 .border_1()
+                .rounded(crate::theme::radius(cx).sm)
                 .border_color(t.border)
                 .bg(color.unwrap_or(t.background)),
         )

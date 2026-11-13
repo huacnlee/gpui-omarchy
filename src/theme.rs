@@ -163,20 +163,11 @@ impl Theme {
     }
 
     pub(crate) fn apply_palette(self, cx: &mut App) {
+        let corners = crate::corners::current(cx);
         let base = gpui_kit::base::Theme::global_mut(cx);
         base.appearance = self.appearance;
         base.tokens.colors = self.tokens();
-        let radius = &mut base.tokens.radius;
-        for token in [
-            &mut radius.none,
-            &mut radius.sm,
-            &mut radius.md,
-            &mut radius.lg,
-            &mut radius.xl,
-            &mut radius.full,
-        ] {
-            *token = Pixels::ZERO;
-        }
+        crate::corners::project(corners, &mut base.tokens.radius);
         base.plot = plot_theme();
         let type_scale = &mut base.tokens.typography;
         type_scale.sans = self.font.clone();
@@ -244,6 +235,13 @@ fn fontconfig_monospace() -> Option<SharedString> {
 #[cfg(not(all(unix, not(target_os = "macos"), not(target_family = "wasm"))))]
 fn fontconfig_monospace() -> Option<SharedString> {
     None
+}
+
+/// Corner radii by role, following the desktop's window rounding: `md` for
+/// controls and surfaces, `sm` for small marks inside them, and `full` for
+/// shapes that become pills when windows are rounded.
+pub(crate) fn radius(cx: &App) -> gpui_kit::base::RadiusTokens {
+    gpui_kit::base::Theme::global(cx).tokens.radius
 }
 
 pub trait ActiveTheme {

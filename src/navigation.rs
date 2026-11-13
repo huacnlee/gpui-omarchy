@@ -31,6 +31,7 @@ pub fn accordion_trigger(
         .h(rems(2.))
         .px(rems(0.5))
         .border_2()
+        .rounded(crate::theme::radius(cx).md)
         .border_color(t.background)
         .text_color(t.foreground)
         .font_family(t.font.clone())

@@ -12,6 +12,7 @@ pub mod calendar;
 pub mod chart;
 pub mod color_picker;
 pub mod controls;
+mod corners;
 pub mod date_picker;
 pub mod dialog;
 pub mod dock;
@@ -80,12 +81,14 @@ pub use tooltip::{tooltip, with_tooltip};
 pub use tree::tree;
 
 /// Initialize base behavior and the current Omarchy theme (Tokyo Night when unavailable).
+/// Corners follow Hyprland's window rounding, and stay square without Hyprland.
 pub fn init(cx: &mut gpui_kit::App) {
     gpui_kit::base::init(cx);
     focus::init(cx);
     button_group::init(cx);
     popover::init(cx);
     date_picker::init(cx);
+    corners::follow_hyprland(cx);
     #[cfg(not(target_family = "wasm"))]
     Theme::follow_system(cx);
     #[cfg(target_family = "wasm")]

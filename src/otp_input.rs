@@ -74,7 +74,7 @@ impl RenderOnce for OtpInput {
                     .items_center()
                     .justify_center()
                     .border_1()
-                    .rounded_none()
+                    .rounded(crate::theme::radius(cx).md)
                     .border_color(if current {
                         t.accent
                     } else {

@@ -31,7 +31,11 @@ pub fn text_view_style(window: &Window, cx: &App) -> TextViewStyle {
                 )
             }
         })
-        .with_code_block(StyleRefinement::default().p(rems(0.625)).rounded_none())
+        .with_code_block(
+            StyleRefinement::default()
+                .p(rems(0.625))
+                .rounded(crate::theme::radius(cx).md),
+        )
 }
 
 pub fn markdown(

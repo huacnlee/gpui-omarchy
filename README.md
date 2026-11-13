@@ -41,6 +41,8 @@ Theme locations and the theme-name file follow the [Omarchy theme-set script](ht
 
 Native applications follow the system theme after `init`: filesystem events detect palette edits and theme symlink replacements, and all windows update only when the theme changes. Applying an explicit theme with `Theme::apply(cx)` stops following; `Theme::follow_system(cx)` resumes it. `Theme::system_or_default()` remains a one-time snapshot. `Theme::follow_system(cx)` does nothing in browsers; initialization still supplies the default palette. `shell.toml` size and state overrides are not yet implemented. Flexoki Light is available for previewing light colors; the gallery follows the system theme by default.
 
+Corners follow Hyprland's window rounding (`decoration:rounding`), as the Omarchy shell's do: `init` reads it from Hyprland's socket and again after each config reload, such as `omarchy hyprland corners rounded`. Controls and surfaces take the full radius, small marks half of it, and switches, radios and sliders become pills. Without Hyprland, and on Omarchy's default, corners stay square. The radius belongs to the desktop rather than the palette, so it is kept when an explicit theme is applied. Application elements can use the same values from gpui-base's radius tokens, `gpui_kit::base::Theme::global(cx).tokens.radius`: `md` for controls and surfaces, `sm` for small marks, `full` for pills.
+
 ## Usage
 
 Read the [single-page Guides](website/src/pages/guides.md) for application setup, state, themes, forms, navigation, overlays and data views, with API details alongside each task.
@@ -86,14 +88,14 @@ Wrap a window or form in `focus_scope("app")` to enable Tab and Shift+Tab traver
 
 `sheet(&focus, cx)` returns a base Sheet. Compose its right-side panel with `.surface(sheet_surface(cx).child(...))`. Focus a stable handle when opening and restore trigger focus in the close callback. Base handles focus trapping, Escape and backdrop dismissal.
 
-`popover` returns a base Popover with square styling and keyboard isolation inside its content. Escape dismisses it and restores focus. `collapsible(open, cx)` returns a base Collapsible: regular children remain visible, while its content appears only when expanded.
+`popover` returns a base Popover with keyboard isolation inside its content. Escape dismisses it and restores focus. `collapsible(open, cx)` returns a base Collapsible: regular children remain visible, while its content appears only when expanded.
 
 `toast(id, cx)` returns a composable base Toast surface. Applications control its lifecycle, optionally using base ToastManager. The gallery displays notifications at the bottom right with Undo and Retry actions. Saved notifications expire after six seconds, with the timer paused during hover or focus; errors remain until handled manually.
 
 `alert(message, status, cx)` renders an inline feedback banner with a status icon and themed styling for persistent conditions, unlike `alert_dialog`, which presents an explicit-decision modal.
 
 
-`avatar(initials, cx)` returns a square base Avatar. Set its image slot with `.image(avatar_image(source))`. The application decides whether to fall back to initials when image loading fails.
+`avatar(initials, cx)` returns a base Avatar. Set its image slot with `.image(avatar_image(source))`. The application decides whether to fall back to initials when image loading fails.
 
 `calendar(id, &state, cx)` uses base CalendarState, with month/year navigation, single-date or range selection and disabled-date matchers. `separator` and `vertical_separator` provide horizontal and vertical dividers.
 

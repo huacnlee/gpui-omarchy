@@ -212,7 +212,7 @@ Theme::flexoki_light().apply(cx);
 Theme::follow_system(cx);
 ```
 
-`apply(self, cx: &mut App)` consumes the palette, stops the system watcher, updates both Omarchy and base tokens, and refreshes all windows. It also installs square radius tokens and the library's typography scale. Change a cloned palette, then apply the whole theme, so the two token sets stay in sync.
+`apply(self, cx: &mut App)` consumes the palette, stops the system watcher, updates both Omarchy and base tokens, and refreshes all windows. It also installs the library's typography scale, and radius tokens for the desktop's current corners. Change a cloned palette, then apply the whole theme, so the two token sets stay in sync.
 
 ```rust
 let mut theme = cx.omarchy().clone();
@@ -234,6 +234,8 @@ Import `ActiveTheme` to use `omarchy(&self) -> &Theme` on `App` and through cont
 | `Theme::from_colors_toml(name: &str, contents: &str) -> Result<Theme, ThemeLoadError>` | Parse palette text already loaded by your application. |
 
 The parser accepts ANSI `color0..15` and semantic Omarchy colors. Required keys are `background`, `foreground`, `accent`, and the status colors `red`/`color1`, `yellow`/`color3`, `green`/`color2`. Optional surfaces derive from that same palette. Color strings use `#RRGGBB`. `mode`, when provided, must be `dark` or `light`; otherwise appearance is inferred from background and foreground luminance. Explicit loading returns `ThemeLoadError` on malformed or incomplete palettes; it does not silently apply a partial theme. The error implements `Debug`, `Display` and `std::error::Error`, with a private message accessible through `to_string()`.
+
+Corners follow Hyprland's `decoration:rounding` on their own, from `init` and after every Hyprland config reload, and stay square without Hyprland. They are not part of the palette, so applying a theme keeps them. Read them from `gpui_kit::base::Theme::global(cx).tokens.radius` to round your own elements alike: `md` for controls and surfaces, `sm` for small marks, `full` for pills (square when the desktop is).
 
 `shell.toml` size and state overrides are not implemented. The library's default font is `.SystemUIFont`; a browser application needs its own available fonts and bootstrap, as in the WASM gallery.
 
@@ -487,7 +489,7 @@ tab_list(
 
 Each group has one Tab stop. Left/Right or h/l moves the keyboard cursor; Enter or Space commits. Moving the cursor alone does not switch the selected value. Disabled choices are skipped, and activating the current selection does not emit a change.
 
-Tabs use a square segmented strip. Set `show_shortcuts` to `true` to render automatic 1-based number hints; bind the corresponding shortcuts in your application. `button_group` uses equal-width segments filling its container for form choices such as Limit / Market.
+Tabs use a segmented strip. Set `show_shortcuts` to `true` to render automatic 1-based number hints; bind the corresponding shortcuts in your application. `button_group` uses equal-width segments filling its container for form choices such as Limit / Market.
 
 For custom compositions, use `tabs(id, cx) -> gpui_kit::base::Tabs` and `tab(id, label, selected: bool, cx) -> gpui_kit::base::Tab`. Both take `&App`. You own selected state, callbacks and composition; the low-level pair does not add `tab_list`'s option-group cursor handling.
 
@@ -637,7 +639,7 @@ popover(
 
 `popover<E>(id, trigger, content) -> gpui_kit::base::Popover` requires `E: IntoElement`, the same selectable trigger bounds as `menu`, and a content builder `FnOnce(&mut gpui_kit::base::PopoverState, &mut Window, &mut Context<gpui_kit::base::PopoverState>) -> E + 'static`.
 
-The content builder runs in the popup state's context, not your parent view's context. Move entity handles or a parent listener into it when content needs to update your view. The constructor wraps content in `popover_surface(cx) -> Div`, a square, 17.5rem-wide themed surface; use that helper directly when composing another popup. Popover content has its own keyboard context so editing does not activate the trigger. Escape dismisses and restores focus.
+The content builder runs in the popup state's context, not your parent view's context. Move entity handles or a parent listener into it when content needs to update your view. The constructor wraps content in `popover_surface(cx) -> Div`, a 17.5rem-wide themed surface; use that helper directly when composing another popup. Popover content has its own keyboard context so editing does not activate the trigger. Escape dismisses and restores focus.
 
 ### Add supplementary help
 
@@ -687,7 +689,7 @@ The footer dispatches base confirm and cancel actions. Base owns the focus trap,
 | Constructor | What it supplies |
 | --- | --- |
 | `dialog_backdrop() -> gpui_kit::base::DialogBackdrop` | Full-size black scrim at 60% opacity; useful when composing a custom host. |
-| `dialog_popup(cx: &App) -> gpui_kit::base::DialogPopup` | Square content surface, 26.25rem wide and capped at its available width. |
+| `dialog_popup(cx: &App) -> gpui_kit::base::DialogPopup` | Content surface, 26.25rem wide and capped at its available width. |
 | `dialog_title(title, cx: &App) -> gpui_kit::base::DialogTitle` | Emphasized title slot. |
 | `dialog_description(text, cx: &App) -> gpui_kit::base::DialogDescription` | Secondary descriptive text slot. |
 | `dialog_button(id, label, ButtonVariant, cx: &App) -> Button` | Outlined footer action using the requested semantic variant. |
@@ -731,7 +733,7 @@ panel("Import", cx)
 | `empty_state(title, description, cx)` | `Div`: explain what belongs in the empty region; add a relevant action as a child. |
 | `progress(id, value: f32, cx)` | `gpui_kit::base::Progress`: determinate percentage, clamped to `0..=100`; NaN and infinities become zero. |
 | `toast(id, cx)` | `gpui_kit::base::Toast`: notification surface with room for content and actions. |
-| `avatar(initials, cx)` | `gpui_kit::base::Avatar`: square identity marker with an initials fallback. |
+| `avatar(initials, cx)` | `gpui_kit::base::Avatar`: identity marker with an initials fallback. |
 
 `Status` is `Neutral` (the default), `Success`, `Warning` or `Error`; these map to secondary, success, warning and danger colors. Like `ButtonVariant`, it supports `Clone`, `Copy`, `Debug`, `Default`, `PartialEq` and `Eq`. Unlike `alert_dialog`, `alert` stays in the layout for conditions the reader can act on without leaving the view.
 

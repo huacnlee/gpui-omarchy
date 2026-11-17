@@ -15,7 +15,7 @@ concurrency:
 jobs:
   publish:
     name: Validate and publish
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 45
     env:
       CARGO_TERM_COLOR: always

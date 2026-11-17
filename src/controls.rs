@@ -360,6 +360,7 @@ pub fn tab(
         .font_weight(FontWeight::NORMAL)
         .text_color(t.secondary)
         .active(|s| s.bg(t.pressed_fill()))
+        .focus_visible(|s| s.border_color(t.focus_border()))
         .styles(|s| {
             s.selected(|s| {
                 s.bg(t.selected_fill())

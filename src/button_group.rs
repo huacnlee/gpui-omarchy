@@ -140,11 +140,11 @@ pub fn tab_list(
     selected: Option<usize>,
     show_shortcuts: bool,
     on_change: impl Fn(usize, &mut Window, &mut App) + 'static,
-    window: &mut Window,
+    _window: &mut Window,
     cx: &mut App,
 ) -> Tabs {
-    let id = id.into();
-    let cursor = cursor(&id, &items, selected, window, cx);
+    // gpui-kit's tab list owns keyboard focus: one tab stop, arrows and
+    // Home/End move focus between enabled tabs, Enter/Space activate.
     let on_change: Change = Rc::new(move |index, window, cx| {
         if selected != Some(index) {
             on_change(index, window, cx);
@@ -156,7 +156,6 @@ pub fn tab_list(
         .enumerate()
         .map(|(index, item)| {
             let change = on_change.clone();
-            let focus = cursor.read(cx).focus.clone();
             crate::tab(index, item.label.clone(), selected == Some(index), cx)
                 .debug_selector(move || format!("omarchy-tab-{index}"))
                 .disabled(item.disabled)
@@ -169,27 +168,11 @@ pub fn tab_list(
                             .child((index + 1).to_string()),
                     )
                 })
-                .on_click({
-                    let cursor = cursor.clone();
-                    move |_, window, cx| {
-                        cursor.update(cx, |state, cx| {
-                            state.index = Some(index);
-                            cx.notify();
-                        });
-                        focus.focus(window, cx);
-                        change(index, window, cx);
-                    }
-                })
+                .on_click(move |_, window, cx| change(index, window, cx))
                 .into_any_element()
         })
         .collect::<Vec<_>>();
-    navigate(
-        crate::tabs(id, cx).children(rows),
-        cursor,
-        items,
-        on_change,
-        cx,
-    )
+    crate::tabs(id, cx).children(rows)
 }
 
 fn cursor(
@@ -394,6 +377,14 @@ mod tests {
         cx.update(|_, cx| assert_eq!(view.read(cx).selected, 0));
     }
 
+    /// A full key press: gpui-kit tabs activate on key release.
+    fn press(cx: &mut gpui_kit::VisualTestContext, key: &'static str) {
+        cx.simulate_keystrokes(key);
+        cx.simulate_event(gpui_kit::KeyUpEvent {
+            keystroke: gpui_kit::Keystroke::parse(key).unwrap(),
+        });
+    }
+
     #[gpui_kit::test]
     fn groups_have_one_tab_stop_and_skip_disabled_choices(cx: &mut TestAppContext) {
         cx.update(crate::init);
@@ -420,7 +411,7 @@ mod tests {
                     "arrows move the cursor without committing"
                 )
             });
-            cx.simulate_keystrokes("enter");
+            press(cx, "enter");
             cx.update(|window, cx| {
                 window.draw(cx).clear(cx);
                 assert_eq!(view.read(cx).selected, 2, "disabled option is skipped");
@@ -436,7 +427,8 @@ mod tests {
             cx.update(|window, cx| {
                 window.draw(cx).clear(cx);
             });
-            cx.simulate_keystrokes("left space");
+            cx.simulate_keystrokes("left");
+            press(cx, "space");
             cx.update(|_, cx| assert_eq!(view.read(cx).selected, 0));
         }
     }

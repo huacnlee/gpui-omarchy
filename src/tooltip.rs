@@ -14,7 +14,7 @@ pub fn tooltip(text: impl Into<SharedString>, cx: &App) -> gpui_kit::base::Toolt
         .px(rems(0.625))
         .py(rems(0.375))
         .border_1()
-        .rounded_none()
+        .rounded(crate::theme::radius(cx).md)
         .border_color(t.control_border())
         .bg(t.background)
         .text_color(t.foreground)

@@ -2633,6 +2633,7 @@ dependencies = [
  "itertools 0.13.0",
  "notify 7.0.0",
  "num-traits",
+ "serde_json",
  "tempfile",
  "toml 0.8.23",
 ]

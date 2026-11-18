@@ -65,7 +65,7 @@ pub fn popover_surface(cx: &App) -> Div {
         .max_w(gpui_kit::relative(1.))
         .p(rems(0.875))
         .border_1()
-        .rounded_none()
+        .rounded(crate::theme::radius(cx).md)
         .border_color(t.border)
         .bg(t.background)
         .text_color(t.foreground)

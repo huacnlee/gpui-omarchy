@@ -8,12 +8,13 @@ use gpui_kit::{App, ElementId, Entity, Role, prelude::*};
 /// Observe the supplied state or subscribe to base CalendarEvent::Selected.
 pub fn calendar(id: impl Into<ElementId>, state: &Entity<CalendarState>, cx: &App) -> Calendar {
     let t = cx.omarchy().clone();
+    let radius = crate::theme::radius(cx);
     Calendar::new(id, state)
         .w(rems(15.5))
         .p(rems(0.75))
         .gap(rems(0.5))
         .border_1()
-        .rounded_none()
+        .rounded(radius.md)
         .border_color(t.border)
         .bg(t.background)
         .font_family(t.font.clone())
@@ -52,7 +53,7 @@ pub fn calendar(id: impl Into<ElementId>, state: &Entity<CalendarState>, cx: &Ap
                 .h(rems(1.75))
                 .px(rems(0.25))
                 .border_1()
-                .rounded_none()
+                .rounded(radius.md)
                 .border_color(if state.is_today() {
                     t.accent
                 } else {

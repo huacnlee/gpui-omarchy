@@ -6,6 +6,7 @@ use gpui_kit::{App, Entity, div, prelude::*};
 /// Virtualized, keyboard-navigable tree with application-owned base state.
 pub fn tree(state: &Entity<TreeState>, cx: &App) -> Tree {
     let t = cx.omarchy().clone();
+    let radius = crate::theme::radius(cx);
     Tree::new(state)
         .h(rems(17.5))
         .w_full()
@@ -23,6 +24,7 @@ pub fn tree(state: &Entity<TreeState>, cx: &App) -> Tree {
                 .font_family(t.font.clone())
                 .text_size(rems(0.75))
                 .text_color(t.foreground)
+                .rounded(radius.md)
                 .bg(if state.is_selected() {
                     t.selected_fill()
                 } else {

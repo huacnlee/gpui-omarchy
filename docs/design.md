@@ -15,10 +15,12 @@ Older `.config/omarchy/current` installs are supported when the state directory 
 Support ANSI and semantic color files. Any read or parse failure falls back
 atomically to Tokyo Night; a warm light theme reverses the full
 surface/text hierarchy. Components use .SystemUIFont, content-sized actions,
-role-specific geometry, square defaults and restrained foreground-tinted states.
+role-specific geometry, the desktop's corners and restrained foreground-tinted states.
 Typography/spacing scaling and shell.toml overrides remain to be implemented.
-Square corners are the recommended default; consumers may deliberately override
-with slight rounding through the base styling API.
+Corners follow Hyprland's `decoration:rounding`, like the shell's
+`Style.cornerRadius`: controls and surfaces take it whole, small marks half, and
+switches, radios and sliders become pills. Omarchy's default and any desktop
+without Hyprland keep them square.
 Focus uses a visible border; persistent selection uses a fill and marker.
 
 Delivery scope: actions (button, toggle, link), forms (checkbox, switch, radio,

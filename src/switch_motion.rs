@@ -67,6 +67,8 @@ impl RenderOnce for SwitchMotion {
             window,
             cx,
         );
+        // `ToggleSwitch.qml`: a pill when windows are rounded, square otherwise.
+        let pill = crate::theme::radius(cx).full;
         let id = self.id;
         SwitchTrack::new(id.clone())
             .checked(checked)
@@ -76,12 +78,12 @@ impl RenderOnce for SwitchMotion {
             .p(rems(0.125))
             .border_1()
             .border_color(track_border)
-            .rounded_none()
+            .rounded(pill)
             .bg(track_bg)
             .child(
                 SwitchThumb::new(checked)
                     .size(rems(1.))
-                    .rounded_none()
+                    .rounded(pill)
                     .bg(thumb_bg)
                     .ml(rems(KNOB_TRAVEL * travel))
                     .child(

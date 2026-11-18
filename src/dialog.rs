@@ -42,7 +42,7 @@ pub fn dialog_popup(cx: &App) -> DialogPopup {
         .p(rems(1.125))
         .border_1()
         .border_color(t.border)
-        .rounded_none()
+        .rounded(crate::theme::radius(cx).md)
         .bg(t.background)
         .text_color(t.foreground)
         .font_family(t.font.clone())

@@ -337,6 +337,7 @@ fn presentation(
             .max_w(gpui_kit::relative(1.))
             .p(rems(0.375))
             .border_1()
+            .rounded(crate::theme::radius(cx).md)
             .border_color(t.control_border())
             .bg(t.background)
             .text_color(t.foreground)

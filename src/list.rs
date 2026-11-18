@@ -36,6 +36,7 @@ pub fn scrollbar<H: gpui_kit::base::ScrollbarHandle + Clone>(
     cx: &App,
 ) -> gpui_kit::base::Scrollbar {
     let t = cx.omarchy();
+    let pill = crate::theme::radius(cx).full;
     gpui_kit::base::Scrollbar::new(handle)
         .id(id)
         .axis(axis)
@@ -51,7 +52,7 @@ pub fn scrollbar<H: gpui_kit::base::ScrollbarHandle + Clone>(
                     thumb
                         .width(rems(0.375).to_pixels(window.rem_size()))
                         .inset(rems(0.0625).to_pixels(window.rem_size()))
-                        .radius(Pixels::ZERO)
+                        .radius(pill)
                         .bg(t.foreground.opacity(0.35))
                 })
                 .thumb_hover(|thumb| thumb.bg(t.foreground.opacity(0.55)))

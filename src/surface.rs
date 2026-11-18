@@ -16,6 +16,7 @@ pub fn panel(title: impl Into<SharedString>, cx: &App) -> Div {
         .gap(rems(0.875))
         .p(rems(1.125))
         .border_1()
+        .rounded(crate::theme::radius(cx).md)
         .border_color(t.border)
         .bg(t.background)
         .font_family(t.font.clone())
@@ -59,6 +60,7 @@ pub fn keycap(key: impl Into<SharedString>, cx: &App) -> Div {
         .px(rems(0.25))
         .py(rems(0.125))
         .border_1()
+        .rounded(crate::theme::radius(cx).sm)
         .border_color(t.border)
         .bg(t.inset)
         .font_family(font)
@@ -197,6 +199,7 @@ pub fn alert(message: impl Into<SharedString>, status: Status, cx: &App) -> Div 
         .gap(rems(0.625))
         .p(rems(0.625))
         .border_1()
+        .rounded(crate::theme::radius(cx).md)
         .border_color(color.opacity(0.35))
         .bg(color.opacity(0.06))
         .text_color(color)
@@ -226,6 +229,7 @@ pub fn badge(label: impl Into<SharedString>, status: Status, cx: &App) -> Div {
         .px(rems(0.375))
         .py(rems(0.125))
         .border_1()
+        .rounded(crate::theme::radius(cx).sm)
         .border_color(color)
         .text_color(color)
         .font_family(t.font.clone())
@@ -288,7 +292,7 @@ pub fn toast(id: impl Into<gpui_kit::ElementId>, cx: &App) -> gpui_kit::base::To
         .p(rems(0.875))
         .w_full()
         .border_1()
-        .rounded_none()
+        .rounded(crate::theme::radius(cx).md)
         .border_color(t.border)
         .bg(t.background)
         .text_color(t.foreground)
@@ -296,7 +300,7 @@ pub fn toast(id: impl Into<gpui_kit::ElementId>, cx: &App) -> gpui_kit::base::To
         .text_size(rems(0.75))
 }
 
-/// A square identity marker. Supply initials or an icon in the fallback slot;
+/// An identity marker, square unless windows are rounded. Supply initials or an icon in the fallback slot;
 /// callers can replace it with `avatar_image` through the base image builder.
 pub fn avatar(initials: impl Into<SharedString>, cx: &App) -> gpui_kit::base::Avatar {
     let t = cx.omarchy();
@@ -304,7 +308,7 @@ pub fn avatar(initials: impl Into<SharedString>, cx: &App) -> gpui_kit::base::Av
         .size(rems(2.))
         .flex_shrink_0()
         .overflow_hidden()
-        .rounded_none()
+        .rounded(crate::theme::radius(cx).md)
         .border_1()
         .border_color(t.control_border())
         .bg(t.hover_fill())

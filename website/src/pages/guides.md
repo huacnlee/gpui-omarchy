@@ -17,7 +17,7 @@ Add the library to a Rust 2024 application:
 ```toml
 [dependencies]
 gpui-kit = { version = "=0.7.0", default-features = false }
-gpui-omarchy = "0.2.0"
+gpui-omarchy = "0.3.0"
 ```
 
 Use `gpui_kit` directly for framework types and `gpui_kit::application()` for the desktop entry point. `gpui_kit::base` provides the underlying state and composition APIs. Disabling default features leaves the GPUI Kit component facade out, so gpui-omarchy supplies the Omarchy presentation. Call `gpui_omarchy::init(cx)` to initialize base behavior and the Omarchy theme.
